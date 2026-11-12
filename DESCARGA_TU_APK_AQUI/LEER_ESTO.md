@@ -1,15 +1,39 @@
-# 📲 ¡Descarga tu APK desde aquí!
+# 🚀 Fami v1.0.0 — Finanzas Personales & Familiares Multi-País
 
-El sistema bloquea la visualización y descarga directa de archivos `.apk` y `.zip` por seguridad.  
-Para solucionar esto y que puedas descargarlo desde aquí, he puesto la app disfrazada con estos formatos:
+¡Bienvenido a **Fami**! Tu nueva aplicación inteligente para finanzas compartidas y personales con la mascota oficial Fami y soporte multi-país.
 
-1. **`App_Presupuesto.bin`**
-2. **`App_Presupuesto.jpg`** (Es el mismo archivo, en caso de que el `.bin` no te deje descargarlo).
+## 📱 Datos Técnicos de la Entrega
+- **App Name:** Fami
+- **Package ID:** `app.somosfami` (Completamente independiente de Nido)
+- **Versión:** 1.0.0 (Build 1)
+- **Firma:** Keystore oficial de producción Fami (`fami-release-key.jks`, alias `fami`, Target SDK 35)
+- **Dominio Oficial:** [somosfami.app](https://somosfami.app)
+- **Redes:** [@hola.fami](https://instagram.com/hola.fami) en Instagram y TikTok
 
-**👉 ¿Cómo instalarlo?**
+---
 
-1. Haz **clic derecho** sobre cualquiera de ellos (el `.bin` o el `.jpg`) y selecciona **Descargar** (Download).
-2. Pasa el archivo descargado a tu teléfono celular.
-3. En tu celular, utiliza tu explorador de archivos ("Mis Archivos") para cambiarle el nombre y **borrar el `.bin` (o `.jpg`)** y ponerle **`.apk`**.  
-   👉 *(Ejemplo: debe quedar como `App_Presupuesto.apk`)*.
-4. ¡Toca el archivo e instálalo normalmente!
+## 🌟 Novedades en Fami v1.0
+1. **Identidad Visual Oficial Fami:**
+   - Paleta de color oficial: Midnight Navy (`#101535`), Sunset Coral (`#E54629`), Soft Coral (`#F57656`), Esmeralda (`#00D09C`), Gold (`#FFB800`).
+   - Logotipo e isotipo oficiales integrados vectorialmente en alta resolución.
+2. **Mascota Fami en el Onboarding Interactivo:**
+   - Guía paso a paso en 4 pantallas con la mascota Fami en 2D / 3D.
+   - Selección inicial de país de residencia con monedas asociadas.
+3. **Motor Multi-País y Multi-Moneda:**
+   - Soporte nativo para 9 regiones: Venezuela (VES / BCV), Colombia (COP / TRM), México (MXN), Argentina (ARS / BNA), Chile (CLP), Perú (PEN), España (EUR), Estados Unidos (USD) y Global.
+   - Moneda secundaria configurable (USD o EUR) con switch rápido en dashboard y tasas oficiales en tiempo real.
+4. **Cumplimiento Legal y Google Play Store:**
+   - Páginas legales activas en GitHub Pages y en el dominio oficial:
+     - Política de Privacidad: `https://julcer26.github.io/fami-app/privacy.html`
+     - Términos de Servicio: `https://julcer26.github.io/fami-app/terms.html`
+     - Eliminación de Cuenta y Datos: `https://julcer26.github.io/fami-app/delete-account.html`
+
+---
+
+## 📥 Enlaces de Descarga Directa
+- **Descarga Directa Rápida (GitHub CDN):**
+  [Descargar Fami_v1.0.apk](https://raw.githubusercontent.com/Julcer26/fami-app/main/DESCARGA_TU_APK_AQUI/Fami_v1.0.apk)
+- **Descarga vía GitHub Pages:**
+  [Descargar desde Web Oficial](https://julcer26.github.io/fami-app/Fami_v1.0.apk)
+- **Descarga desde Google Drive:**
+  Carpeta `DESCARGA_TU_APK_AQUI` en tu unidad de Google Drive.
