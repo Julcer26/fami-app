@@ -1,0 +1,57 @@
+{
+  "project_info": {
+    "project_number": "1050884199444",
+    "project_id": "hogar-finanzas-2026",
+    "storage_bucket": "hogar-finanzas-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050884199444:android:fcba821b52ea1109d14301",
+        "android_client_info": {
+          "package_name": "app.somosfami"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1050884199444-fami.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.somosfami",
+            "certificate_hash": "f5cd3ed3446e2e6c49439e932d367412234645b2"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4GZ-DUfvXgqRKiJSbuiH-6R3YAxYTrLU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050884199444:android:fcba821b52ea1109d14301",
+        "android_client_info": {
+          "package_name": "com.nido.finanzas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4GZ-DUfvXgqRKiJSbuiH-6R3YAxYTrLU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fami - Tu Asesor Financiero Familiar con IA | somosfami.app</title>
+    <meta name="description" content="Fami es la app de finanzas familiares que une a tu hogar: escaneo de facturas con IA, control multi-país y multi-moneda con tasas oficiales en vivo y sincronización en tiempo real.">
+    <meta property="og:title" content="Fami - Finanzas Familiares Inteligentes">
+    <meta property="og:description" content="Toma el control financiero de tu hogar con Fami y su IA integrada.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/Julcer26/fami-app/main/app/src/main/res/drawable/fami_onboarding_1.png">
+    <meta property="og:url" content="https://somosfami.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #E54629;
+            --primary-light: #F57656;
+            --midnight: #101535;
+            --midnight-dark: #0B0E24;
+            --surface: #151B42;
+            --surface-elevated: #1D2456;
+            --border: #28316B;
+            --text-main: #FFFFFF;
+            --text-muted: #9DA8D1;
+            --emerald: #00D09C;
+            --gold: #FFB800;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--midnight);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+            font-weight: 800;
+            font-size: 1.5rem;
+        }
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--primary-light); }
+        .hero {
+            max-width: 1200px;
+            margin: 40px auto 80px;
+            padding: 0 32px;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 60px;
+            align-items: center;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(229, 70, 41, 0.15);
+            border: 1px solid rgba(229, 70, 41, 0.4);
+            padding: 6px 16px;
+            border-radius: 999px;
+            color: var(--primary-light);
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+        .hero h1 {
+            font-size: 3.2rem;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+        }
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.15rem;
+            line-height: 1.7;
+            margin-bottom: 36px;
+        }
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 1rem;
+            text-decoration: none;
+            box-shadow: 0 10px 25px -5px rgba(229, 70, 41, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(229, 70, 41, 0.5);
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 16px 28px;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn-secondary:hover { background: var(--surface-elevated); }
+        .hero-img-box {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            text-align: center;
+        }
+        .hero-img-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 18px;
+            display: block;
+        }
+        .features {
+            max-width: 1200px;
+            margin: 60px auto 100px;
+            padding: 0 32px;
+        }
+        .section-header {
+            text-align: center;
+            max-width: 650px;
+            margin: 0 auto 50px;
+        }
+        .section-header h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 12px; }
+        .section-header p { color: var(--text-muted); font-size: 1rem; }
+        .grid-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+        }
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px 24px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            display: inline-block;
+        }
+        .feature-card h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+        .feature-card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+        .social-bar {
+            text-align: center;
+            padding: 40px 24px;
+            background: var(--midnight-dark);
+            border-top: 1px solid var(--border);
+        }
+        .social-tag {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary-light);
+            margin-bottom: 8px;
+        }
+        footer {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        footer a { color: var(--text-muted); text-decoration: none; margin-left: 16px; }
+        footer a:hover { color: white; }
+        @media (max-width: 900px) {
+            .hero { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+            .hero h1 { font-size: 2.4rem; }
+            .cta-group { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo-container">
+            <div class="logo-icon">❤️</div>
+            <span>Fami</span>
+        </a>
+        <div class="nav-links">
+            <a href="terms.html">Términos</a>
+            <a href="privacy.html">Privacidad</a>
+            <a href="delete-account.html">Eliminar Datos</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div>
+            <div class="hero-badge">✨ TU ASESOR FINANCIERO FAMILIAR CON IA</div>
+            <h1>Tu dinero en orden. <span>Tu hogar en paz.</span></h1>
+            <p>Fami combina la calidez familiar con inteligencia artificial: escaneo automático de facturas, control multi-país con tasas oficiales en tiempo real y metas compartidas para que crezcan juntos.</p>
+            <div class="cta-group">
+                <a href="https://raw.githubusercontent.com/Julcer26/fami-app/main/DESCARGA_TU_APK_AQUI/Fami_v1.0.apk" class="btn-primary">
+                    <span>📲 Descargar Fami APK v1.0</span>
+                </a>
+                <a href="https://instagram.com/hola.fami" target="_blank" class="btn-secondary">
+                    <span>@hola.fami</span>
+                </a>
+            </div>
+        </div>
+        <div class="hero-img-box">
+            <img src="https://raw.githubusercontent.com/Julcer26/fami-app/main/app/src/main/res/drawable/fami_onboarding_1.png" alt="Mascota Fami IA">
+        </div>
+    </header>
+
+    <section class="features">
+        <div class="section-header">
+            <h2>Finanzas diseñadas para la vida real</h2>
+            <p>Todo lo que necesitas para tu economía familiar sin hojas de cálculo complicadas.</p>
+        </div>
+        <div class="grid-features">
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>Mascota Fami IA</h3>
+                <p>Tu asistente inteligente te guía en cada paso, analiza tus tendencias y te ayuda a ahorrar sin estrés.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📸</div>
+                <h3>Lector de Facturas IA</h3>
+                <p>Fotografía cualquier ticket o recibo de supermercado. Gemini IA desglosa productos, precios e IVA al instante.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌎</div>
+                <h3>Multi-País y Multi-Moneda</h3>
+                <p>Consulta en moneda local (VES, COP, MXN, ARS, etc.) y en USD o EUR con la tasa oficial diaria de tu banco central.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                <h3>Economía en Pareja</h3>
+                <p>Comparte gastos, tareas del hogar y listas de compras con tus seres queridos mediante sincronización en vivo.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="social-bar">
+        <div class="social-tag">Síguenos en redes sociales: @hola.fami</div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Instagram & TikTok • Dominio oficial: somosfami.app</p>
+    </div>
+
+    <footer>
+        <div>&copy; 2026 Fami Inc. (somosfami.app). Todos los derechos reservados.</div>
+        <div>
+            <a href="privacy.html">Privacidad</a>
+            <a href="terms.html">Términos</a>
+            <a href="delete-account.html">Eliminar Cuenta</a>
+        </div>
+    </footer>
+</body>
+</html>
