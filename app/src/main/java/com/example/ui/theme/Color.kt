@@ -47,6 +47,32 @@ val LightOnBackground = FamiMidnight
 val LightOnSurfaceVariant = Color(0xFF5A6488)
 val LightOutline = Color(0xFFE2E6F5)
 
+// Aliases para compatibilidad Fami & Componentes
+val FamiDarkSurface = DarkSurface
+val FamiDarkSurfaceElevated = DarkSurfaceElevated
+val FamiDarkBorder = DarkOutline
+
+val AlertRed = FamiAlertRed
+val AlertRedBg = FamiAlertRedBg
+val OutlineGrey = LightOutline
+
+val ColorJulio = Color(0xFF3B82F6)
+val ColorAna = Color(0xFFEC4899)
+
+// Mesh & Glassmorphism
+val MeshDarkPurple = Color(0xFF1E1B4B)
+val MeshDarkBlue = Color(0xFF172554)
+val MeshDarkTeal = Color(0xFF064E3B)
+
+val MeshLightPurple = Color(0xFFE0E7FF)
+val MeshLightBlue = Color(0xFFDBEAFE)
+val MeshLightTeal = Color(0xFFD1FAE5)
+
+val GlassBorderLight = Color(0xFFFFFFFF).copy(alpha = 0.4f)
+val GlassBorderDark = Color(0xFFFFFFFF).copy(alpha = 0.1f)
+val GlassSurfaceLight = Color(0xFFFFFFFF).copy(alpha = 0.35f)
+val GlassSurfaceDark = Color(0xFF000000).copy(alpha = 0.35f)
+
 // Gradientes Oficiales
 val FamiCoralGradient = Brush.horizontalGradient(
     colors = listOf(FamiCoral, FamiCoralLight)
