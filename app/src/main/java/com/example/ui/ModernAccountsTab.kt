@@ -765,232 +765,217 @@ private fun MasterFinancialHeroCard(
         label = "statusColor"
     )
 
-    ElevatedCard(
-        shape = RoundedCornerShape(26.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF101535)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                1.4.dp,
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFFE54629), Color(0xFFF57656), Color(0xFF28316B))
-                ),
-                RoundedCornerShape(26.dp)
-            )
+    NotebookPaperSheet(
+        modifier = Modifier.fillMaxWidth(),
+        sheetColor = PaperSheetWhite,
+        showRuledLines = true,
+        showMarginLine = true,
+        showSpiralTop = true
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF1D2456),
-                            Color(0xFF101535),
-                            Color(0xFF0B0E24)
-                        )
-                    )
-                )
-                .padding(18.dp)
+                .padding(start = 28.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)
         ) {
-            Column {
-                // Fila Superior: Etiqueta + Chip de Tasa Oficial
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            // Fila Superior: Sello de Libro Mayor + Botón 3D de Tasa
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = PaperStickyPeach,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.2.dp, FamiMidnight)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE54629))
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "BALANCE DE FINANZAS FAMI",
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFFF57656),
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    Surface(
-                        onClick = onSyncBcv,
-                        shape = RoundedCornerShape(50),
-                        color = Color.White.copy(alpha = 0.10f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Tasa: ${String.format(Locale.US, "%.2f", bcvRate)}",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = "Sincronizar Tasa",
-                                modifier = Modifier.size(11.dp),
-                                tint = EmeraldGreen
-                            )
-                        }
-                    }
+                    Text(
+                        text = "🧮 LIBRO MAYOR FAMI",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Tactile3DButton(
+                    onClick = onSyncBcv,
+                    faceColor = PaperStickyYellow,
+                    lipColor = Lip3DGold,
+                    cornerRadius = 10.dp,
+                    lipHeight = 2.5.dp,
+                    contentPadding = PaddingValues(horizontal = 9.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Tasa: ${String.format(Locale.US, "%.2f", bcvRate)}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Sincronizar Tasa",
+                        modifier = Modifier.size(11.dp),
+                        tint = FamiMidnight
+                    )
+                }
+            }
 
-                // Monto Principal en USD + Equivalente Local
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Monto Principal en Tinta #101535 + Sello Contable
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "TOTAL EJECUTADO EN HOJA",
+                        fontSize = 10.sp,
+                        color = FamiCoralDeep,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.6.sp
+                    )
+                    Text(
+                        text = "$${String.format(Locale.US, "%,.2f", spentUsd)} USD",
+                        fontSize = 27.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Text(
+                        text = "≈ ${String.format(Locale.US, "%,.2f", spentUsd * bcvRate)} Moneda Local",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = FamiMidnight.copy(alpha = 0.72f)
+                    )
+                }
+
+                val isPositive = netBalance >= 0
+                Surface(
+                    color = if (isPositive) PaperStickyMint else FamiAlertRedBg,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.5.dp, FamiMidnight)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isPositive) "SUPERÁVIT" else "DÉFICIT",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isPositive) FamiEmerald else CoralRed
+                        )
+                        val sign = if (netBalance > 0) "+" else ""
+                        Text(
+                            text = "$sign$${String.format(Locale.US, "%,.2f", netBalance)}",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (monthlyBudgetUsd > 0) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
-                        Text(
-                            text = "Total Consumido",
-                            fontSize = 11.sp,
-                            color = Color(0xFF9DA8D1),
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "$${String.format(Locale.US, "%,.2f", spentUsd)} USD",
-                            fontSize = 29.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = (-0.5).sp
-                        )
-                        Text(
-                            text = "≈ ${String.format(Locale.US, "%,.2f", spentUsd * bcvRate)} Moneda Local",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFF57656)
-                        )
-                    }
-
-                    // Píldora de Estado Contable
-                    val isPositive = netBalance >= 0
-                    Surface(
-                        color = (if (isPositive) EmeraldGreen else CoralRed).copy(alpha = 0.16f),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, (if (isPositive) EmeraldGreen else CoralRed).copy(alpha = 0.45f))
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = if (isPositive) "SUPERÁVIT" else "DÉFICIT",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Black,
-                                color = if (isPositive) EmeraldGreen else CoralRed
-                            )
-                            val sign = if (netBalance > 0) "+" else ""
-                            Text(
-                                text = "$sign$${String.format(Locale.US, "%,.2f", netBalance)}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Barra de Salud del Presupuesto Global del Hogar
-                if (monthlyBudgetUsd > 0) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        val remaining = (monthlyBudgetUsd - spentUsd).coerceAtLeast(0.0)
-                        Text(
-                            text = if (spentUsd <= monthlyBudgetUsd)
-                                "Libre: $${String.format(Locale.US, "%,.0f", remaining)} de $${monthlyBudgetUsd.roundToInt()}"
-                            else
-                                "Excedido por $${String.format(Locale.US, "%,.2f", spentUsd - monthlyBudgetUsd)}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF9DA8D1)
-                        )
-                        Text(
-                            text = "${(budgetRatio * 100).roundToInt()}%",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = statusColor
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(50)),
-                        color = statusColor,
-                        trackColor = Color.White.copy(alpha = 0.15f)
+                    val remaining = (monthlyBudgetUsd - spentUsd).coerceAtLeast(0.0)
+                    Text(
+                        text = if (spentUsd <= monthlyBudgetUsd)
+                            "Disponible en hoja: $${String.format(Locale.US, "%,.0f", remaining)} de $${monthlyBudgetUsd.roundToInt()}"
+                        else
+                            "Excedido por $${String.format(Locale.US, "%,.2f", spentUsd - monthlyBudgetUsd)}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = FamiMidnight
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "${(budgetRatio * 100).roundToInt()}%",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight
+                    )
                 }
-
-                // Métricas Secundarias + Acciones Rápidas
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Spacer(modifier = Modifier.height(5.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(PaperSheetCream)
+                        .border(1.2.dp, FamiMidnight, RoundedCornerShape(5.dp))
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color.Black.copy(alpha = 0.28f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                        modifier = Modifier.weight(1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(animatedProgress)
+                            .background(statusColor)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Fila Inferior: Sello de Ingresos + Botones 3D (Exportar Hoja & Anotar)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = PaperStickyMint,
+                    border = BorderStroke(1.5.dp, FamiMidnight),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("📈", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Column {
-                                Text("Ingresos Mes", fontSize = 9.sp, color = Color(0xFF9DA8D1))
-                                Text(
-                                    text = "+$${String.format(Locale.US, "%,.2f", incomeUsd)}",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = EmeraldGreen
-                                )
-                            }
+                        Text("📈", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Column {
+                            Text("Ingresos", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = FamiMidnight.copy(alpha = 0.7f))
+                            Text(
+                                text = "+$${String.format(Locale.US, "%,.2f", incomeUsd)}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight
+                            )
                         }
                     }
+                }
 
-                    OutlinedButton(
-                        onClick = onExportCsv,
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                    ) {
-                        Text("📊", fontSize = 13.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Sheets", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
+                Tactile3DButton(
+                    onClick = onExportCsv,
+                    faceColor = PaperSheetCream,
+                    lipColor = Lip3DPaper,
+                    cornerRadius = 12.dp,
+                    lipHeight = 3.5.dp,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
+                ) {
+                    Text("📊", fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("HOJA CSV", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                }
 
-                    Button(
-                        onClick = onQuickAdd,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE54629)),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Registrar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
+                Tactile3DButton(
+                    onClick = onQuickAdd,
+                    faceColor = FamiCoral,
+                    lipColor = Lip3DCoral,
+                    cornerRadius = 12.dp,
+                    lipHeight = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("ANOTAR", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = Color.White)
                 }
             }
         }

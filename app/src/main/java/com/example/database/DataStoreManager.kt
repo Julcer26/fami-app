@@ -17,7 +17,7 @@ class DataStoreManager(private val context: Context) {
         val FAMILY_ID = stringPreferencesKey("family_id")
         val USER_NAME = stringPreferencesKey("user_name")
         val USER_PIN = stringPreferencesKey("user_pin")
-        val IS_DARK_THEME = booleanPreferencesKey("is_dark_theme")
+        val IS_DARK_THEME = booleanPreferencesKey("is_notebook_dark_mode")
 
         // Fami Multi-Country & Multi-Currency Preferences
         val COUNTRY_CODE = stringPreferencesKey("country_code")
@@ -31,7 +31,7 @@ class DataStoreManager(private val context: Context) {
     val familyIdFlow: Flow<String?> = context.dataStore.data.map { it[FAMILY_ID] }
     val userNameFlow: Flow<String?> = context.dataStore.data.map { it[USER_NAME] }
     val userPinFlow: Flow<String?> = context.dataStore.data.map { it[USER_PIN] }
-    val isDarkThemeFlow: Flow<Boolean> = context.dataStore.data.map { it[IS_DARK_THEME] ?: true }
+    val isDarkThemeFlow: Flow<Boolean> = context.dataStore.data.map { it[IS_DARK_THEME] ?: false }
 
     val countryCodeFlow: Flow<String> = context.dataStore.data.map { it[COUNTRY_CODE] ?: "VE" }
     val primaryCurrencyFlow: Flow<String> = context.dataStore.data.map { it[PRIMARY_CURRENCY] ?: "VES" }

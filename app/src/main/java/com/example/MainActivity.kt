@@ -663,97 +663,58 @@ fun MainScreen(viewModel: FamilyViewModel) {
     }
 }
 
-// Custom Floating Pill Bottom Navigation Bar (Fami v2.0 Midnight Navy + Sunset Coral Dock)
+// Barra Inferior de Botones 3D Táctiles sobre Base de Papel Plano (Fami v3.0)
 @Composable
 fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelected: (String) -> Unit) {
+    val tabs = listOf(
+        Triple("inicio", "Cuaderno", if (currentTab == "inicio") Icons.Filled.MenuBook else Icons.Outlined.MenuBook),
+        Triple("cuentas", "Cuentas", if (currentTab == "cuentas") Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet),
+        Triple("tareas", "Tareas", if (currentTab == "tareas") Icons.Filled.CheckBox else Icons.Outlined.CheckBoxOutlineBlank),
+        Triple("compras", "Mercado", if (currentTab == "compras") Icons.Filled.ShoppingBag else Icons.Outlined.ShoppingBag),
+        Triple("metas", "Alcancía", if (currentTab == "metas") Icons.Filled.Savings else Icons.Outlined.Savings)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
-                .widthIn(max = 450.dp)
+                .widthIn(max = 460.dp)
                 .fillMaxWidth()
-                .height(66.dp)
-                .shadow(
-                    elevation = 22.dp,
-                    shape = RoundedCornerShape(30.dp),
-                    ambientColor = FamiCoral.copy(alpha = 0.25f),
-                    spotColor = Color.Black.copy(alpha = 0.45f)
-                )
-                .clip(RoundedCornerShape(30.dp))
-                .background(
-                    if (isDarkTheme) Brush.horizontalGradient(listOf(Color(0xFF101535), Color(0xFF151B42), Color(0xFF101535)))
-                    else Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF7F8FC), Color(0xFFFFFFFF)))
-                )
-                .border(
-                    width = 1.2.dp,
-                    brush = Brush.horizontalGradient(
-                        colors = if (isDarkTheme) listOf(FamiCoral.copy(alpha = 0.45f), Color(0xFF28316B), FamiCoral.copy(alpha = 0.45f))
-                        else listOf(FamiCoral.copy(alpha = 0.35f), Color(0xFFE2E6F5), FamiCoral.copy(alpha = 0.35f))
-                    ),
-                    shape = RoundedCornerShape(30.dp)
-                )
-        ) {
-            val tabs = listOf(
-                Triple("inicio", "Bóveda", if (currentTab == "inicio") Icons.Filled.Home else Icons.Outlined.Home),
-                Triple("cuentas", "Finanzas", if (currentTab == "cuentas") Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet),
-                Triple("tareas", "Misiones", if (currentTab == "tareas") Icons.Filled.ListAlt else Icons.Outlined.ListAlt),
-                Triple("compras", "Despensa", if (currentTab == "compras") Icons.Filled.ShoppingCart else Icons.Outlined.ShoppingCart),
-                Triple("metas", "Alcancía", if (currentTab == "metas") Icons.Filled.Star else Icons.Outlined.StarBorder)
-            )
-
-            val selectedIndex = tabs.indexOfFirst { it.first == currentTab }.coerceAtLeast(0)
-            val tabWidth = maxWidth / tabs.size
-            val indicatorOffset by animateDpAsState(
-                targetValue = tabWidth * selectedIndex,
-                animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
-                label = "indicatorOffset"
-            )
-
-            // Cápsula activa en gradiente Sunset Coral de Fami
-            Box(
-                modifier = Modifier
-                    .offset(x = indicatorOffset)
-                    .width(tabWidth)
-                    .fillMaxHeight()
-                    .padding(horizontal = 5.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(FamiCoral, FamiCoralLight)
-                        )
+                .padding(bottom = 4.dp, end = 3.dp)
+                .drawBehind {
+                    drawRoundRect(
+                        color = FamiMidnight,
+                        topLeft = Offset(3.dp.toPx(), 4.dp.toPx()),
+                        size = androidx.compose.ui.geometry.Size(size.width, size.height),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(22.dp.toPx(), 22.dp.toPx())
                     )
-            )
-
+                }
+                .clip(RoundedCornerShape(22.dp))
+                .background(if (isDarkTheme) DarkSurface else PaperSheetWhite)
+                .border(2.dp, FamiMidnight, RoundedCornerShape(22.dp))
+                .padding(horizontal = 8.dp, vertical = 7.dp)
+        ) {
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 tabs.forEach { (tabId, label, icon) ->
                     val selected = currentTab == tabId
-                    val iconColor = if (selected) {
-                        Color.White
-                    } else {
-                        if (isDarkTheme) Color(0xFF9DA8D1) else Color(0xFF5A6488)
-                    }
-                    val iconSize by animateDpAsState(
-                        targetValue = if (selected) 22.dp else 20.dp,
-                        label = "tabIconSize"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clickable(
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                indication = null
-                            ) { onTabSelected(tabId) },
-                        contentAlignment = Alignment.Center
+                    com.example.ui.Tactile3DButton(
+                        onClick = { onTabSelected(tabId) },
+                        modifier = Modifier.weight(1f),
+                        faceColor = if (selected) FamiCoral else if (isDarkTheme) DarkSurfaceElevated else PaperSheetCream,
+                        lipColor = if (selected) Lip3DCoral else if (isDarkTheme) Lip3DNavy else Lip3DPaper,
+                        borderColor = FamiMidnight,
+                        cornerRadius = 14.dp,
+                        lipHeight = if (selected) 4.dp else 3.dp,
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -762,15 +723,16 @@ fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelect
                             Icon(
                                 imageVector = icon,
                                 contentDescription = label,
-                                tint = iconColor,
-                                modifier = Modifier.size(iconSize)
+                                tint = if (selected) Color.White else if (isDarkTheme) Color.White else FamiMidnight,
+                                modifier = Modifier.size(19.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = label,
-                                fontSize = 10.sp,
-                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                color = iconColor
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (selected) Color.White else if (isDarkTheme) Color.White else FamiMidnight,
+                                maxLines = 1
                             )
                         }
                     }
@@ -1076,124 +1038,104 @@ fun DashboardTab(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 2.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+
+            // 1. PORTADA SUPERIOR DEL CUADERNO FAMI (Anillos + Logo Oficial + Botones 3D)
+            com.example.ui.NotebookPaperSheet(
+                modifier = Modifier.fillMaxWidth(),
+                sheetColor = PaperSheetWhite,
+                showRuledLines = false,
+                showMarginLine = false,
+                showSpiralTop = true
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Contenedor de la Mascota Oficial Fami
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .shadow(8.dp, RoundedCornerShape(15.dp), spotColor = FamiCoral.copy(alpha = 0.4f))
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(FamiCoral, FamiCoralLight)
-                                )
-                            )
-                            .padding(3.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
                         androidx.compose.foundation.Image(
                             painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_mascot),
                             contentDescription = "Fami Mascot",
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.8.dp, FamiMidnight, RoundedCornerShape(12.dp))
                         )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (currentUser.isNotBlank()) "¡Hola, $currentUser!" else "¡Hola, Familia Fami!",
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                letterSpacing = (-0.5).sp
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_logo_wide),
+                                contentDescription = "Logo Oficial Fami",
+                                modifier = Modifier.height(22.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                color = FamiCoral.copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = "FAMI 2.0",
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = FamiCoral,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (currentUser.isNotBlank()) "Cuaderno de $currentUser" else "Cuaderno Familiar Fami",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight
+                            )
                         }
-                        Text(
-                            text = "somosfami.app • @hola.fami",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = SubtitleText
-                        )
                     }
-                }
 
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Píldora selectora de País en vivo
-                    Surface(
-                        onClick = { showCountryPickerModal = true },
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.4f))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Botón 3D Selector de País y Moneda
+                        com.example.ui.Tactile3DButton(
+                            onClick = { showCountryPickerModal = true },
+                            faceColor = PaperStickyYellow,
+                            lipColor = Lip3DGold,
+                            borderColor = FamiMidnight,
+                            cornerRadius = 12.dp,
+                            lipHeight = 3.5.dp,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                         ) {
-                            Text(countryInfo.flag, fontSize = 14.sp)
+                            Text(countryInfo.flag, fontSize = 13.sp)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = countryInfo.localCurrency,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight
                             )
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = "Cambiar país",
-                                tint = FamiCoral,
-                                modifier = Modifier.size(16.dp)
+                                tint = FamiMidnight,
+                                modifier = Modifier.size(15.dp)
                             )
                         }
-                    }
 
-                    // Configuración gear button
-                    IconButton(
-                        onClick = onOpenConfig,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(FamiCoral.copy(alpha = 0.12f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Configuración",
-                            tint = FamiCoral,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        // Botón 3D de Ajustes
+                        com.example.ui.Tactile3DButton(
+                            onClick = onOpenConfig,
+                            faceColor = PaperSheetCream,
+                            lipColor = Lip3DPaper,
+                            borderColor = FamiMidnight,
+                            cornerRadius = 12.dp,
+                            lipHeight = 3.5.dp,
+                            contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Ajustes",
+                                tint = FamiMidnight,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-            ModernMonthSelector(selectedMonth = selectedMonth, onMonthChange = { viewModel.updateSelectedMonth(it) })
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        // BÓVEDA FAMI V2.0 (Coral-Midnight Bento Vault con Switch Bimoneda Multi-País)
+        // 2. BOTONERA TÁCTIL 3D DE ACCIÓN RÁPIDA (Reorganizada arriba para acceso 1-Tap)
         item {
             val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
             val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
@@ -1201,254 +1143,532 @@ fun DashboardTab(
                 com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-                    .shadow(
-                        elevation = 20.dp,
-                        shape = RoundedCornerShape(28.dp),
-                        ambientColor = FamiCoral.copy(alpha = 0.45f),
-                        spotColor = Color(0xFF101535).copy(alpha = 0.6f)
-                    )
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFE54629),
-                                Color(0xFFB52B14),
-                                Color(0xFF151B42),
-                                Color(0xFF101535)
-                            )
-                        )
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFF57656),
-                                Color.White.copy(alpha = 0.25f),
-                                Color(0xFF28316B)
-                            )
-                        ),
-                        shape = RoundedCornerShape(28.dp)
-                    )
-                    .padding(horizontal = 18.dp, vertical = 16.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column {
+                com.example.ui.Tactile3DButton(
+                    onClick = { onLaunchCamera() },
+                    modifier = Modifier.weight(1f),
+                    faceColor = FamiCoral,
+                    lipColor = Lip3DCoral,
+                    cornerRadius = 14.dp,
+                    lipHeight = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = "Escanear", tint = Color.White, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text("ESCANEAR", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
+                }
+
+                com.example.ui.Tactile3DButton(
+                    onClick = { onLaunchGallery() },
+                    modifier = Modifier.weight(1f),
+                    faceColor = FamiMidnight,
+                    lipColor = Lip3DNavy,
+                    cornerRadius = 14.dp,
+                    lipHeight = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                ) {
+                    Icon(Icons.Default.Image, contentDescription = "Galería", tint = Color.White, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text("FACTURA", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
+                }
+
+                com.example.ui.Tactile3DButton(
+                    onClick = { viewModel.toggleViewInSecondary() },
+                    modifier = Modifier.weight(1f),
+                    faceColor = PaperStickyMint,
+                    lipColor = Lip3DMint,
+                    cornerRadius = 14.dp,
+                    lipHeight = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                ) {
+                    Icon(Icons.Default.SwapHoriz, contentDescription = "Moneda", tint = FamiMidnight, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (viewInSecondary) "VER USD" else "VER ${countryInfo.localCurrency}",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight,
+                        maxLines = 1
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // 3. HOJA MAYOR DE CONTABILIDAD FAMILIAR (Papel Rayado + Margen Coral + Mascota Nano Banana)
+        item {
+            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
+            val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
+            val countryInfo = remember(selectedCountryCode) {
+                com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
+            }
+
+            com.example.ui.NotebookPaperSheet(
+                modifier = Modifier.fillMaxWidth(),
+                sheetColor = PaperSheetWhite,
+                showRuledLines = true,
+                showMarginLine = true,
+                showSpiralTop = false
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 28.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)
+                ) {
+                    // Cabecera de Fecha y Sello de Tasa Oficial dentro de la Hoja
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.28f),
-                                shape = RoundedCornerShape(8.dp)
+                        Surface(
+                            color = PaperStickyPeach,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.2.dp, FamiMidnight)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${countryInfo.flag} BÓVEDA FAMI",
-                                    fontSize = 10.sp,
+                                    text = "📓 HOJA DEL MES",
+                                    fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = Color.White,
-                                    letterSpacing = 0.9.sp,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    color = FamiMidnight
                                 )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            IconToggleButton(
-                                checked = showBalance,
-                                onCheckedChange = {
-                                    showBalance = it
-                                    viewModel.updateValueSetting("hide_balance", if (it) "false" else "true")
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = if (showBalance) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Ocultar/Mostrar",
-                                    tint = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier.size(16.dp)
+                                    contentDescription = "Ocultar",
+                                    tint = FamiCoral,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable {
+                                            showBalance = !showBalance
+                                            viewModel.updateValueSetting("hide_balance", if (showBalance) "false" else "true")
+                                        }
                                 )
                             }
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            // Botón para alternar moneda principal (USD vs Local)
-                            Surface(
-                                onClick = { viewModel.toggleViewInSecondary() },
-                                color = Color.Black.copy(alpha = 0.32f),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, FamiGold.copy(alpha = 0.6f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.SwapHoriz, contentDescription = "Switch Moneda", modifier = Modifier.size(12.dp), tint = FamiGold)
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = if (viewInSecondary) countryInfo.localCurrency else "USD",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = FamiGold
-                                    )
-                                }
-                            }
-
-                            Surface(
-                                onClick = {
-                                    viewModel.syncLiveBcvRate()
-                                    viewModel.syncExchangeRate()
-                                },
-                                color = Color.White.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Sync", modifier = Modifier.size(11.dp), tint = Color.White)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("${countryInfo.symbol} $bcvRateStr", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
-                            }
+                        com.example.ui.Tactile3DButton(
+                            onClick = {
+                                viewModel.syncLiveBcvRate()
+                                viewModel.syncExchangeRate()
+                            },
+                            faceColor = PaperStickyYellow,
+                            lipColor = Lip3DGold,
+                            cornerRadius = 10.dp,
+                            lipHeight = 2.5.dp,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Actualizar tasa", modifier = Modifier.size(11.dp), tint = FamiMidnight)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "1$ = ${countryInfo.symbol} $bcvRateStr",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    ModernMonthSelector(selectedMonth = selectedMonth, onMonthChange = { viewModel.updateSelectedMonth(it) })
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = if (viewInSecondary) "DISPONIBLE EN ${countryInfo.name.uppercase()}" else "DISPONIBLE DEL MES (USD)",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White.copy(alpha = 0.85f),
-                        letterSpacing = 0.8.sp
-                    )
-
+                    // Bloque Principal: Saldo en Tinta #101535 + Ilustración Nano Banana sin recortes
                     val primaryDisplayText = if (!showBalance) {
                         "••••••"
                     } else if (viewInSecondary) {
-                        "${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} ${countryInfo.localCurrency}"
+                        "${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)}"
                     } else {
                         "$${String.format(Locale.US, "%,.2f", disponibleUsd)} USD"
                     }
 
                     val secondaryDisplayText = if (viewInSecondary) {
-                        "≈ $${String.format(Locale.US, "%,.2f", disponibleUsd)} USD (${countryInfo.rateProvider})"
+                        "Equivale a $${String.format(Locale.US, "%,.2f", disponibleUsd)} USD (${countryInfo.rateProvider})"
                     } else {
-                        "≈ ${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} (${countryInfo.rateProvider})"
+                        "Equivale a ${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} ${countryInfo.localCurrency} (${countryInfo.rateProvider})"
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = primaryDisplayText,
-                                fontSize = 28.sp,
+                                text = if (viewInSecondary) "SALDO DISPONIBLE (${countryInfo.localCurrency})" else "SALDO DISPONIBLE EN HOJA",
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = (-0.5).sp
+                                color = FamiCoralDeep,
+                                letterSpacing = 0.7.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = primaryDisplayText,
+                                fontSize = 27.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight,
+                                letterSpacing = (-0.6).sp
                             )
                             if (showBalance) {
                                 Text(
                                     text = secondaryDisplayText,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = FamiGold
+                                    color = FamiMidnight.copy(alpha = 0.75f)
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+                        // Sticker Polaroid de la Mascota Fami con su Cuaderno y Alcancía (Nano Banana)
+                        Box(
+                            modifier = Modifier
+                                .size(78.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(PaperSheetCream)
+                                .border(1.8.dp, FamiMidnight, RoundedCornerShape(16.dp))
+                                .padding(3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_notebook_hero),
+                                contentDescription = "Fami Guía Financiera",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(13.dp))
+                            )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Bento KPI Strip dentro de la Bóveda
+                    // 3 Fichas de Papel Contable con Borde Entintado
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color.Black.copy(alpha = 0.30f))
-                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
-                            .padding(horizontal = 12.dp, vertical = 9.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
-                            Text("BASE + INGRESOS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.72f))
-                            Text(
-                                text = if (showBalance) "$${String.format(Locale.US, "%,.0f", baseLimitUsd)}" else "••••",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = PaperStickyMint,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.5.dp, FamiMidnight)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                                Text("INGRESOS", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight.copy(alpha = 0.7f))
+                                Text(
+                                    text = if (showBalance) "$${String.format(Locale.US, "%,.0f", baseLimitUsd)}" else "••••",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("PRESUPUESTADO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.72f))
-                            Text(
-                                text = if (showBalance) "$${String.format(Locale.US, "%,.0f", presupuestadoUsd)}" else "••••",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Black,
-                                color = FamiGold
-                            )
+
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = PaperStickyYellow,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.5.dp, FamiMidnight)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                                Text("PRESUPUESTO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight.copy(alpha = 0.7f))
+                                Text(
+                                    text = if (showBalance) "$${String.format(Locale.US, "%,.0f", presupuestadoUsd)}" else "••••",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("CONSUMIDO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.72f))
-                            Text(
-                                text = if (showBalance) "$${String.format(Locale.US, "%,.2f", totalSpentUsd)}" else "••••",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Black,
-                                color = if (totalSpentUsd > 0) Color(0xFFFF9E80) else FamiEmerald
-                            )
+
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = PaperStickyPeach,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.5.dp, FamiMidnight)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                                Text("GASTADO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight.copy(alpha = 0.7f))
+                                Text(
+                                    text = if (showBalance) "$${String.format(Locale.US, "%,.2f", totalSpentUsd)}" else "••••",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiCoral
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     val healthBarColor = when {
-                        spentPercentage >= 95 -> Color(0xFFFF5252)
+                        spentPercentage >= 95 -> FamiAlertRed
                         spentPercentage >= 75 -> FamiGold
                         else -> FamiEmerald
                     }
-                    LinearProgressIndicator(
-                        progress = { (if (baseLimitUsd > 0) (totalSpentUsd / baseLimitUsd) else 0.0).toFloat().coerceIn(0f, 1f) },
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(CircleShape),
-                        color = healthBarColor,
-                        trackColor = Color.White.copy(alpha = 0.22f)
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(PaperSheetCream)
+                            .border(1.2.dp, FamiMidnight, RoundedCornerShape(6.dp))
+                    ) {
+                        val frac = (if (baseLimitUsd > 0) (totalSpentUsd / baseLimitUsd) else 0.0).toFloat().coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(frac)
+                                .background(healthBarColor)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = when {
+                            spentPercentage > 100 -> "⚠️ Excediste la hoja mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
+                            spentPercentage >= 85 -> "📌 Atención Fami: Has ejecutado el $spentPercentage% de tu hoja mensual"
+                            else -> "✅ Cuaderno al día: $spentPercentage% del presupuesto utilizado"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = FamiMidnight
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        // 4. NOTA ADHESIVA DEL ASESOR FAMI IA (Reorganizada justo debajo de la Hoja Mayor)
+        item {
+            com.example.ui.StickyNoteSheet(
+                modifier = Modifier.fillMaxWidth(),
+                noteColor = PaperStickyYellow
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_idea),
+                                contentDescription = "Plan Fami IA",
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .border(1.5.dp, FamiMidnight, RoundedCornerShape(14.dp))
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "NOTA RÁPIDA CON FAMI IA ✏️",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+                                Text(
+                                    text = "Escribe tu gasto como en un cuaderno y Fami lo clasifica solo",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = FamiMidnight.copy(alpha = 0.75f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val quickPrompts = listOf(
+                        "🛒 Mercado 45$" to "Gasté 45$ en Supermercado",
+                        "⛽ Gasolina 20$" to "Gasté 20$ en Gasolina",
+                        "🥖 Panadería 350" to "Gasté 350 bs en Panadería",
+                        "💊 Farmacia 15$" to "Gasté 15$ en Farmacia"
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(quickPrompts) { (chipLabel, promptText) ->
+                            com.example.ui.Tactile3DButton(
+                                onClick = { nlpInputText = promptText },
+                                faceColor = PaperSheetWhite,
+                                lipColor = Lip3DPaper,
+                                cornerRadius = 10.dp,
+                                lipHeight = 2.5.dp,
+                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = chipLabel,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        value = nlpInputText,
+                        onValueChange = { nlpInputText = it },
+                        placeholder = { Text("Ej: Anota 25$ de almuerzo familiar...", fontSize = 12.5.sp, color = FamiMidnight.copy(alpha = 0.55f)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PaperSheetWhite, RoundedCornerShape(14.dp)),
+                        shape = RoundedCornerShape(14.dp),
+                        trailingIcon = {
+                            if (isRegisteringNlp) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = FamiCoral)
+                            } else if (nlpInputText.isNotEmpty()) {
+                                IconButton(onClick = { nlpInputText = "" }, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = FamiMidnight, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FamiMidnight,
+                            unfocusedBorderColor = FamiMidnight,
+                            focusedTextColor = FamiMidnight,
+                            unfocusedTextColor = FamiMidnight
+                        ),
+                        maxLines = 2
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (spentPercentage >= 85) Icons.Default.Warning else Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = healthBarColor,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    if (nlpError != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = when {
-                                spentPercentage > 100 -> "Excediste tu bóveda mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
-                                spentPercentage >= 85 -> "Atención Fami: Has consumido el $spentPercentage% de tu disponible"
-                                else -> "Salud financiera óptima: $spentPercentage% ejecutado este mes"
-                            },
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.92f)
+                            text = nlpError ?: "",
+                            color = FamiAlertRed,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        com.example.ui.Tactile3DButton(
+                            onClick = {
+                                if (nlpInputText.isNotBlank()) {
+                                    viewModel.registerFromNaturalLanguage(nlpInputText)
+                                    nlpInputText = ""
+                                }
+                            },
+                            modifier = Modifier.weight(1.3f),
+                            faceColor = FamiCoral,
+                            lipColor = Lip3DCoral,
+                            cornerRadius = 12.dp,
+                            lipHeight = 4.dp,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Anotar", tint = Color.White, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("ANOTAR EN HOJA", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        }
+
+                        com.example.ui.Tactile3DButton(
+                            onClick = { onLaunchCamera() },
+                            modifier = Modifier.weight(1f),
+                            faceColor = FamiMidnight,
+                            lipColor = Lip3DNavy,
+                            cornerRadius = 12.dp,
+                            lipHeight = 4.dp,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Foto", tint = Color.White, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("FOTO RECIBO", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        }
+                    }
+
+                    if (isScanningDirect) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            color = PaperSheetWhite,
+                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = FamiCoral)
+                                Text(
+                                    text = "Fami IA leyendo el recibo y anotando en el cuaderno...",
+                                    fontSize = 11.sp,
+                                    color = FamiMidnight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    if (errorMessageScan != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            color = FamiAlertRedBg,
+                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Error, "Error", tint = FamiAlertRed, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = errorMessageScan!!, fontSize = 11.sp, color = FamiMidnight, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                IconButton(onClick = { onSetErrorMessageScan(null) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiMidnight, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    if (successMessageScan != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            color = PaperStickyMint,
+                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, "Éxito", tint = FamiEmerald, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = successMessageScan!!, fontSize = 11.sp, color = FamiMidnight, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                IconButton(onClick = { onSetSuccessMessageScan(null) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiMidnight, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        }
                     }
                 }
             }
             Spacer(modifier = Modifier.height(14.dp))
         }
 
+        // 5. RECIBOS FIJOS CON CLIP EN EL CUADERNO
         item {
             ModernRecurringPaymentsSection(
                 recurringPayments = recurringPayments,
@@ -1482,267 +1702,6 @@ fun DashboardTab(
                 }
             )
             Spacer(modifier = Modifier.height(14.dp))
-        }
-
-        // Conversational Intelligent NLP block & Receipt Scanner Unificado — Fami IA v2.0
-        item {
-            PremiumCard(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp) ){
-                Column(modifier = Modifier.padding(18.dp) ){
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_idea),
-                                contentDescription = "Fami IA Idea",
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "COPILOTO FAMI IA ✨",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 0.6.sp
-                                )
-                                Text(
-                                    text = "Dicta tu gasto o fotografía cualquier factura",
-                                    fontSize = 11.sp,
-                                    color = SubtitleText
-                                )
-                            }
-                        }
-
-                        Surface(
-                            color = FamiCoral.copy(alpha = 0.14f),
-                            shape = RoundedCornerShape(999.dp),
-                            border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.35f))
-                        ) {
-                            Text(
-                                text = "Voz • Foto • IA",
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = FamiCoralLight,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Chips rápidos de ejemplo para agilizar escritura
-                    val quickPrompts = listOf(
-                        "🛒 Mercado 45$" to "Gasté 45$ en Supermercado",
-                        "⛽ Gasolina 20$" to "Gasté 20$ en Gasolina",
-                        "🥖 Panadería 350 Bs" to "Gasté 350 bs en Panadería",
-                        "💊 Farmacia 15$" to "Gasté 15$ en Farmatodo"
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(quickPrompts) { (chipLabel, promptText) ->
-                            Surface(
-                                onClick = { nlpInputText = promptText },
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                            ) {
-                                Text(
-                                    text = chipLabel,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
-                    OutlinedTextField(
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
-                        value = nlpInputText,
-                        onValueChange = { nlpInputText = it },
-                        placeholder = { Text("ej: Gasté 450 bs en comida...", fontSize = 13.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        trailingIcon = {
-                            if (isRegisteringNlp) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (nlpInputText.isNotEmpty()) {
-                                        IconButton(
-                                            onClick = { nlpInputText = "" },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Clear,
-                                                contentDescription = "Limpiar",
-                                                tint = SubtitleText,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                    IconButton(onClick = {
-                                        if (nlpInputText.isNotBlank() ){
-                                            viewModel.registerFromNaturalLanguage(nlpInputText)
-                                            nlpInputText = ""
-                                        }
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Send,
-                                            contentDescription = "Enviar",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
-                        ),
-                        maxLines = 2
-                    )
-
-                    if (nlpError != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = nlpError ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp) ){
-                        // Take Photo Button (Camera)
-                        Button(
-                            onClick = { onLaunchCamera() },
-                            modifier = Modifier.weight(1f).height(46.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary) ){
-                            Icon(Icons.Default.CameraAlt, contentDescription = "Tomar Foto", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Escanear Recibo", fontSize = 11.5.sp, maxLines = 1, fontWeight = FontWeight.Bold)
-                        }
-
-                        // Select Gallery Button (Gallery)
-                        FilledTonalButton(
-                            onClick = { onLaunchGallery() },
-                            modifier = Modifier.weight(1f).height(46.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Icon(Icons.Default.Image, contentDescription = "Galería", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Desde Galería", fontSize = 11.5.sp, maxLines = 1, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    // Scan Loading Indicators (Adaptativos a Modo Claro y Oscuro)
-                    if (isScanningDirect) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "IA analizando factura y extrayendo productos...",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-
-                    if (errorMessageScan != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            color = Color(0xFFEF4444).copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.35f)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Default.Error, "Error", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = errorMessageScan!!,
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(
-                                    onClick = { onSetErrorMessageScan(null) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = SubtitleText, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        }
-                    }
-
-                    if (successMessageScan != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            color = Color(0xFF10B981).copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Default.CheckCircle, "Éxito", tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = successMessageScan!!,
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(
-                                    onClick = { onSetSuccessMessageScan(null) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = SubtitleText, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // COMPLETE MONTHLY CALENDAR GRID WIDGET
@@ -5342,20 +5301,13 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Banner Hero Alcancía Fami con Sticker Oficial
+            // Nota Adhesiva de Papel Plano: Alcancía Familiar Fami con Sticker Completo
             val totalSavedGoals = goals.filter { it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
             val totalPendingGoals = goals.filter { !it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(Color(0xFF101535), Color(0xFF1E2654), Color(0xFF7A261A))
-                        )
-                    )
-                    .border(1.dp, FamiCoral.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
-                    .padding(16.dp)
+            StickyNoteSheet(
+                modifier = Modifier.fillMaxWidth(),
+                noteColor = PaperStickyPeach,
+                tapeColor = FamiCoral.copy(alpha = 0.65f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -5363,32 +5315,44 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
-                            contentDescription = "Alcancía Fami",
+                        Box(
                             modifier = Modifier
-                                .size(64.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                        )
+                                .size(66.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(PaperSheetWhite)
+                                .border(1.8.dp, FamiNavy, RoundedCornerShape(14.dp))
+                                .padding(3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
+                                contentDescription = "Alcancía Fami",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(10.dp)),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                            )
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "ALCANCÍA FAMILIAR FAMI",
+                                text = "🐷 ALCANCÍA FAMILIAR FAMI",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiGold,
+                                color = FamiCoralDark,
                                 letterSpacing = 0.8.sp
                             )
                             Text(
                                 text = "${goals.count { it.isCompleted }} cumplidas • ${goals.count { !it.isCompleted }} en curso",
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
+                                fontWeight = FontWeight.Black,
+                                color = FamiNavy
                             )
                             Text(
                                 text = "Meta activa: $${String.format(Locale.US, "%,.0f", totalPendingGoals)} USD • Logrado: $${String.format(Locale.US, "%,.0f", totalSavedGoals)}",
                                 fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.80f)
+                                fontWeight = FontWeight.Bold,
+                                color = FamiNavyMuted
                             )
                         }
                     }

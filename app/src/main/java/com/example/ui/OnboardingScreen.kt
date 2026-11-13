@@ -81,57 +81,73 @@ fun OnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(FamiMidnight)
+            .background(PaperDeskBg)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(24.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Top Bar
+            // Header Top Bar con Logo Oficial Fami + Botón 3D de País
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Selector de País
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = FamiDarkSurfaceElevated,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, FamiDarkBorder),
-                    modifier = Modifier.clickable { showCountryDialog = true }
+                Image(
+                    painter = painterResource(id = R.drawable.ic_fami_logo_wide),
+                    contentDescription = "Fami Logo Oficial",
+                    modifier = Modifier.height(28.dp),
+                    contentScale = ContentScale.FillHeight
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Botón 3D Selector de País
+                    Tactile3DButton(
+                        onClick = { showCountryDialog = true },
+                        faceColor = PaperStickyYellow,
+                        lipColor = Lip3DGold,
+                        contentColor = FamiNavy,
+                        lipHeight = 3.dp,
+                        cornerRadius = 10.dp,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text(selectedCountry.flag, fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(selectedCountry.flag, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "${selectedCountry.localCurrency} / ${selectedCountry.defaultSecondary}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            text = "${selectedCountry.localCurrency}/${selectedCountry.defaultSecondary}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiNavy
                         )
                     }
-                }
 
-                // Botón Omitir
-                if (pagerState.currentPage < steps.size - 1) {
-                    TextButton(onClick = { onComplete(selectedCountry) }) {
-                        Text("Omitir", color = DarkOnSurfaceVariant, fontSize = 13.sp)
+                    // Botón Omitir
+                    if (pagerState.currentPage < steps.size - 1) {
+                        Tactile3DButton(
+                            onClick = { onComplete(selectedCountry) },
+                            faceColor = PaperSheetWhite,
+                            lipColor = Lip3DPaper,
+                            contentColor = FamiNavy,
+                            lipHeight = 3.dp,
+                            cornerRadius = 10.dp,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text("Omitir", color = FamiNavy, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                        }
                     }
-                } else {
-                    Spacer(modifier = Modifier.width(40.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Carousel Pager
+            // Carousel Pager dentro de una Hoja de Cuaderno con Espiral
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -139,82 +155,96 @@ fun OnboardingScreen(
                     .fillMaxWidth()
             ) { page ->
                 val step = steps[page]
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Ilustración de la Mascota Fami
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth(0.92f)
-                            .height(260.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = FamiDarkSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, FamiDarkBorder)
+                    NotebookPaperSheet(
+                        modifier = Modifier.fillMaxWidth(),
+                        paperColor = PaperSheetWhite,
+                        showSpiralTop = true,
+                        showRuledLines = true,
+                        showMarginLine = true,
+                        cornerRadius = 18.dp
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 28.dp, end = 18.dp, top = 12.dp, bottom = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Image(
-                                painter = painterResource(id = step.imageRes),
-                                contentDescription = step.title,
+                            // Etiqueta Adhesiva de Paso
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(8.dp)
-                                    .clip(RoundedCornerShape(20.dp)),
-                                contentScale = ContentScale.Fit
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(PaperStickyPeach)
+                                    .border(1.5.dp, FamiNavy, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "📓 ${step.badge}",
+                                    color = FamiCoralDark,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Marco Polaroid de Papel para la Mascota Completa
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(230.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(PaperSheetCream)
+                                    .border(1.8.dp, FamiNavy, RoundedCornerShape(16.dp))
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(id = step.imageRes),
+                                    contentDescription = step.title,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(12.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Título en Tinta Navy Oficial (#101535)
+                            Text(
+                                text = step.title,
+                                color = FamiNavy,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Descripción sobre las líneas del cuaderno
+                            Text(
+                                text = step.description,
+                                color = FamiNavyMuted,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                lineHeight = 19.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Badge de Paso
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = FamiCoral.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, FamiCoral.copy(alpha = 0.4f))
-                    ) {
-                        Text(
-                            text = step.badge,
-                            color = FamiCoralLight,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            letterSpacing = 1.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Título
-                    Text(
-                        text = step.title,
-                        color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Descripción
-                    Text(
-                        text = step.description,
-                        color = DarkOnSurfaceVariant,
-                        fontSize = 14.sp,
-                        lineHeight = 21.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
                 }
             }
 
-            // Indicador de Páginas (Dots)
+            // Indicador de Páginas (Dots con borde de tinta)
             Row(
-                modifier = Modifier.padding(vertical = 16.dp),
+                modifier = Modifier.padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 repeat(steps.size) { index ->
@@ -222,16 +252,17 @@ fun OnboardingScreen(
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
-                            .height(8.dp)
-                            .width(if (isSelected) 24.dp else 8.dp)
+                            .height(10.dp)
+                            .width(if (isSelected) 26.dp else 10.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) FamiCoral else FamiDarkBorder)
+                            .background(if (isSelected) FamiCoral else PaperSheetWhite)
+                            .border(1.5.dp, FamiNavy, CircleShape)
                     )
                 }
             }
 
-            // Botón de Acción Principal
-            Button(
+            // Botón Táctil 3D Principal
+            Tactile3DButton(
                 onClick = {
                     if (pagerState.currentPage < steps.size - 1) {
                         coroutineScope.launch {
@@ -241,71 +272,72 @@ fun OnboardingScreen(
                         onComplete(selectedCountry)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                modifier = Modifier.fillMaxWidth(),
+                faceColor = FamiCoral,
+                lipColor = Lip3DCoral,
+                contentColor = Color.White,
+                lipHeight = 5.dp,
+                cornerRadius = 14.dp,
+                contentPadding = PaddingValues(vertical = 14.dp, horizontal = 20.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = if (pagerState.currentPage == steps.size - 1) "¡Comenzar con Fami!" else "Siguiente",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = if (pagerState.currentPage == steps.size - 1) Icons.Default.Check else Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Text(
+                    text = if (pagerState.currentPage == steps.size - 1) "¡ABRIR MI CUADERNO FAMI!" else "SIGUIENTE HOJA",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.6.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = if (pagerState.currentPage == steps.size - 1) Icons.Default.Check else Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
 
-        // Modal para seleccionar País
+        // Modal Hoja de Papel para seleccionar País
         if (showCountryDialog) {
             AlertDialog(
                 onDismissRequest = { showCountryDialog = false },
                 title = {
-                    Text("Selecciona tu País", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("🌍 Selecciona tu País", fontWeight = FontWeight.Black, color = FamiNavy)
                 },
                 text = {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .padding(top = 6.dp)
                     ) {
                         Text(
-                            "Fami adaptará la moneda principal y la tasa oficial en vivo a tu país:",
-                            fontSize = 13.sp,
-                            color = DarkOnSurfaceVariant
+                            "Fami adaptará la moneda de tu cuaderno y la tasa oficial en vivo a tu país:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = FamiNavyMuted
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         CountryCurrencyConfig.SUPPORTED_COUNTRIES.forEach { country ->
                             val isChosen = country.code == selectedCountry.code
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isChosen) FamiCoral.copy(alpha = 0.15f) else FamiDarkSurface,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (isChosen) FamiCoral else FamiDarkBorder
-                                ),
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 3.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isChosen) PaperStickyPeach else PaperSheetCream)
+                                    .border(
+                                        width = if (isChosen) 2.dp else 1.2.dp,
+                                        color = if (isChosen) FamiCoral else FamiNavy,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
                                     .clickable {
                                         selectedCountry = country
                                         showCountryDialog = false
                                     }
+                                    .padding(10.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
@@ -313,8 +345,8 @@ fun OnboardingScreen(
                                         Text(country.flag, fontSize = 20.sp)
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column {
-                                            Text(country.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                            Text("${country.localCurrency} • ${country.rateProvider}", color = DarkOnSurfaceVariant, fontSize = 11.sp)
+                                            Text(country.name, color = FamiNavy, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                                            Text("${country.localCurrency} • ${country.rateProvider}", color = FamiNavyMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                         }
                                     }
                                     if (isChosen) {
@@ -326,12 +358,20 @@ fun OnboardingScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showCountryDialog = false }) {
-                        Text("Cerrar", color = FamiCoralLight)
+                    Tactile3DButton(
+                        onClick = { showCountryDialog = false },
+                        faceColor = FamiNavy,
+                        lipColor = Lip3DNavy,
+                        contentColor = Color.White,
+                        lipHeight = 3.dp,
+                        cornerRadius = 10.dp,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text("LISTO", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
                     }
                 },
-                containerColor = FamiDarkSurfaceElevated,
-                shape = RoundedCornerShape(20.dp)
+                containerColor = PaperSheetWhite,
+                shape = RoundedCornerShape(18.dp)
             )
         }
     }

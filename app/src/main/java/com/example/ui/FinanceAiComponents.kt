@@ -44,220 +44,171 @@ fun FinanceAiHeroCard(
     onOpenAnalysis: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
-        onClick = onOpenAnalysis,
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = FamiMidnight
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.4.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        FamiCoral,
-                        FamiCoralLight,
-                        FamiGold.copy(alpha = 0.7f)
-                    )
-                ),
-                shape = RoundedCornerShape(26.dp)
-            )
+    StickyNoteSheet(
+        modifier = modifier.fillMaxWidth(),
+        noteColor = PaperStickyYellow
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF1D2456),
-                            FamiMidnight,
-                            Color(0xFF2B1628)
-                        )
-                    )
-                )
-                .padding(18.dp)
-        ) {
-            Column {
-                // Header badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = PaperStickyPeach,
+                    border = BorderStroke(1.2.dp, FamiMidnight),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Surface(
-                        color = FamiCoral.copy(alpha = 0.22f),
-                        border = BorderStroke(1.dp, FamiCoralLight.copy(alpha = 0.55f)),
-                        shape = RoundedCornerShape(30.dp)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🤖", fontSize = 11.sp)
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = "MENTOR FINANCIERO FAMI IA",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = FamiCoralSoft,
-                                letterSpacing = 0.8.sp
-                            )
-                        }
-                    }
-
-                    if (isLoading) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                color = FamiCoralLight,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Analizando...",
-                                fontSize = 10.sp,
-                                color = FamiCoralSoft,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    } else if (report != null) {
-                        val healthColor = when (report.budgetHealth) {
-                            "Saludable" -> FamiEmerald
-                            "Precaución" -> FamiGold
-                            else -> FamiAlertRed
-                        }
-                        Surface(
-                            color = healthColor.copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, healthColor.copy(alpha = 0.45f)),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(
-                                text = "● ${report.budgetHealth.uppercase()}",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = healthColor,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (report != null && report.topSpendingCategory != "Sin gastos") {
-                            Text(
-                                text = "Foco: ${report.topSpendingCategory}",
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                lineHeight = 23.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Concentra el ${report.topSpendingPercentage}% del mes ($${String.format(Locale.US, "%,.2f", report.topSpendingAmountUsd)} USD).",
-                                fontSize = 12.sp,
-                                color = Color(0xFFD6DEFF),
-                                lineHeight = 16.sp
-                            )
-                        } else {
-                            Text(
-                                text = "¡Hola! Soy Fami, tu mentor financiero",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                lineHeight = 23.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Toca aquí para auditar tus gastos del mes, detectar fugas y descubrir cómo ahorrar más en familia.",
-                                fontSize = 11.5.sp,
-                                color = Color(0xFFD6DEFF),
-                                lineHeight = 16.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .size(62.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(FamiCoral.copy(alpha = 0.18f))
-                            .border(1.dp, FamiCoralLight.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
-                            .padding(4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_fami_mascot),
-                            contentDescription = "Fami Mascota IA",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-
-                if (report != null && report.savingsTips.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
-                        color = Color.White.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("💡", fontSize = 12.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = report.savingsTips.first(),
-                                fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.92f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // CTA Button Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("✏️", fontSize = 11.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (report != null) "Ver auditoría completa de Fami IA" else "Ejecutar diagnóstico inteligente",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = FamiCoralLight
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = FamiCoralLight,
-                            modifier = Modifier.size(15.dp)
+                            text = "NOTA DEL ASESOR FAMI IA",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight
                         )
                     }
-
-                    Text(
-                        text = "@hola.fami",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.45f)
-                    )
                 }
+
+                if (isLoading) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            color = FamiCoral,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Calculando...",
+                            fontSize = 10.sp,
+                            color = FamiMidnight,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else if (report != null) {
+                    val healthBg = when (report.budgetHealth) {
+                        "Saludable" -> PaperStickyMint
+                        "Precaución" -> PaperStickyYellow
+                        else -> FamiAlertRedBg
+                    }
+                    Surface(
+                        color = healthBg,
+                        border = BorderStroke(1.2.dp, FamiMidnight),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "● ${report.budgetHealth.uppercase()}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.fami_sticker_idea),
+                    contentDescription = "Fami Mentor IA",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.5.dp, FamiMidnight, RoundedCornerShape(14.dp))
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    if (report != null && report.topSpendingCategory != "Sin gastos") {
+                        Text(
+                            text = "Foco del mes: ${report.topSpendingCategory}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Representa el ${report.topSpendingPercentage}% ($${String.format(Locale.US, "%,.2f", report.topSpendingAmountUsd)} USD).",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = FamiMidnight.copy(alpha = 0.78f)
+                        )
+                    } else {
+                        Text(
+                            text = "¡Revisemos las cuentas del cuaderno!",
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Fami IA analiza cada hoja de gastos y te sugiere cómo ahorrar en familia.",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = FamiMidnight.copy(alpha = 0.78f)
+                        )
+                    }
+                }
+            }
+
+            if (report != null && report.savingsTips.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    color = PaperSheetWhite,
+                    border = BorderStroke(1.2.dp, FamiMidnight),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("💡", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = report.savingsTips.first(),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = FamiMidnight,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Tactile3DButton(
+                onClick = onOpenAnalysis,
+                modifier = Modifier.fillMaxWidth(),
+                faceColor = FamiCoral,
+                lipColor = Lip3DCoral,
+                cornerRadius = 12.dp,
+                lipHeight = 3.5.dp,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
+            ) {
+                Text(
+                    text = if (report != null) "ABRIR DIAGNÓSTICO DEL CUADERNO" else "ANALIZAR HOJA CON FAMI IA",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(15.dp)
+                )
             }
         }
     }

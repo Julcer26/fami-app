@@ -1,6 +1,5 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -11,18 +10,18 @@ private val LightColorScheme = lightColorScheme(
     primary = LightPrimary,
     secondary = LightSecondary,
     tertiary = FamiEmerald,
-    background = LightBackground,
-    surface = LightSurface,
+    background = PaperDeskBg,
+    surface = PaperSheetWhite,
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onBackground = LightOnBackground,
-    onSurface = LightOnBackground,
-    surfaceVariant = Color(0xFFEFF2FB),
+    onBackground = FamiMidnight,
+    onSurface = FamiMidnight,
+    surfaceVariant = PaperSheetCream,
     onSurfaceVariant = LightOnSurfaceVariant,
-    outline = LightOutline,
-    outlineVariant = Color(0xFFD6DBED),
-    primaryContainer = FamiCoralContainer,
-    onPrimaryContainer = FamiCoral
+    outline = FamiMidnight,
+    outlineVariant = PaperRuleLine,
+    primaryContainer = PaperStickyPeach,
+    onPrimaryContainer = FamiMidnight
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -45,7 +44,7 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = true, // Default to sleek midnight fintech dark
+    darkTheme: Boolean = false, // Default to Fami Flat Paper Notebook light mode!
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {

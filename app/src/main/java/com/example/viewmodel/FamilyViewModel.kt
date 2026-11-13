@@ -55,7 +55,7 @@ class FamilyViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val isDarkTheme: StateFlow<Boolean> = dataStoreManager.isDarkThemeFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val hasCompletedOnboarding: StateFlow<Boolean> = dataStoreManager.hasCompletedOnboardingFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)

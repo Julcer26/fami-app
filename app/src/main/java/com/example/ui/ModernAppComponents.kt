@@ -1,194 +1,132 @@
 package com.example.ui
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.theme.*
 
-/**
- * Header Bento de Fami v2.0 con Mascota opcional, etiqueta superior y botón con gradiente Sunset Coral.
- */
+// ============================================================================
+// FAMI v3.0 — CABECERA DE HOJA DE CUADERNO + BOTÓN 3D TÁCTIL
+// ============================================================================
 @Composable
 fun ModernTabHeader(
     title: String,
     subtitle: String,
-    modifier: Modifier = Modifier,
     actionText: String? = null,
     actionIcon: ImageVector = Icons.Default.Add,
     onActionClick: (() -> Unit)? = null
 ) {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        shadowElevation = 2.dp,
-        modifier = modifier
+    NotebookPaperSheet(
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp),
+        sheetColor = PaperSheetWhite,
+        showRuledLines = true,
+        showMarginLine = true,
+        showSpiralTop = true
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                // Mascota Fami redimensionada con Nano Banana (sin recortes)
+                Image(
+                    painter = painterResource(id = R.drawable.ic_fami_mascot),
+                    contentDescription = "Mascota Fami",
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(FamiCoral.copy(alpha = 0.14f))
-                        .border(1.dp, FamiCoral.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                        .padding(4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_fami_mascot),
-                        contentDescription = "Fami Mascot",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.5.dp, FamiMidnight, RoundedCornerShape(12.dp))
+                )
+                Spacer(modifier = Modifier.width(10.dp))
                 Column {
-                    Text(
-                        text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        letterSpacing = (-0.5).sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_fami_logo_wide),
+                            contentDescription = "Fami Logo",
+                            modifier = Modifier.height(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            color = PaperStickyYellow,
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, FamiMidnight)
+                        ) {
+                            Text(
+                                text = "CUADERNO",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
+                        text = title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight,
+                        letterSpacing = (-0.4).sp
+                    )
+                    Text(
                         text = subtitle,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SubtitleText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontSize = 11.sp,
+                        color = FamiMidnight.copy(alpha = 0.72f),
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
             if (actionText != null && onActionClick != null) {
-                Spacer(modifier = Modifier.width(10.dp))
-                Box(
-                    modifier = Modifier
-                        .shadow(6.dp, RoundedCornerShape(14.dp), spotColor = FamiCoral.copy(alpha = 0.45f))
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Brush.horizontalGradient(listOf(FamiCoral, FamiCoralLight)))
-                        .clickable { onActionClick() }
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                    contentAlignment = Alignment.Center
+                Spacer(modifier = Modifier.width(8.dp))
+                Tactile3DButton(
+                    onClick = onActionClick,
+                    faceColor = FamiCoral,
+                    lipColor = Lip3DCoral,
+                    cornerRadius = 12.dp,
+                    lipHeight = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = actionIcon,
-                            contentDescription = actionText,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = actionText,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Selector de Píldoras Segmentadas Fami v2.0 con cápsula activa Coral/Midnight.
- */
-@Composable
-fun ModernFilterPills(
-    options: List<Pair<String, String>>,
-    selectedId: String,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            options.forEach { (id, label) ->
-                val isSelected = selectedId == id
-                val animColor by animateColorAsState(
-                    targetValue = if (isSelected) FamiCoral else Color.Transparent,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "pillBgColor"
-                )
-                val textColor by animateColorAsState(
-                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "pillTextColor"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(animColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { onSelect(id) }
-                        .padding(vertical = 9.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                    Icon(
+                        imageVector = actionIcon,
+                        contentDescription = actionText,
+                        tint = Color.White,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = label,
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        color = textColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = actionText.uppercase(),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp,
+                        color = Color.White
                     )
                 }
             }
@@ -196,156 +134,188 @@ fun ModernFilterPills(
     }
 }
 
-/**
- * Selector de listas horizontal Fami v2.0.
- */
+// ============================================================================
+// PESTAÑAS SEPARADORAS 3D DE CUADERNO (3D KEYCAP FILTER PILLS)
+// ============================================================================
 @Composable
-fun ModernListSelectorChips(
-    listNames: List<String>,
-    selectedList: String,
-    onSelectList: (String) -> Unit,
-    onAddListClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun ModernFilterPills(
+    options: List<Pair<String, String>>,
+    selectedId: String,
+    onSelect: (String) -> Unit
 ) {
-    val scrollState = rememberScrollState()
-
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        listNames.forEach { listName ->
-            val isSelected = selectedList.equals(listName, ignoreCase = true)
-            Surface(
-                onClick = { onSelectList(listName) },
-                shape = RoundedCornerShape(14.dp),
-                color = if (isSelected) {
-                    FamiCoral.copy(alpha = 0.16f)
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
-                border = BorderStroke(
-                    width = if (isSelected) 1.5.dp else 1.dp,
-                    color = if (isSelected) {
-                        FamiCoral
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                    }
-                )
+        options.forEach { (id, label) ->
+            val isSelected = selectedId == id
+            Tactile3DButton(
+                onClick = { onSelect(id) },
+                modifier = Modifier.weight(1f),
+                faceColor = if (isSelected) FamiCoral else PaperSheetWhite,
+                lipColor = if (isSelected) Lip3DCoral else Lip3DPaper,
+                borderColor = FamiMidnight,
+                cornerRadius = 12.dp,
+                lipHeight = if (isSelected) 4.dp else 3.dp,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 9.dp)
             ) {
                 Text(
-                    text = listName,
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                    color = if (isSelected) {
-                        FamiCoral
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                )
-            }
-        }
-
-        Surface(
-            onClick = onAddListClick,
-            shape = RoundedCornerShape(14.dp),
-            color = FamiEmerald.copy(alpha = 0.12f),
-            border = BorderStroke(1.dp, FamiEmerald.copy(alpha = 0.4f))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Nueva lista",
-                    tint = FamiEmerald,
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = "Nueva Lista",
+                    text = label,
                     fontSize = 11.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = FamiEmerald
+                    fontWeight = FontWeight.Black,
+                    color = if (isSelected) Color.White else FamiMidnight,
+                    maxLines = 1
                 )
             }
         }
     }
 }
 
-/**
- * Tarjeta de Estado Vacío ilustrada con Stickers Oficiales de la Mascota Fami.
- */
+// ============================================================================
+// CHIPS 3D DE SELECCIÓN DE LISTAS / SECCIONES DE CUADERNO
+// ============================================================================
+@Composable
+fun ModernListSelectorChips(
+    lists: List<String>,
+    selectedList: String,
+    itemCounts: Map<String, Int> = emptyMap(),
+    onSelectList: (String) -> Unit,
+    onAddListClick: (() -> Unit)? = null
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        items(lists) { listName ->
+            val isSelected = listName == selectedList
+            val count = itemCounts[listName]
+            Tactile3DButton(
+                onClick = { onSelectList(listName) },
+                faceColor = if (isSelected) FamiMidnight else PaperSheetWhite,
+                lipColor = if (isSelected) Lip3DNavy else Lip3DPaper,
+                borderColor = FamiMidnight,
+                cornerRadius = 12.dp,
+                lipHeight = 3.5.dp,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = listName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isSelected) Color.White else FamiMidnight
+                )
+                if (count != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(if (isSelected) FamiCoral else PaperStickyYellow)
+                            .border(1.dp, FamiMidnight, CircleShape)
+                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = count.toString(),
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isSelected) Color.White else FamiMidnight
+                        )
+                    }
+                }
+            }
+        }
+
+        if (onAddListClick != null) {
+            item {
+                Tactile3DButton(
+                    onClick = onAddListClick,
+                    faceColor = PaperStickyPeach,
+                    lipColor = Lip3DPaper,
+                    borderColor = FamiMidnight,
+                    cornerRadius = 12.dp,
+                    lipHeight = 3.5.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Nueva Hoja",
+                        tint = FamiCoral,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Nueva Hoja",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// ESTADO VACÍO EN NOTA ADHESIVA CON STICKER OFICIAL FAMI (SIN RECORTAR)
+// ============================================================================
 @Composable
 fun ModernEmptyState(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    modifier: Modifier = Modifier,
     actionText: String? = null,
     onActionClick: (() -> Unit)? = null
 ) {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        modifier = modifier
+    StickyNoteSheet(
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp)
+            .padding(vertical = 10.dp),
+        noteColor = PaperStickyYellow
     ) {
         Column(
-            modifier = Modifier.padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.fami_sticker_love),
+                contentDescription = "Fami Sticker",
                 modifier = Modifier
-                    .size(84.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(FamiCoral.copy(alpha = 0.10f))
-                    .border(1.dp, FamiCoral.copy(alpha = 0.28f), RoundedCornerShape(22.dp))
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.fami_sticker_love),
-                    contentDescription = "Fami Mascot Sticker",
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
+                    .size(92.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .border(1.5.dp, FamiMidnight, RoundedCornerShape(18.dp))
+            )
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                color = FamiMidnight
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = subtitle,
-                fontSize = 12.5.sp,
-                color = SubtitleText,
-                textAlign = TextAlign.Center,
-                lineHeight = 17.sp
+                fontSize = 12.sp,
+                color = FamiMidnight.copy(alpha = 0.75f),
+                fontWeight = FontWeight.Medium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-
             if (actionText != null && onActionClick != null) {
-                Spacer(modifier = Modifier.height(18.dp))
-                Button(
+                Spacer(modifier = Modifier.height(14.dp))
+                Tactile3DButton(
                     onClick = onActionClick,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                    faceColor = FamiCoral,
+                    lipColor = Lip3DCoral,
+                    cornerRadius = 12.dp,
+                    lipHeight = 4.dp
                 ) {
-                    Text(text = actionText, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    Text(
+                        text = actionText.uppercase(),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 12.sp,
+                        color = Color.White
+                    )
                 }
             }
         }
