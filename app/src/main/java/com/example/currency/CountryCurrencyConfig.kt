@@ -48,7 +48,7 @@ object CountryCurrencyConfig {
         CountryInfo("PA", "Panamá", "🇵🇦", "USD", "$", "Tasa Oficial", "EUR"),
         CountryInfo("DO", "República Dominicana", "🇩🇴", "DOP", "RD$", "Banco Central RD", "USD"),
         CountryInfo("CR", "Costa Rica", "🇨🇷", "CRC", "₡", "BCCR Oficial", "USD"),
-        CountryInfo("UY", "Uruguay", "🇺🇾", "UYU", "$U", "BCU Oficial", "USD"),
+        CountryInfo("UY", "Uruguay", "🇺🇾", "UYU", "\$U", "BCU Oficial", "USD"),
         CountryInfo("PY", "Paraguay", "🇵🇾", "PYG", "₲", "BCP Oficial", "USD"),
         CountryInfo("BO", "Bolivia", "🇧🇴", "BOB", "Bs", "BCB Oficial", "USD"),
         CountryInfo("GT", "Guatemala", "🇬🇹", "GTQ", "Q", "Banguat Oficial", "USD"),
