@@ -44,6 +44,7 @@ fun Tactile3DButton(
     faceColor: Color = FamiCoral,
     lipColor: Color = Lip3DCoral,
     borderColor: Color = FamiMidnight,
+    contentColor: Color = Color.Unspecified,
     cornerRadius: Dp = 14.dp,
     lipHeight: Dp = 4.dp,
     contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
@@ -151,6 +152,7 @@ fun NotebookSpiralStrip(
 fun NotebookPaperSheet(
     modifier: Modifier = Modifier,
     sheetColor: Color = PaperSheetWhite,
+    paperColor: Color = sheetColor,
     borderColor: Color = FamiMidnight,
     shadowColor: Color = FamiMidnight,
     cornerRadius: Dp = 18.dp,
@@ -190,7 +192,7 @@ fun NotebookPaperSheet(
             }
             .offset(x = pressOffset * 0.6f, y = pressOffset)
             .clip(RoundedCornerShape(cornerRadius))
-            .background(sheetColor)
+            .background(paperColor)
             .border(1.8.dp, borderColor, RoundedCornerShape(cornerRadius))
             .then(clickMod)
             .drawBehind {

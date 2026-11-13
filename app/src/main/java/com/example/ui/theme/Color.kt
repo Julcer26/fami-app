@@ -68,6 +68,9 @@ val LightOnSurfaceVariant = Color(0xFF4A5270)
 val LightOutline = Color(0xFFD5CCB8)
 
 // Aliases de compatibilidad
+val FamiNavy = FamiMidnight
+val FamiNavyMuted = LightOnSurfaceVariant
+val FamiCoralDark = FamiCoralDeep
 val FamiDarkSurface = DarkSurface
 val FamiDarkSurfaceElevated = DarkSurfaceElevated
 val FamiDarkBorder = DarkOutline

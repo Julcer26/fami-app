@@ -176,14 +176,16 @@ fun ModernFilterPills(
 // ============================================================================
 @Composable
 fun ModernListSelectorChips(
-    lists: List<String>,
+    listNames: List<String> = emptyList(),
+    lists: List<String> = listNames,
     selectedList: String,
     itemCounts: Map<String, Int> = emptyMap(),
     onSelectList: (String) -> Unit,
-    onAddListClick: (() -> Unit)? = null
+    onAddListClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     LazyRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
