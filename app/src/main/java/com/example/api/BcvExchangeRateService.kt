@@ -17,6 +17,50 @@ object BcvExchangeRateService {
         .build()
 
     /**
+     * Detecta automáticamente el código de país (ISO-2) del usuario mediante su IP pública.
+     * Si no hay red o falla, retorna null para usar el locale del dispositivo.
+     */
+    suspend fun detectCountryCodeByIp(): String? = withContext(Dispatchers.IO) {
+        val ipEndpoints = listOf(
+            "https://ipwho.is/",
+            "https://ipapi.co/json/",
+            "https://api.country.is/"
+        )
+        val fastClient = client.newBuilder()
+            .connectTimeout(4, TimeUnit.SECONDS)
+            .readTimeout(4, TimeUnit.SECONDS)
+            .build()
+
+        for (url in ipEndpoints) {
+            try {
+                val req = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "FamiApp/3.1")
+                    .build()
+                fastClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string().orEmpty()
+                        if (body.isNotEmpty()) {
+                            val json = JSONObject(body)
+                            val code = json.optString("country_code")
+                                .ifBlank { json.optString("country") }
+                                .ifBlank { json.optString("countryCode") }
+                                .trim()
+                                .uppercase()
+                            if (code.length == 2 && code.all { it.isLetter() }) {
+                                return@withContext code
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "GeoIP lookup failed on $url: ${e.message}")
+            }
+        }
+        return@withContext null
+    }
+
+    /**
      * Obtiene la tasa de cambio oficial según el país seleccionado:
      * - VE (Venezuela): BCV Oficial
      * - CO (Colombia): TRM Oficial
@@ -24,13 +68,25 @@ object BcvExchangeRateService {
      * - MX (México), CL (Chile), PE (Perú), ES (Euro), etc: Tasa oficial de mercado interbancario
      */
     suspend fun fetchOfficialRateForCountry(countryCode: String = "VE", localCurrency: String = "VES"): Double = withContext(Dispatchers.IO) {
+        val curr = localCurrency.uppercase()
+        if (curr == "USD") return@withContext 1.0
         val code = countryCode.uppercase()
-        when (code) {
-            "VE" -> fetchOfficialRate()
-            "CO" -> fetchColombiaRate()
-            "AR" -> fetchArgentinaRate()
-            else -> fetchGlobalInterbankRate(localCurrency)
+        when {
+            code == "VE" && curr == "VES" -> fetchOfficialRate()
+            code == "CO" && curr == "COP" -> fetchColombiaRate()
+            code == "AR" && curr == "ARS" -> fetchArgentinaRate()
+            else -> fetchGlobalInterbankRate(curr)
         }
+    }
+
+    suspend fun fetchUsdToCurrencyRate(currencyCode: String): Double = withContext(Dispatchers.IO) {
+        val curr = currencyCode.uppercase()
+        if (curr == "USD" || curr == "NONE" || curr.isBlank()) return@withContext 1.0
+        if (curr == "VES") {
+            val bcv = fetchOfficialRate()
+            if (bcv > 0.0) return@withContext bcv
+        }
+        return@withContext fetchGlobalInterbankRate(curr)
     }
 
     private fun fetchColombiaRate(): Double {

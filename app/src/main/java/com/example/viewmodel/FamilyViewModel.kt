@@ -69,35 +69,115 @@ class FamilyViewModel(
     val secondaryCurrency: StateFlow<String> = dataStoreManager.secondaryCurrencyFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "USD")
 
+    val liveExchangeRate: StateFlow<Double> = dataStoreManager.liveExchangeRateFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 904.45)
+
+    val secondaryExchangeRate: StateFlow<Double> = dataStoreManager.secondaryExchangeRateFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0)
+
+    val appLanguage: StateFlow<String> = dataStoreManager.appLanguageFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.currency.CountryCurrencyConfig.detectSystemLanguageCode())
+
+    val familyRole: StateFlow<String> = dataStoreManager.familyRoleFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     val viewInSecondary: StateFlow<Boolean> = dataStoreManager.viewInSecondaryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    private val _detectedIpCountry = MutableStateFlow<String?>(null)
+    val detectedIpCountry: StateFlow<String?> = _detectedIpCountry.asStateFlow()
+
+    fun detectCountryByIpOnStartup() {
+        viewModelScope.launch {
+            if (_detectedIpCountry.value != null) return@launch
+            val detected = com.example.api.BcvExchangeRateService.detectCountryCodeByIp()
+                ?: java.util.Locale.getDefault().country.takeIf { it.length == 2 }?.uppercase()
+            _detectedIpCountry.value = detected
+        }
+    }
+
     fun toggleViewInSecondary() {
         viewModelScope.launch {
-            dataStoreManager.toggleViewInSecondary(!viewInSecondary.value)
+            if (secondaryCurrency.value == "NONE") {
+                dataStoreManager.toggleViewInSecondary(false)
+            } else {
+                dataStoreManager.toggleViewInSecondary(!viewInSecondary.value)
+            }
+        }
+    }
+
+    fun applyInitialConfiguration(
+        country: com.example.currency.CountryInfo,
+        primaryCurr: String,
+        secondaryCurr: String,
+        languageCode: String,
+        role: String
+    ) {
+        viewModelScope.launch {
+            dataStoreManager.setInitialConfiguration(
+                countryCode = country.code,
+                primaryCurr = primaryCurr,
+                secondaryCurr = secondaryCurr,
+                languageCode = languageCode,
+                familyRole = role.trim()
+            )
+            syncExchangeRateFor(country.code, primaryCurr, secondaryCurr)
+        }
+    }
+
+    fun updateRegionalSettings(
+        country: com.example.currency.CountryInfo,
+        primaryCurr: String,
+        secondaryCurr: String,
+        languageCode: String,
+        role: String
+    ) {
+        viewModelScope.launch {
+            dataStoreManager.setCountryAndCurrency(country.code, primaryCurr, secondaryCurr)
+            dataStoreManager.setAppLanguage(languageCode)
+            dataStoreManager.setFamilyRole(role.trim())
+            syncExchangeRateFor(country.code, primaryCurr, secondaryCurr)
+            notifyUser("Configuración actualizada: ${country.flag} $primaryCurr")
+        }
+    }
+
+    fun reopenInitialConfig() {
+        viewModelScope.launch {
+            dataStoreManager.setOnboardingCompleted(false)
         }
     }
 
     fun setCountry(country: com.example.currency.CountryInfo) {
         viewModelScope.launch {
-            dataStoreManager.setCountryAndCurrency(country.code, country.localCurrency, country.defaultSecondary)
+            val sec = secondaryCurrency.value.ifBlank { "USD" }
+            dataStoreManager.setCountryAndCurrency(country.code, country.localCurrency, sec)
             dataStoreManager.setOnboardingCompleted(true)
-            syncExchangeRate()
+            syncExchangeRateFor(country.code, country.localCurrency, sec)
         }
     }
 
     fun syncExchangeRate() {
         viewModelScope.launch {
-            try {
-                val code = countryCode.value
-                val curr = primaryCurrency.value
-                val rate = com.example.api.BcvExchangeRateService.fetchOfficialRateForCountry(code, curr)
-                if (rate > 0.0) {
-                    dataStoreManager.setLiveExchangeRate(rate)
-                    repository.updateRateForCountry(code, curr, "Sistema Fami")
-                }
-            } catch (e: Exception) { }
+            syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value)
         }
+    }
+
+    private suspend fun syncExchangeRateFor(code: String, primaryCurr: String, secondaryCurr: String) {
+        try {
+            val primaryRate = com.example.api.BcvExchangeRateService.fetchOfficialRateForCountry(code, primaryCurr)
+            if (primaryRate > 0.0) {
+                dataStoreManager.setLiveExchangeRate(primaryRate)
+                repository.updateRateForCountry(code, primaryCurr, "Sistema Fami")
+            }
+            val secRate = if (secondaryCurr == "NONE" || secondaryCurr.isBlank()) {
+                1.0
+            } else {
+                com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(secondaryCurr)
+            }
+            if (secRate > 0.0) {
+                dataStoreManager.setSecondaryExchangeRate(secRate)
+            }
+        } catch (e: Exception) { }
     }
 
     fun toggleDarkTheme(isDark: Boolean) {

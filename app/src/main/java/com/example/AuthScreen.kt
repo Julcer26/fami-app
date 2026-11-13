@@ -84,24 +84,39 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                 .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp, vertical = 32.dp)
         ) {
-            // Logotipo de la Mascota Fami con contenedor estilizado
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(100.dp)
-                    .shadow(12.dp, shape = RoundedCornerShape(26.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(8.dp)
+            // Logo Oficial de Fami (Carpeta Logos fami) + Mascota en marco de papel
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_fami_mascot),
-                    contentDescription = "Fami Mascota",
-                    modifier = Modifier.fillMaxSize()
-                )
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = com.example.ui.theme.PaperSheetWhite,
+                    border = BorderStroke(1.8.dp, com.example.ui.theme.FamiMidnight),
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_fami_mascot),
+                            contentDescription = "Fami Mascota",
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_fami_logo_wide),
+                            contentDescription = "Logo Oficial Fami",
+                            modifier = Modifier.height(34.dp)
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             AnimatedContent(
                 targetState = currentMode,

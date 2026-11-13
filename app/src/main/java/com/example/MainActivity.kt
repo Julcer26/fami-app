@@ -473,10 +473,33 @@ fun MainScreen(viewModel: FamilyViewModel) {
 
     val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsStateWithLifecycle()
     val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
+    val countryCodeState by viewModel.countryCode.collectAsStateWithLifecycle()
+    val primaryCurrencyState by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+    val secondaryCurrencyState by viewModel.secondaryCurrency.collectAsStateWithLifecycle()
+    val appLanguageState by viewModel.appLanguage.collectAsStateWithLifecycle()
+    val familyRoleState by viewModel.familyRole.collectAsStateWithLifecycle()
+
+    LaunchedEffect(appLanguageState) {
+        if (appLanguageState.isNotBlank()) {
+            java.util.Locale.setDefault(java.util.Locale(appLanguageState))
+        }
+    }
+
     if (!hasCompletedOnboarding) {
         com.example.ui.OnboardingScreen(
-            onComplete = { selectedCountry ->
-                viewModel.setCountry(selectedCountry)
+            initialCountryCode = countryCodeState,
+            initialPrimaryCurrency = primaryCurrencyState,
+            initialSecondaryCurrency = secondaryCurrencyState,
+            initialLanguage = appLanguageState,
+            initialFamilyRole = familyRoleState,
+            onComplete = { selectedCountry, primaryCurr, secondaryCurr, langCode, role ->
+                viewModel.applyInitialConfiguration(
+                    country = selectedCountry,
+                    primaryCurr = primaryCurr,
+                    secondaryCurr = secondaryCurr,
+                    languageCode = langCode,
+                    role = role
+                )
             }
         )
     } else if (!isAuthenticated) {
@@ -499,7 +522,11 @@ fun MainScreen(viewModel: FamilyViewModel) {
                 modifier = Modifier.fillMaxSize(),
                 containerColor = MaterialTheme.colorScheme.background,
                 bottomBar = {
-                    FamilyBottomNavigation(currentTab = currentTab, isDarkTheme = isDarkTheme) { currentTab = it }
+                    FamilyBottomNavigation(
+                        currentTab = currentTab,
+                        isDarkTheme = isDarkTheme,
+                        appLanguage = appLanguageState
+                    ) { currentTab = it }
                 }
             ) { innerPadding ->
                 Box(
@@ -653,13 +680,19 @@ fun MainScreen(viewModel: FamilyViewModel) {
 
 // Barra Inferior de Botones 3D Táctiles sobre Base de Papel Plano (Fami v3.0)
 @Composable
-fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelected: (String) -> Unit) {
+fun FamilyBottomNavigation(
+    currentTab: String,
+    isDarkTheme: Boolean,
+    appLanguage: String = "es",
+    onTabSelected: (String) -> Unit
+) {
+    val strings = remember(appLanguage) { com.example.ui.FamiStrings.get(appLanguage) }
     val tabs = listOf(
-        Triple("inicio", "Cuaderno", if (currentTab == "inicio") Icons.Filled.MenuBook else Icons.Outlined.MenuBook),
-        Triple("cuentas", "Cuentas", if (currentTab == "cuentas") Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet),
-        Triple("tareas", "Tareas", if (currentTab == "tareas") Icons.Filled.CheckBox else Icons.Outlined.CheckBoxOutlineBlank),
-        Triple("compras", "Mercado", if (currentTab == "compras") Icons.Filled.ShoppingBag else Icons.Outlined.ShoppingBag),
-        Triple("metas", "Alcancía", if (currentTab == "metas") Icons.Filled.Savings else Icons.Outlined.Savings)
+        Triple("inicio", strings.tabNotebook, if (currentTab == "inicio") Icons.Filled.MenuBook else Icons.Outlined.MenuBook),
+        Triple("cuentas", strings.tabAccounts, if (currentTab == "cuentas") Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet),
+        Triple("tareas", strings.tabChores, if (currentTab == "tareas") Icons.Filled.CheckBox else Icons.Outlined.CheckBoxOutlineBlank),
+        Triple("compras", strings.tabMarket, if (currentTab == "compras") Icons.Filled.ShoppingBag else Icons.Outlined.ShoppingBag),
+        Triple("metas", strings.tabGoals, if (currentTab == "metas") Icons.Filled.Savings else Icons.Outlined.Savings)
     )
 
     Box(
@@ -5234,8 +5267,8 @@ fun ConfigDialog(viewModel: FamilyViewModel, onDismiss: () -> Unit) {
 @Composable
 fun FamiLogo(modifier: Modifier = Modifier) {
     androidx.compose.foundation.Image(
-        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_icon),
-        contentDescription = "Fami Logo",
+        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_logo_wide),
+        contentDescription = "Fami Logo Oficial",
         modifier = modifier
     )
 }
