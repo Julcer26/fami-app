@@ -60,11 +60,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
 
-// Paleta Fintech Moderna
-private val EmeraldGreen = Color(0xFF10B981)
-private val WarningAmber = Color(0xFFF59E0B)
+// Paleta Fintech Oficial Fami v2.0
+private val EmeraldGreen = Color(0xFF00D09C)
+private val WarningAmber = Color(0xFFFFB800)
 private val CoralRed = Color(0xFFEF4444)
-private val IndigoAccent = Color(0xFF6366F1)
+private val IndigoAccent = Color(0xFFE54629)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -766,195 +766,231 @@ private fun MasterFinancialHeroCard(
     )
 
     ElevatedCard(
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(26.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF101535)),
         modifier = Modifier
             .fillMaxWidth()
             .border(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                RoundedCornerShape(24.dp)
+                1.4.dp,
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFFE54629), Color(0xFFF57656), Color(0xFF28316B))
+                ),
+                RoundedCornerShape(26.dp)
             )
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            // Fila Superior: Etiqueta + Chip de Tasa BCV
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "GASTO TOTAL DEL MES",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.1.sp
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF1D2456),
+                            Color(0xFF101535),
+                            Color(0xFF0B0E24)
+                        )
+                    )
                 )
-                Surface(
-                    onClick = onSyncBcv,
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "🏛️ BCV: ${String.format(Locale.US, "%.2f", bcvRate)} Bs/$",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Sincronizar BCV",
-                            modifier = Modifier.size(11.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Monto Principal en USD + Equivalente en VES
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "$${String.format(Locale.US, "%,.2f", spentUsd)}",
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Text(
-                        text = "≈ Bs. ${String.format(Locale.US, "%,.2f", spentUsd * bcvRate)}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Píldora de Estado Contable
-                val isPositive = netBalance >= 0
-                Surface(
-                    color = (if (isPositive) EmeraldGreen else CoralRed).copy(alpha = 0.14f),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, (if (isPositive) EmeraldGreen else CoralRed).copy(alpha = 0.4f))
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = if (isPositive) "SUPERÁVIT" else "FLUJO NEGATIVO",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Black,
-                            color = if (isPositive) EmeraldGreen else CoralRed
-                        )
-                        val sign = if (netBalance > 0) "+" else ""
-                        Text(
-                            text = "$sign$${String.format(Locale.US, "%,.2f", netBalance)}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isPositive) EmeraldGreen else CoralRed
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Barra de Salud del Presupuesto Global del Hogar
-            if (monthlyBudgetUsd > 0) {
+                .padding(18.dp)
+        ) {
+            Column {
+                // Fila Superior: Etiqueta + Chip de Tasa Oficial
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val remaining = (monthlyBudgetUsd - spentUsd).coerceAtLeast(0.0)
-                    Text(
-                        text = if (spentUsd <= monthlyBudgetUsd)
-                            "Disponible: $${String.format(Locale.US, "%,.0f", remaining)} de $${monthlyBudgetUsd.roundToInt()}"
-                        else
-                            "Excedido por $${String.format(Locale.US, "%,.2f", spentUsd - monthlyBudgetUsd)}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "${(budgetRatio * 100).roundToInt()}%",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = statusColor
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(7.dp)
-                        .clip(RoundedCornerShape(50)),
-                    color = statusColor,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            // Métricas Secundarias + Acciones Rápidas
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = EmeraldGreen.copy(alpha = 0.1f),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("📈", fontSize = 15.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE54629))
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Column {
-                            Text("Ingresos Mes", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "BALANCE DE FINANZAS FAMI",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFF57656),
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Surface(
+                        onClick = onSyncBcv,
+                        shape = RoundedCornerShape(50),
+                        color = Color.White.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "+$${String.format(Locale.US, "%,.2f", incomeUsd)}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = EmeraldGreen
+                                text = "Tasa: ${String.format(Locale.US, "%.2f", bcvRate)}",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Sincronizar Tasa",
+                                modifier = Modifier.size(11.dp),
+                                tint = EmeraldGreen
                             )
                         }
                     }
                 }
 
-                OutlinedButton(
-                    onClick = onExportCsv,
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Monto Principal en USD + Equivalente Local
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("📊", fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Sheets", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Column {
+                        Text(
+                            text = "Total Consumido",
+                            fontSize = 11.sp,
+                            color = Color(0xFF9DA8D1),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "$${String.format(Locale.US, "%,.2f", spentUsd)} USD",
+                            fontSize = 29.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = (-0.5).sp
+                        )
+                        Text(
+                            text = "≈ ${String.format(Locale.US, "%,.2f", spentUsd * bcvRate)} Moneda Local",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFF57656)
+                        )
+                    }
+
+                    // Píldora de Estado Contable
+                    val isPositive = netBalance >= 0
+                    Surface(
+                        color = (if (isPositive) EmeraldGreen else CoralRed).copy(alpha = 0.16f),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, (if (isPositive) EmeraldGreen else CoralRed).copy(alpha = 0.45f))
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (isPositive) "SUPERÁVIT" else "DÉFICIT",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isPositive) EmeraldGreen else CoralRed
+                            )
+                            val sign = if (netBalance > 0) "+" else ""
+                            Text(
+                                text = "$sign$${String.format(Locale.US, "%,.2f", netBalance)}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
 
-                Button(
-                    onClick = onQuickAdd,
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Barra de Salud del Presupuesto Global del Hogar
+                if (monthlyBudgetUsd > 0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val remaining = (monthlyBudgetUsd - spentUsd).coerceAtLeast(0.0)
+                        Text(
+                            text = if (spentUsd <= monthlyBudgetUsd)
+                                "Libre: $${String.format(Locale.US, "%,.0f", remaining)} de $${monthlyBudgetUsd.roundToInt()}"
+                            else
+                                "Excedido por $${String.format(Locale.US, "%,.2f", spentUsd - monthlyBudgetUsd)}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF9DA8D1)
+                        )
+                        Text(
+                            text = "${(budgetRatio * 100).roundToInt()}%",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = statusColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(7.dp)
+                            .clip(RoundedCornerShape(50)),
+                        color = statusColor,
+                        trackColor = Color.White.copy(alpha = 0.15f)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // Métricas Secundarias + Acciones Rápidas
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Registrar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.Black.copy(alpha = 0.28f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📈", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text("Ingresos Mes", fontSize = 9.sp, color = Color(0xFF9DA8D1))
+                                Text(
+                                    text = "+$${String.format(Locale.US, "%,.2f", incomeUsd)}",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = EmeraldGreen
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onExportCsv,
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("📊", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Sheets", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = onQuickAdd,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE54629)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Registrar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
         }

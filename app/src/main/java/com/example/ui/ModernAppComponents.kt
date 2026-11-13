@@ -2,9 +2,9 @@ package com.example.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,18 +22,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.SubtitleText
+import com.example.R
+import com.example.ui.theme.*
 
 /**
- * Modern Header for tabs with title, subtitle, and primary action button.
- * Unifies the visual language across Tareas, Compras, Metas, and Finanzas.
+ * Header Bento de Fami v2.0 con Mascota opcional, etiqueta superior y botón con gradiente Sunset Coral.
  */
 @Composable
 fun ModernTabHeader(
@@ -44,120 +46,146 @@ fun ModernTabHeader(
     actionIcon: ImageVector = Icons.Default.Add,
     onActionClick: (() -> Unit)? = null
 ) {
-    Row(
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        shadowElevation = 2.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 4.dp)
     ) {
-        Column(modifier = Modifier.weight(1f, fill = false)) {
-            Text(
-                text = title,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onBackground,
-                letterSpacing = (-0.5).sp
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = SubtitleText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        if (actionText != null && onActionClick != null) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Button(
-                onClick = onActionClick,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = actionIcon,
-                    contentDescription = actionText,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = actionText,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(FamiCoral.copy(alpha = 0.14f))
+                        .border(1.dp, FamiCoral.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_fami_mascot),
+                        contentDescription = "Fami Mascot",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SubtitleText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (actionText != null && onActionClick != null) {
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier
+                        .shadow(6.dp, RoundedCornerShape(14.dp), spotColor = FamiCoral.copy(alpha = 0.45f))
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.horizontalGradient(listOf(FamiCoral, FamiCoralLight)))
+                        .clickable { onActionClick() }
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = actionIcon,
+                            contentDescription = actionText,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = actionText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * Universal Segmented Capsule Control (Filter Pills) for 2 to 4 options.
- * Replaces ad-hoc filter bars with a smooth, native-feeling segmented capsule.
+ * Selector de Píldoras Segmentadas Fami v2.0 con cápsula activa Coral/Midnight.
  */
 @Composable
 fun ModernFilterPills(
-    options: List<Pair<String, String>>, // Pair of ID to Label
+    options: List<Pair<String, String>>,
     selectedId: String,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(3.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             options.forEach { (id, label) ->
                 val isSelected = selectedId == id
                 val animColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    targetValue = if (isSelected) FamiCoral else Color.Transparent,
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                     label = "pillBgColor"
                 )
                 val textColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                     label = "pillTextColor"
                 )
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(13.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(animColor)
-                        .then(
-                            if (isSelected) {
-                                Modifier.border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(13.dp)
-                                )
-                            } else Modifier
-                        )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) { onSelect(id) }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 9.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = label,
                         fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                         color = textColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -169,8 +197,7 @@ fun ModernFilterPills(
 }
 
 /**
- * Horizontal Category / List Selector Chips (with quick "+ Nueva" chip).
- * Replaces bulky dropdown boxes with a lightweight, 1-tap horizontal chip bar.
+ * Selector de listas horizontal Fami v2.0.
  */
 @Composable
 fun ModernListSelectorChips(
@@ -193,58 +220,57 @@ fun ModernListSelectorChips(
             val isSelected = selectedList.equals(listName, ignoreCase = true)
             Surface(
                 onClick = { onSelectList(listName) },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer
+                    FamiCoral.copy(alpha = 0.16f)
                 } else {
                     MaterialTheme.colorScheme.surface
                 },
                 border = BorderStroke(
-                    width = 1.dp,
+                    width = if (isSelected) 1.5.dp else 1.dp,
                     color = if (isSelected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        FamiCoral
                     } else {
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     }
                 )
             ) {
                 Text(
                     text = listName,
                     fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                     color = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
+                        FamiCoral
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 )
             }
         }
 
-        // Add new list chip
         Surface(
             onClick = onAddListClick,
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            shape = RoundedCornerShape(14.dp),
+            color = FamiEmerald.copy(alpha = 0.12f),
+            border = BorderStroke(1.dp, FamiEmerald.copy(alpha = 0.4f))
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Nueva lista",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = FamiEmerald,
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = "Nueva",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    text = "Nueva Lista",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = FamiEmerald
                 )
             }
         }
@@ -252,7 +278,7 @@ fun ModernListSelectorChips(
 }
 
 /**
- * Modern, warm empty state card with soft tinted icon, friendly title, and helpful subtitle.
+ * Tarjeta de Estado Vacío ilustrada con Stickers Oficiales de la Mascota Fami.
  */
 @Composable
 fun ModernEmptyState(
@@ -264,12 +290,12 @@ fun ModernEmptyState(
     onActionClick: (() -> Unit)? = null
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 20.dp)
+            .padding(vertical = 16.dp)
     ) {
         Column(
             modifier = Modifier.padding(28.dp),
@@ -278,16 +304,17 @@ fun ModernEmptyState(
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(FamiCoral.copy(alpha = 0.10f))
+                    .border(1.dp, FamiCoral.copy(alpha = 0.28f), RoundedCornerShape(22.dp))
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(26.dp)
+                Image(
+                    painter = painterResource(id = R.drawable.fami_sticker_love),
+                    contentDescription = "Fami Mascot Sticker",
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
@@ -295,29 +322,30 @@ fun ModernEmptyState(
 
             Text(
                 text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
+                fontSize = 12.5.sp,
                 color = SubtitleText,
                 textAlign = TextAlign.Center,
-                lineHeight = 16.sp
+                lineHeight = 17.sp
             )
 
             if (actionText != null && onActionClick != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                FilledTonalButton(
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
                     onClick = onActionClick,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
                 ) {
-                    Text(text = actionText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = actionText, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                 }
             }
         }

@@ -663,44 +663,47 @@ fun MainScreen(viewModel: FamilyViewModel) {
     }
 }
 
-// Custom Floating Pill Bottom Navigation Bar (Redesigned Modern Glassmorphism)
+// Custom Floating Pill Bottom Navigation Bar (Fami v2.0 Midnight Navy + Sunset Coral Dock)
 @Composable
 fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelected: (String) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         BoxWithConstraints(
             modifier = Modifier
-                .widthIn(max = 440.dp)
+                .widthIn(max = 450.dp)
                 .fillMaxWidth()
-                .height(62.dp)
+                .height(66.dp)
                 .shadow(
-                    elevation = 18.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.25f)
+                    elevation = 22.dp,
+                    shape = RoundedCornerShape(30.dp),
+                    ambientColor = FamiCoral.copy(alpha = 0.25f),
+                    spotColor = Color.Black.copy(alpha = 0.45f)
                 )
-                .clip(RoundedCornerShape(32.dp))
+                .clip(RoundedCornerShape(30.dp))
                 .background(
-                    if (isDarkTheme) Color(0xFF141418).copy(alpha = 0.94f)
-                    else Color(0xFFFFFFFF).copy(alpha = 0.94f)
+                    if (isDarkTheme) Brush.horizontalGradient(listOf(Color(0xFF101535), Color(0xFF151B42), Color(0xFF101535)))
+                    else Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF7F8FC), Color(0xFFFFFFFF)))
                 )
                 .border(
-                    width = 1.dp,
-                    color = if (isDarkTheme) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(32.dp)
+                    width = 1.2.dp,
+                    brush = Brush.horizontalGradient(
+                        colors = if (isDarkTheme) listOf(FamiCoral.copy(alpha = 0.45f), Color(0xFF28316B), FamiCoral.copy(alpha = 0.45f))
+                        else listOf(FamiCoral.copy(alpha = 0.35f), Color(0xFFE2E6F5), FamiCoral.copy(alpha = 0.35f))
+                    ),
+                    shape = RoundedCornerShape(30.dp)
                 )
         ) {
             val tabs = listOf(
-                Triple("inicio", "Inicio", if (currentTab == "inicio") Icons.Filled.Home else Icons.Outlined.Home),
+                Triple("inicio", "Bóveda", if (currentTab == "inicio") Icons.Filled.Home else Icons.Outlined.Home),
                 Triple("cuentas", "Finanzas", if (currentTab == "cuentas") Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet),
-                Triple("tareas", "Tareas", if (currentTab == "tareas") Icons.Filled.ListAlt else Icons.Outlined.ListAlt),
-                Triple("compras", "Compras", if (currentTab == "compras") Icons.Filled.ShoppingCart else Icons.Outlined.ShoppingCart),
-                Triple("metas", "Metas", if (currentTab == "metas") Icons.Filled.Star else Icons.Outlined.StarBorder)
+                Triple("tareas", "Misiones", if (currentTab == "tareas") Icons.Filled.ListAlt else Icons.Outlined.ListAlt),
+                Triple("compras", "Despensa", if (currentTab == "compras") Icons.Filled.ShoppingCart else Icons.Outlined.ShoppingCart),
+                Triple("metas", "Alcancía", if (currentTab == "metas") Icons.Filled.Star else Icons.Outlined.StarBorder)
             )
 
             val selectedIndex = tabs.indexOfFirst { it.first == currentTab }.coerceAtLeast(0)
@@ -711,21 +714,18 @@ fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelect
                 label = "indicatorOffset"
             )
 
-            // Sleek active tab fluid pill backdrop (Subtle, elegant capsule with soft tint)
+            // Cápsula activa en gradiente Sunset Coral de Fami
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
                     .width(tabWidth)
                     .fillMaxHeight()
                     .padding(horizontal = 5.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(24.dp))
                     .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDarkTheme) 0.20f else 0.14f)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDarkTheme) 0.40f else 0.30f),
-                        shape = RoundedCornerShape(22.dp)
+                        brush = Brush.linearGradient(
+                            colors = listOf(FamiCoral, FamiCoralLight)
+                        )
                     )
             )
 
@@ -736,12 +736,12 @@ fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelect
                 tabs.forEach { (tabId, label, icon) ->
                     val selected = currentTab == tabId
                     val iconColor = if (selected) {
-                        MaterialTheme.colorScheme.primary
+                        Color.White
                     } else {
-                        if (isDarkTheme) Color.White.copy(alpha = 0.52f) else Color(0xFF64748B)
+                        if (isDarkTheme) Color(0xFF9DA8D1) else Color(0xFF5A6488)
                     }
                     val iconSize by animateDpAsState(
-                        targetValue = if (selected) 23.dp else 20.dp,
+                        targetValue = if (selected) 22.dp else 20.dp,
                         label = "tabIconSize"
                     )
 
@@ -769,7 +769,7 @@ fun FamilyBottomNavigation(currentTab: String, isDarkTheme: Boolean, onTabSelect
                             Text(
                                 text = label,
                                 fontSize = 10.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
                                 color = iconColor
                             )
                         }
@@ -1002,108 +1002,238 @@ fun DashboardTab(
             .fillMaxSize()
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(bottom = 150.dp) ){
-        // App top header (Branding and Settings)
+        // App top header (Fami v2.0 Bento Header + Live Country Picker)
         item {
+            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
+            val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
+            val countryInfo = remember(selectedCountryCode) {
+                com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
+            }
+            var showCountryPickerModal by remember { mutableStateOf(false) }
+
+            if (showCountryPickerModal) {
+                AlertDialog(
+                    onDismissRequest = { showCountryPickerModal = false },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🌎", fontSize = 20.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("País y Moneda Oficial", fontSize = 17.sp, fontWeight = FontWeight.Black)
+                        }
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Selecciona tu país para ajustar tu moneda local y sincronizar la tasa oficial en tu Bóveda Fami:",
+                                fontSize = 11.5.sp,
+                                color = SubtitleText
+                            )
+                            com.example.currency.CountryCurrencyConfig.SUPPORTED_COUNTRIES.forEach { c ->
+                                val isSel = c.code == countryInfo.code
+                                Surface(
+                                    onClick = {
+                                        viewModel.setCountry(c)
+                                        showCountryPickerModal = false
+                                    },
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isSel) FamiCoral.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    border = BorderStroke(1.dp, if (isSel) FamiCoral else Color.Transparent),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(c.flag, fontSize = 20.sp)
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(c.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                                Text("${c.localCurrency} (${c.symbol}) • ${c.rateProvider}", fontSize = 10.5.sp, color = SubtitleText)
+                                            }
+                                        }
+                                        if (isSel) {
+                                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showCountryPickerModal = false }) {
+                            Text("Cerrar", fontWeight = FontWeight.Bold, color = FamiCoral)
+                        }
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                    .padding(horizontal = 2.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    // Small premium container for fami Logo
+                    // Contenedor de la Mascota Oficial Fami
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(46.dp)
+                            .shadow(8.dp, RoundedCornerShape(15.dp), spotColor = FamiCoral.copy(alpha = 0.4f))
+                            .clip(RoundedCornerShape(15.dp))
                             .background(
-                                brush = androidx.compose.ui.graphics.Brush.linearGradient(
-                                    colors = listOf(Color(0xFF0D9488), Color(0xFF2DD4BF))
+                                brush = Brush.linearGradient(
+                                    colors = listOf(FamiCoral, FamiCoralLight)
                                 )
-                            ),
+                            )
+                            .padding(3.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        FamiLogo(modifier = Modifier.size(28.dp))
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_mascot),
+                            contentDescription = "Fami Mascot",
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (currentUser.isNotBlank()) "¡Hola, $currentUser! 👋" else "Nido",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                text = if (currentUser.isNotBlank()) "¡Hola, $currentUser!" else "¡Hola, Familia Fami!",
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onBackground,
                                 letterSpacing = (-0.5).sp
                             )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                color = FamiCoral.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "FAMI 2.0",
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiCoral,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
                         }
                         Text(
-                            text = "Tu hogar al día • Finanzas & Convivencia",
+                            text = "somosfami.app • @hola.fami",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.SemiBold,
                             color = SubtitleText
                         )
                     }
                 }
 
-                // Configuración gear button at the top right
-                IconButton(
-                    onClick = onOpenConfig,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape) ){
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Configuración",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Píldora selectora de País en vivo
+                    Surface(
+                        onClick = { showCountryPickerModal = true },
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(countryInfo.flag, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = countryInfo.localCurrency,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Cambiar país",
+                                tint = FamiCoral,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    // Configuración gear button
+                    IconButton(
+                        onClick = onOpenConfig,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(FamiCoral.copy(alpha = 0.12f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Configuración",
+                            tint = FamiCoral,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
 
         item {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             ModernMonthSelector(selectedMonth = selectedMonth, onMonthChange = { viewModel.updateSelectedMonth(it) })
             Spacer(modifier = Modifier.height(10.dp))
         }
-        // Modern 3D Premium Credit Card (Vibrant Tone & Correct Math)
+
+        // BÓVEDA FAMI V2.0 (Coral-Midnight Bento Vault con Switch Bimoneda Multi-País)
         item {
-            val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
+            val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
+            val countryInfo = remember(selectedCountryCode) {
+                com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
                     .shadow(
-                        elevation = 18.dp,
-                        shape = RoundedCornerShape(26.dp),
-                        ambientColor = Color(0xFF3F51B5).copy(alpha = 0.4f),
-                        spotColor = Color(0xFF1E1B4B).copy(alpha = 0.5f)
+                        elevation = 20.dp,
+                        shape = RoundedCornerShape(28.dp),
+                        ambientColor = FamiCoral.copy(alpha = 0.45f),
+                        spotColor = Color(0xFF101535).copy(alpha = 0.6f)
                     )
-                    .clip(RoundedCornerShape(26.dp))
+                    .clip(RoundedCornerShape(28.dp))
                     .background(
-                        brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                        brush = Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFF3730A3),
-                                Color(0xFF4F46E5),
-                                Color(0xFF1E1B4B)
+                                Color(0xFFE54629),
+                                Color(0xFFB52B14),
+                                Color(0xFF151B42),
+                                Color(0xFF101535)
                             )
                         )
                     )
                     .border(
                         width = 1.5.dp,
-                        brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                        brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.45f),
-                                Color.White.copy(alpha = 0.10f)
+                                Color(0xFFF57656),
+                                Color.White.copy(alpha = 0.25f),
+                                Color(0xFF28316B)
                             )
                         ),
-                        shape = RoundedCornerShape(26.dp)
+                        shape = RoundedCornerShape(28.dp)
                     )
-                    .padding(horizontal = 18.dp, vertical = 13.dp)
+                    .padding(horizontal = 18.dp, vertical = 16.dp)
             ) {
                 Column {
                     Row(
@@ -1112,19 +1242,23 @@ fun DashboardTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
-                            Spacer(modifier = Modifier.width(7.dp))
-                            Text(
-                                text = "BALANCE GENERAL",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White,
-                                letterSpacing = 1.1.sp
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.28f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "${countryInfo.flag} BÓVEDA FAMI",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    letterSpacing = 0.9.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                             IconToggleButton(
                                 checked = showBalance,
-                                onCheckedChange = { 
+                                onCheckedChange = {
                                     showBalance = it
                                     viewModel.updateValueSetting("hide_balance", if (it) "false" else "true")
                                 },
@@ -1132,123 +1266,187 @@ fun DashboardTab(
                             ) {
                                 Icon(
                                     imageVector = if (showBalance) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Toggle Balance",
-                                    tint = Color.White.copy(alpha = 0.85f),
+                                    contentDescription = "Ocultar/Mostrar",
+                                    tint = Color.White.copy(alpha = 0.9f),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
-                        
-                        Surface(
-                            onClick = { viewModel.syncLiveBcvRate() },
-                            color = Color.White.copy(alpha = 0.18f),
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            // Botón para alternar moneda principal (USD vs Local)
+                            Surface(
+                                onClick = { viewModel.toggleViewInSecondary() },
+                                color = Color.Black.copy(alpha = 0.32f),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, FamiGold.copy(alpha = 0.6f))
                             ) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Sync", modifier = Modifier.size(11.dp), tint = Color.White)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("BCV: $bcvRateStr", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, contentDescription = "Switch Moneda", modifier = Modifier.size(12.dp), tint = FamiGold)
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = if (viewInSecondary) countryInfo.localCurrency else "USD",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = FamiGold
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                onClick = {
+                                    viewModel.syncLiveBcvRate()
+                                    viewModel.syncExchangeRate()
+                                },
+                                color = Color.White.copy(alpha = 0.16f),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Sync", modifier = Modifier.size(11.dp), tint = Color.White)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("${countryInfo.symbol} $bcvRateStr", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
                             }
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
-                    Text("DISPONIBLE DEL MES", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.8f), letterSpacing = 0.8.sp)
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = if (viewInSecondary) "DISPONIBLE EN ${countryInfo.name.uppercase()}" else "DISPONIBLE DEL MES (USD)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White.copy(alpha = 0.85f),
+                        letterSpacing = 0.8.sp
+                    )
+
+                    val primaryDisplayText = if (!showBalance) {
+                        "••••••"
+                    } else if (viewInSecondary) {
+                        "${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} ${countryInfo.localCurrency}"
+                    } else {
+                        "$${String.format(Locale.US, "%,.2f", disponibleUsd)} USD"
+                    }
+
+                    val secondaryDisplayText = if (viewInSecondary) {
+                        "≈ $${String.format(Locale.US, "%,.2f", disponibleUsd)} USD (${countryInfo.rateProvider})"
+                    } else {
+                        "≈ ${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} (${countryInfo.rateProvider})"
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        Text(
-                            text = if (showBalance) "$${String.format(Locale.US, "%,.2f", disponibleUsd)} USD" else "•••••• USD",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = (-0.5).sp
-                        )
-                        if (showBalance) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "≈ Bs. ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)}",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFC7D2FE),
-                                modifier = Modifier.padding(bottom = 4.dp)
+                                text = primaryDisplayText,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                letterSpacing = (-0.5).sp
                             )
+                            if (showBalance) {
+                                Text(
+                                    text = secondaryDisplayText,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = FamiGold
+                                )
+                            }
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Bento KPI Strip dentro de la Bóveda
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.Black.copy(alpha = 0.24f))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.Black.copy(alpha = 0.30f))
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text("BASE + INGRESOS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f))
-                            Text(if (showBalance) "$${String.format(Locale.US, "%,.0f", baseLimitUsd)}" else "••••", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                            Text("BASE + INGRESOS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.72f))
+                            Text(
+                                text = if (showBalance) "$${String.format(Locale.US, "%,.0f", baseLimitUsd)}" else "••••",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("PRESUPUESTADO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f))
-                            Text(if (showBalance) "$${String.format(Locale.US, "%,.0f", presupuestadoUsd)}" else "••••", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFA5B4FC))
+                            Text("PRESUPUESTADO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.72f))
+                            Text(
+                                text = if (showBalance) "$${String.format(Locale.US, "%,.0f", presupuestadoUsd)}" else "••••",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiGold
+                            )
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("CONSUMIDO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f))
-                            Text(if (showBalance) "$${String.format(Locale.US, "%,.2f", totalSpentUsd)}" else "••••", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = if (totalSpentUsd > 0) Color(0xFFFF8A80) else Color(0xFF69F0AE))
+                            Text("CONSUMIDO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.72f))
+                            Text(
+                                text = if (showBalance) "$${String.format(Locale.US, "%,.2f", totalSpentUsd)}" else "••••",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (totalSpentUsd > 0) Color(0xFFFF9E80) else FamiEmerald
+                            )
                         }
                     }
-                        
+
                     Spacer(modifier = Modifier.height(10.dp))
-                        
+
                     val healthBarColor = when {
                         spentPercentage >= 95 -> Color(0xFFFF5252)
-                        spentPercentage >= 75 -> Color(0xFFFFD740)
-                        else -> Color(0xFF69F0AE)
+                        spentPercentage >= 75 -> FamiGold
+                        else -> FamiEmerald
                     }
-                    // Progress bar
                     LinearProgressIndicator(
                         progress = { (if (baseLimitUsd > 0) (totalSpentUsd / baseLimitUsd) else 0.0).toFloat().coerceIn(0f, 1f) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(6.dp)
+                            .height(7.dp)
                             .clip(CircleShape),
                         color = healthBarColor,
-                        trackColor = Color.White.copy(alpha = 0.2f)
+                        trackColor = Color.White.copy(alpha = 0.22f)
                     )
-                        
+
                     Spacer(modifier = Modifier.height(8.dp))
-                        
-                    // Status alert
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = if (spentPercentage >= 85) Icons.Default.Warning else Icons.Default.CheckCircle,
                             contentDescription = null,
                             tint = healthBarColor,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = when {
-                                spentPercentage > 100 -> "Excediste tu base mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
-                                spentPercentage >= 85 -> "Atención: Has consumido el $spentPercentage% de tu disponible mensual"
-                                else -> "Saludable: Has consumido el $spentPercentage% de tu disponible mensual"
+                                spentPercentage > 100 -> "Excediste tu bóveda mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
+                                spentPercentage >= 85 -> "Atención Fami: Has consumido el $spentPercentage% de tu disponible"
+                                else -> "Salud financiera óptima: $spentPercentage% ejecutado este mes"
                             },
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.88f)
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.92f)
                         )
                     }
-                    }
                 }
-            Spacer(modifier = Modifier.height(16.dp))
+            }
+            Spacer(modifier = Modifier.height(14.dp))
         }
 
         item {
@@ -1286,7 +1484,7 @@ fun DashboardTab(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
-        // Conversational Intelligent NLP block & Receipt Scanner Unificado
+        // Conversational Intelligent NLP block & Receipt Scanner Unificado — Fami IA v2.0
         item {
             PremiumCard(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp) ){
@@ -1296,51 +1494,45 @@ fun DashboardTab(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_idea),
+                                contentDescription = "Fami IA Idea",
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI Input",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(15.dp)
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "COPILOTO FAMI IA ✨",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 0.6.sp
+                                )
+                                Text(
+                                    text = "Dicta tu gasto o fotografía cualquier factura",
+                                    fontSize = 11.sp,
+                                    color = SubtitleText
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "REGISTRO INTELIGENTE CON IA ✨",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 0.6.sp
-                            )
                         }
 
                         Surface(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                            shape = RoundedCornerShape(8.dp)
+                            color = FamiCoral.copy(alpha = 0.14f),
+                            shape = RoundedCornerShape(999.dp),
+                            border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.35f))
                         ) {
                             Text(
-                                text = "Voz • Texto • Foto",
+                                text = "Voz • Foto • IA",
                                 fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                fontWeight = FontWeight.ExtraBold,
+                                color = FamiCoralLight,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Escribe tu gasto en lenguaje natural o escanea la factura para desglosar cada producto automáticamente.",
-                        fontSize = 11.5.sp,
-                        color = SubtitleText,
-                        lineHeight = 16.sp
-                    )
                     Spacer(modifier = Modifier.height(10.dp))
 
                     // Chips rápidos de ejemplo para agilizar escritura
@@ -5095,10 +5287,9 @@ fun ConfigDialog(viewModel: FamilyViewModel, onDismiss: () -> Unit) {
 @Composable
 fun FamiLogo(modifier: Modifier = Modifier) {
     androidx.compose.foundation.Image(
-        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_nido_logo),
-        contentDescription = "Nido Logo",
+        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_icon),
+        contentDescription = "Fami Logo",
         modifier = modifier
-
     )
 }
 
@@ -5131,9 +5322,9 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         item {
             Spacer(modifier = Modifier.height(10.dp))
             ModernTabHeader(
-                title = "Metas y Notas",
-                subtitle = "Proyectos, ahorros y apuntes compartidos",
-                actionText = "Nuevo",
+                title = "Alcancía y Metas Fami",
+                subtitle = "Ahorros compartidos, proyectos y libreta familiar",
+                actionText = "Nueva Meta",
                 onActionClick = { 
                     if (activeSubTab == "deseos") {
                         editingGoal = null
@@ -5149,6 +5340,60 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     }
                 }
             )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Banner Hero Alcancía Fami con Sticker Oficial
+            val totalSavedGoals = goals.filter { it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
+            val totalPendingGoals = goals.filter { !it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFF101535), Color(0xFF1E2654), Color(0xFF7A261A))
+                        )
+                    )
+                    .border(1.dp, FamiCoral.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
+                            contentDescription = "Alcancía Fami",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "ALCANCÍA FAMILIAR FAMI",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiGold,
+                                letterSpacing = 0.8.sp
+                            )
+                            Text(
+                                text = "${goals.count { it.isCompleted }} cumplidas • ${goals.count { !it.isCompleted }} en curso",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Meta activa: $${String.format(Locale.US, "%,.0f", totalPendingGoals)} USD • Logrado: $${String.format(Locale.US, "%,.0f", totalSavedGoals)}",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.80f)
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
         }
 

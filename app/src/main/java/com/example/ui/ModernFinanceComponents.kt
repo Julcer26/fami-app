@@ -45,10 +45,10 @@ private fun String.toColorSafe(): Color {
         if (this.startsWith("#")) {
             Color(android.graphics.Color.parseColor(this))
         } else {
-            Color(0xFF6366F1)
+            Color(0xFFE54629)
         }
     } catch (e: Exception) {
-        Color(0xFF6366F1)
+        Color(0xFFE54629)
     }
 }
 
@@ -576,7 +576,7 @@ fun ModernTransactionCard(
 
     val foundCat = categories.find { it.categoryName.equals(cleanCategory, ignoreCase = true) }
     val iconEmoji = foundCat?.iconEmoji ?: ""
-    val catColor = if (tx.isIncome) Color(0xFF10B981) else (foundCat?.colorHex?.toColorSafe() ?: Color(0xFF6366F1))
+    val catColor = if (tx.isIncome) Color(0xFF00D09C) else (foundCat?.colorHex?.toColorSafe() ?: Color(0xFFE54629))
 
     Surface(
         onClick = onClick,
