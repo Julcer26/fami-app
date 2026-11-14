@@ -75,6 +75,7 @@ fun ModernAccountsTab(
     viewModel: FamilyViewModel,
     onOpenConfig: () -> Unit
 ) {
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -120,9 +121,15 @@ fun ModernAccountsTab(
     var categoryToDelete by remember { mutableStateOf<CategoryDetail?>(null) }
     var photoUrlToShow by remember { mutableStateOf<String?>(null) }
 
-    // Estados de Ingreso Mensual y Transferencia entre Billeteras
+    // Estados de Ingreso Mensual y Billeteras Multi-Moneda
     var showEditIncomeDialog by remember { mutableStateOf(false) }
     var showTransferDialog by remember { mutableStateOf(false) }
+    var showWalletDialog by remember { mutableStateOf(false) }
+    var editingWallet by remember { mutableStateOf<Wallet?>(null) }
+    var walletNameInput by remember { mutableStateOf("") }
+    var walletCurrencyInput by remember { mutableStateOf("USD") }
+    var walletBalanceInput by remember { mutableStateOf("") }
+    var showWalletCurrencyPicker by remember { mutableStateOf(false) }
 
     // Estados de Pagos Recurrentes
     var showAddRecurringDialog by remember { mutableStateOf(false) }
@@ -260,15 +267,27 @@ fun ModernAccountsTab(
                 )
             }
 
-            // 1C. Resumen de Billeteras Multi-Moneda y Transferencias
-            if (wallets.isNotEmpty()) {
-                item {
-                    WalletsAccountsStripCard(
-                        wallets = wallets,
-                        canTransfer = wallets.size >= 2,
-                        onTransferClick = { showTransferDialog = true }
-                    )
-                }
+            // 1C. Mis Billeteras Multi-Moneda (Creación, Edición, Saldo y Transferencias)
+            item {
+                AccountsWalletsSectionCard(
+                    wallets = wallets,
+                    defaultLocalCurrency = localCurrency,
+                    onTransferClick = { showTransferDialog = true },
+                    onAddWalletClick = {
+                        editingWallet = null
+                        walletNameInput = ""
+                        walletCurrencyInput = if (wallets.any { it.currency.equals(localCurrency, ignoreCase = true) }) "USD" else localCurrency
+                        walletBalanceInput = ""
+                        showWalletDialog = true
+                    },
+                    onEditWalletClick = { w ->
+                        editingWallet = w
+                        walletNameInput = w.name
+                        walletCurrencyInput = w.currency
+                        walletBalanceInput = if (w.balance == 0.0) "" else w.balance.toString()
+                        showWalletDialog = true
+                    }
+                )
             }
 
             // 2. Tarjeta Hero de Asistente IA
@@ -937,10 +956,12 @@ private fun MonthlyIncomeAccountCard(
 }
 
 @Composable
-private fun WalletsAccountsStripCard(
+private fun AccountsWalletsSectionCard(
     wallets: List<Wallet>,
-    canTransfer: Boolean,
-    onTransferClick: () -> Unit
+    defaultLocalCurrency: String,
+    onTransferClick: () -> Unit,
+    onAddWalletClick: () -> Unit,
+    onEditWalletClick: (Wallet) -> Unit
 ) {
     val paper = FamiTheme.paper
     NotebookPaperSheet(
@@ -951,81 +972,125 @@ private fun WalletsAccountsStripCard(
         ruleColor = paper.ruleLine.copy(alpha = 0.58f),
         marginColor = paper.marginLine.copy(alpha = 0.42f),
         showRuledLines = false,
-        showMarginLine = false,
+        showMarginLine = true,
         showSpiralTop = false
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🏦 MIS BILLETERAS (${wallets.size})",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Black,
-                    color = paper.ink,
-                    letterSpacing = 0.5.sp
-                )
-                if (canTransfer) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "👛 MIS BILLETERAS MULTI-MONEDA",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = paper.ink
+                    )
+                    Text(
+                        text = "Moneda local y extranjera al mismo tiempo",
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = paper.inkMuted
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (wallets.size >= 2) {
+                        Tactile3DButton(
+                            onClick = onTransferClick,
+                            faceColor = paper.stickyYellow,
+                            lipColor = Lip3DGold,
+                            borderColor = paper.border,
+                            cornerRadius = 10.dp,
+                            lipHeight = 2.5.dp,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = paper.ink, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Transferir", fontSize = 10.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                        }
+                    }
                     Tactile3DButton(
-                        onClick = onTransferClick,
-                        faceColor = paper.stickyYellow,
-                        lipColor = Lip3DGold,
+                        onClick = onAddWalletClick,
+                        faceColor = paper.stickyMint,
+                        lipColor = Lip3DMint,
                         borderColor = paper.border,
                         cornerRadius = 10.dp,
                         lipHeight = 2.5.dp,
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
                     ) {
-                        Icon(
-                            Icons.Default.SwapHoriz,
-                            contentDescription = "Transferir",
-                            modifier = Modifier.size(14.dp),
-                            tint = paper.ink
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Transferir",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Black,
-                            color = paper.ink
-                        )
+                        Icon(Icons.Default.Add, contentDescription = null, tint = paper.ink, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Billetera", fontSize = 10.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     }
                 }
             }
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(wallets, key = { it.id.ifBlank { it.name } }) { wallet ->
-                    val sym = CountryCurrencyConfig.getCurrencySymbol(wallet.currency)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = paper.sheetCream,
-                        border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            if (wallets.isEmpty()) {
+                RuledNotebookText(
+                    text = "Toca '+ Billetera' para llevar tus cuentas en $defaultLocalCurrency, USD o EUR simultáneamente.",
+                    fontSize = 11.5.sp,
+                    color = paper.inkMuted,
+                    lineHeight = 24.sp
+                )
+            } else {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(wallets, key = { it.id.ifEmpty { "${it.name}_${it.currency}" } }) { w ->
+                        val sym = CountryCurrencyConfig.getCurrencySymbol(w.currency)
+                        val bgColor = if (w.currency.equals(defaultLocalCurrency, ignoreCase = true)) paper.stickyPeach else paper.stickyYellow
+                        Surface(
+                            onClick = { onEditWalletClick(w) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = bgColor,
+                            border = BorderStroke(1.5.dp, paper.border),
+                            modifier = Modifier.widthIn(min = 132.dp)
                         ) {
-                            Text(
-                                text = wallet.name,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = paper.inkMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "$sym ${String.format(Locale.US, "%,.2f", wallet.balance)} ${wallet.currency}",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Black,
-                                color = if (wallet.balance >= 0) paper.ink else CoralRed
-                            )
+                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = w.currency,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiCoralDeep
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Editar",
+                                        tint = paper.inkMuted,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = w.name,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = paper.ink,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "$sym ${String.format(Locale.US, "%,.2f", w.balance)}",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (w.balance >= 0) paper.ink else CoralRed
+                                )
+                            }
                         }
                     }
                 }

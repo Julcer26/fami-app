@@ -11,6 +11,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,8 +29,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -101,35 +106,98 @@ fun AuthScreen(viewModel: FamilyViewModel) {
 
     var googleJoinCodePending by remember { mutableStateOf("") }
     var googleErrorLocal by remember { mutableStateOf<String?>(null) }
+    var isGoogleLaunching by remember { mutableStateOf(false) }
+
+    fun launchGoogleOAuthFallback(activity: FragmentActivity, joinCode: String) {
+        isGoogleLaunching = true
+        val provider = OAuthProvider.newBuilder("google.com").apply {
+            addCustomParameter("prompt", "select_account")
+        }
+        val auth = FirebaseAuth.getInstance()
+        val pendingTask = auth.pendingAuthResult
+        val task = if (pendingTask != null) {
+            pendingTask
+        } else {
+            auth.startActivityForSignInWithProvider(activity, provider.build())
+        }
+        task.addOnSuccessListener { authRes ->
+            isGoogleLaunching = false
+            val user = authRes.user
+            if (user != null) {
+                viewModel.handleGoogleFirebaseUser(
+                    firebaseUser = user,
+                    joinFamilyCode = joinCode,
+                    customFamilyName = pendingFamilyName
+                )
+            } else {
+                googleErrorLocal = "No se pudo obtener la sesión de Google."
+            }
+        }.addOnFailureListener { e ->
+            isGoogleLaunching = false
+            val raw = e.localizedMessage.orEmpty()
+            googleErrorLocal = when {
+                raw.contains("canceled", ignoreCase = true) || raw.contains("cancelled", ignoreCase = true) -> null
+                raw.contains("network", ignoreCase = true) -> "Error de red al conectar con Google. Revisa tu conexión."
+                raw.isNotBlank() -> "No se pudo iniciar con Google: $raw"
+                else -> "Error al autenticar con Google. Verifica que Google Sign-In esté activo en Firebase."
+            }
+        }
+    }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                val idToken = account.idToken
-                if (idToken != null) {
-                    val credential = GoogleAuthProvider.getCredential(idToken, null)
-                    FirebaseAuth.getInstance().signInWithCredential(credential)
-                        .addOnSuccessListener { authRes ->
-                            authRes.user?.let { user ->
-                                viewModel.handleGoogleFirebaseUser(
-                                    firebaseUser = user,
-                                    joinFamilyCode = googleJoinCodePending,
-                                    customFamilyName = pendingFamilyName
-                                )
-                            }
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken != null) {
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                FirebaseAuth.getInstance().signInWithCredential(credential)
+                    .addOnSuccessListener { authRes ->
+                        isGoogleLaunching = false
+                        authRes.user?.let { user ->
+                            viewModel.handleGoogleFirebaseUser(
+                                firebaseUser = user,
+                                joinFamilyCode = googleJoinCodePending,
+                                customFamilyName = pendingFamilyName
+                            )
                         }
-                        .addOnFailureListener { e ->
-                            googleErrorLocal = e.localizedMessage ?: "No se pudo iniciar sesión con Google"
-                        }
+                    }
+                    .addOnFailureListener { e ->
+                        isGoogleLaunching = false
+                        googleErrorLocal = e.localizedMessage ?: "No se pudo iniciar sesión con Google"
+                    }
+            } else {
+                isGoogleLaunching = false
+                val activity = context as? FragmentActivity
+                if (activity != null) {
+                    launchGoogleOAuthFallback(activity, googleJoinCodePending)
                 } else {
                     googleErrorLocal = "No se obtuvo token de Google."
                 }
-            } catch (e: ApiException) {
-                googleErrorLocal = "Error de Google Sign-In (código ${e.statusCode})"
+            }
+        } catch (e: ApiException) {
+            isGoogleLaunching = false
+            val activity = context as? FragmentActivity
+            when (e.statusCode) {
+                12501 -> {
+                    // Usuario canceló voluntariamente
+                }
+                10, 12500 -> {
+                    if (activity != null) {
+                        launchGoogleOAuthFallback(activity, googleJoinCodePending)
+                    } else {
+                        googleErrorLocal = "Configuración de Google Sign-In incompleta en Firebase (código ${e.statusCode})."
+                    }
+                }
+                else -> {
+                    googleErrorLocal = if (result.resultCode == Activity.RESULT_CANCELED && e.statusCode == 16) {
+                        null
+                    } else {
+                        "Error de Google Sign-In (código ${e.statusCode}): ${e.localizedMessage ?: "Intenta nuevamente"}"
+                    }
+                }
             }
         }
     }
@@ -142,32 +210,23 @@ fun AuthScreen(viewModel: FamilyViewModel) {
         val webClientResId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
         if (webClientResId != 0) {
             val webClientId = context.getString(webClientResId)
-            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(webClientId)
-                .requestEmail()
-                .build()
-            val client = GoogleSignIn.getClient(context, gso)
-            client.signOut().addOnCompleteListener {
-                googleSignInLauncher.launch(client.signInIntent)
-            }
-        } else if (activity != null) {
-            val provider = OAuthProvider.newBuilder("google.com").apply {
-                addCustomParameter("prompt", "select_account")
-            }
-            FirebaseAuth.getInstance()
-                .startActivityForSignInWithProvider(activity, provider.build())
-                .addOnSuccessListener { authRes ->
-                    authRes.user?.let { user ->
-                        viewModel.handleGoogleFirebaseUser(
-                            firebaseUser = user,
-                            joinFamilyCode = joinCode,
-                            customFamilyName = pendingFamilyName
-                        )
-                    }
+            if (webClientId.isNotBlank() && !webClientId.contains("placeholder", ignoreCase = true)) {
+                isGoogleLaunching = true
+                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(webClientId)
+                    .requestEmail()
+                    .build()
+                val client = GoogleSignIn.getClient(context, gso)
+                client.signOut().addOnCompleteListener {
+                    googleSignInLauncher.launch(client.signInIntent)
                 }
-                .addOnFailureListener { e ->
-                    googleErrorLocal = e.localizedMessage ?: "No se pudo completar el inicio con Google"
-                }
+                return
+            }
+        }
+        if (activity != null) {
+            launchGoogleOAuthFallback(activity, joinCode)
+        } else {
+            googleErrorLocal = "No se pudo abrir la ventana de Google en este dispositivo."
         }
     }
 
@@ -302,6 +361,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
             ) { mode ->
                 when (mode) {
                     "select" -> SelectModeContent(
+                        isLoading = isAuthLoading || isGoogleLaunching,
                         onCreateFamily = {
                             viewModel.clearAuthError()
                             currentMode = "create_family"
@@ -329,7 +389,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                         viewModel = viewModel,
                         initialFamilyName = pendingFamilyName,
                         managementMode = managementMode,
-                        isLoading = isAuthLoading,
+                        isLoading = isAuthLoading || isGoogleLaunching,
                         onBack = {
                             viewModel.clearAuthError()
                             currentMode = "select"
@@ -342,7 +402,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     )
                     "join_family" -> JoinFamilyContent(
                         viewModel = viewModel,
-                        isLoading = isAuthLoading,
+                        isLoading = isAuthLoading || isGoogleLaunching,
                         onBack = {
                             viewModel.clearAuthError()
                             currentMode = "select"
@@ -355,7 +415,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     )
                     "login_existing" -> LoginExistingFamilyContent(
                         viewModel = viewModel,
-                        isLoading = isAuthLoading,
+                        isLoading = isAuthLoading || isGoogleLaunching,
                         onBack = {
                             viewModel.clearAuthError()
                             currentMode = "select"
@@ -399,6 +459,66 @@ fun AuthScreen(viewModel: FamilyViewModel) {
 }
 
 @Composable
+private fun OfficialGoogleLogo(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val stroke = size.minDimension * 0.21f
+        val inset = stroke / 2f
+        val arcSize = Size(size.width - stroke, size.height - stroke)
+        val topLeft = Offset(inset, inset)
+        val strokeStyle = Stroke(width = stroke, cap = StrokeCap.Butt)
+
+        // Rojo superior (#EA4335)
+        drawArc(
+            color = Color(0xFFEA4335),
+            startAngle = 212f,
+            sweepAngle = 108f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = strokeStyle
+        )
+        // Amarillo izquierdo (#FBBC05)
+        drawArc(
+            color = Color(0xFFFBBC05),
+            startAngle = 142f,
+            sweepAngle = 72f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = strokeStyle
+        )
+        // Verde inferior (#34A853)
+        drawArc(
+            color = Color(0xFF34A853),
+            startAngle = 40f,
+            sweepAngle = 104f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = strokeStyle
+        )
+        // Azul derecho (#4285F4)
+        drawArc(
+            color = Color(0xFF4285F4),
+            startAngle = -6f,
+            sweepAngle = 48f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = strokeStyle
+        )
+        // Barra horizontal azul de la G (#4285F4)
+        drawLine(
+            color = Color(0xFF4285F4),
+            start = Offset(size.width * 0.50f, size.height * 0.50f),
+            end = Offset(size.width - inset * 0.35f, size.height * 0.50f),
+            strokeWidth = stroke * 0.95f,
+            cap = StrokeCap.Butt
+        )
+    }
+}
+
+@Composable
 private fun GoogleSignInButton(
     text: String = "Continuar con Google",
     enabled: Boolean = true,
@@ -417,19 +537,25 @@ private fun GoogleSignInButton(
         ),
         border = BorderStroke(1.4.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
     ) {
-        Surface(
-            shape = CircleShape,
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            modifier = Modifier.size(24.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "G",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFF4285F4)
-                )
+        if (!enabled) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = Color(0xFF4285F4)
+            )
+        } else {
+            Surface(
+                shape = CircleShape,
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier.size(26.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.padding(4.dp)
+                ) {
+                    OfficialGoogleLogo(modifier = Modifier.fillMaxSize())
+                }
             }
         }
         Spacer(modifier = Modifier.width(10.dp))
@@ -442,6 +568,7 @@ private fun GoogleSignInButton(
 // -------------------------------------------------------------
 @Composable
 private fun SelectModeContent(
+    isLoading: Boolean = false,
     onCreateFamily: () -> Unit,
     onJoinFamily: () -> Unit,
     onLoginExisting: () -> Unit,
@@ -490,6 +617,7 @@ private fun SelectModeContent(
 
         GoogleSignInButton(
             text = "Continuar con Google",
+            enabled = !isLoading,
             onClick = onContinueWithGoogle
         )
 

@@ -1039,16 +1039,22 @@ fun OnboardingScreen(
                                                     color = if (isSel) paper.stickyYellow else paper.sheetCream,
                                                     border = BorderStroke(if (isSel) 2.2.dp else 1.2.dp, if (isSel) FamiCoral else paper.border)
                                                 ) {
-                                                    Column(
-                                                        modifier = Modifier.padding(6.dp),
-                                                        horizontalAlignment = Alignment.CenterHorizontally
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(vertical = 8.dp, horizontal = 6.dp)
+                                                            .fillMaxWidth(),
+                                                        contentAlignment = Alignment.Center
                                                     ) {
                                                         Box(
                                                             modifier = Modifier
-                                                                .size(58.dp)
+                                                                .size(64.dp)
                                                                 .clip(CircleShape)
                                                                 .background(paper.sheet)
-                                                                .border(1.4.dp, if (isSel) FamiCoral else paper.border, CircleShape)
+                                                                .border(
+                                                                    width = if (isSel) 2.dp else 1.4.dp,
+                                                                    color = if (isSel) FamiCoral else paper.border,
+                                                                    shape = CircleShape
+                                                                )
                                                         ) {
                                                             Image(
                                                                 painter = painterResource(id = av.drawableRes),
@@ -1057,22 +1063,6 @@ fun OnboardingScreen(
                                                                 contentScale = ContentScale.Crop
                                                             )
                                                         }
-                                                        Spacer(modifier = Modifier.height(4.dp))
-                                                        Text(
-                                                            text = if (isEn) av.labelEn else av.labelEs,
-                                                            fontSize = 9.5.sp,
-                                                            fontWeight = FontWeight.Black,
-                                                            color = paper.ink,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            textAlign = TextAlign.Center
-                                                        )
-                                                        Text(
-                                                            text = "${av.ageGroup} • ${av.gender}",
-                                                            fontSize = 8.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = if (isSel) FamiCoral else paper.inkMuted
-                                                        )
                                                     }
                                                 }
                                             }

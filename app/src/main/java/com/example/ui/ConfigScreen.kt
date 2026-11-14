@@ -202,7 +202,7 @@ fun ConfigMainContent(
                             ) {
                                 rowAvatars.forEach { av ->
                                     val isChosen = av.id == currentAvatarId
-                                    Column(
+                                    Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .clip(RoundedCornerShape(12.dp))
@@ -213,26 +213,17 @@ fun ConfigMainContent(
                                                 shape = RoundedCornerShape(12.dp)
                                             )
                                             .clickable { viewModel.updateUserAvatar(av.id) }
-                                            .padding(6.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                            .padding(vertical = 8.dp, horizontal = 6.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Image(
                                             painter = painterResource(id = av.drawableRes),
                                             contentDescription = av.labelEs,
                                             modifier = Modifier
-                                                .size(44.dp)
+                                                .size(48.dp)
                                                 .clip(CircleShape)
                                                 .border(1.2.dp, paper.border, CircleShape),
                                             contentScale = ContentScale.Crop
-                                        )
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = av.labelEs,
-                                            fontSize = 8.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = paper.ink,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }

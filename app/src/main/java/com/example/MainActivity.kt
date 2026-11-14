@@ -4,8 +4,13 @@ import androidx.compose.ui.zIndex
 
 import androidx.compose.ui.graphics.drawscope.rotate
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Bundle
 import android.graphics.BitmapFactory
+import android.speech.RecognizerIntent
+import android.widget.Toast
 import java.io.ByteArrayOutputStream
 import com.google.firebase.storage.FirebaseStorage
 import androidx.activity.ComponentActivity
@@ -26,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -48,6 +54,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -977,22 +984,33 @@ fun DashboardTab(
     val nlpError by viewModel.nlpError.collectAsStateWithLifecycle()
 
     val primaryCurrencyState by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+    val secondaryCurrencyState by viewModel.secondaryCurrency.collectAsStateWithLifecycle()
+    val liveExchangeRate by viewModel.liveExchangeRate.collectAsStateWithLifecycle()
+    val secondaryExchangeRate by viewModel.secondaryExchangeRate.collectAsStateWithLifecycle()
+    val walletRatesToUsd by viewModel.walletRatesToUsd.collectAsStateWithLifecycle()
+    val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
+    val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
     val savedEmailState by viewModel.savedEmail.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
 
     var nlpInputText by remember { mutableStateOf("") }
     var selectedNlpWalletId by remember(wallets) { mutableStateOf(wallets.firstOrNull()?.id.orEmpty()) }
-    var showWalletDialog by remember { mutableStateOf(false) }
-    var showTransferDialog by remember { mutableStateOf(false) }
-    var editingWallet by remember { mutableStateOf<com.example.database.Wallet?>(null) }
-    var walletNameInput by remember { mutableStateOf("") }
-    var walletCurrencyInput by remember { mutableStateOf("USD") }
-    var walletBalanceInput by remember { mutableStateOf("") }
-    var showWalletCurrencyPicker by remember { mutableStateOf(false) }
 
     // --- AI & Sincronización State variables ---
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { res ->
+        if (res.resultCode == Activity.RESULT_OK) {
+            val matches = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spoken = matches?.firstOrNull()?.trim().orEmpty()
+            if (spoken.isNotBlank()) {
+                nlpInputText = if (nlpInputText.isBlank()) spoken else "${nlpInputText.trim()} $spoken"
+            }
+        }
+    }
     
     var showEmailSyncDialog by remember { mutableStateOf(false) }
     val recurringPayments by viewModel.recurringPayments.collectAsStateWithLifecycle()
@@ -1020,8 +1038,10 @@ fun DashboardTab(
     // are now hoisted to MainScreen and passed via onLaunchCamera / onLaunchGallery lambdas
     
     // Read live rates & parameters
-    val bcvRateStr = settings.find { it.key == "bcv_rate" }?.value ?: "36.85"
-    val bcvRate = bcvRateStr.toDoubleOrNull() ?: 36.85
+    val bcvRateStr = settings.find { it.key == "bcv_rate" }?.value ?: ""
+    val bcvRate = bcvRateStr.toDoubleOrNull()?.takeIf { it > 0.0 }
+        ?: liveExchangeRate.takeIf { it > 0.0 }
+        ?: 36.85
     val totalLimitStr = settings.find { it.key == "total_limit_usd" }?.value ?: "1800.0"
     val totalLimit = totalLimitStr.toDoubleOrNull() ?: 1800.0
 
@@ -1040,7 +1060,6 @@ fun DashboardTab(
     val totalSpentUsd = currentMonthTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
     val totalIncomeUsd = currentMonthTransactions.filter { it.isIncome && !it.isTransfer }.sumOf { it.amount }
     val baseLimitUsd = totalLimit + totalIncomeUsd // Ingreso base + ingresos extra del mes
-    val disponibleUsd = baseLimitUsd - totalSpentUsd // DISPONIBLE = BASE - CONSUMIDO
     val monthKey = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault()).format(selectedMonth.time)
     val presupuestadoUsd = categories.sumOf { it.limitsPerMonth[monthKey] ?: it.limitAmount } // Suma de categorias
     val remainingBudgetUsd = presupuestadoUsd + totalIncomeUsd - totalSpentUsd
@@ -1241,80 +1260,43 @@ fun DashboardTab(
             }
         }
 
-        // 2. BOTONERA TÁCTIL 3D DE ACCIÓN RÁPIDA (Reorganizada arriba para acceso 1-Tap)
+        // 2. HOJA MAYOR DE CONTABILIDAD FAMILIAR (Saldo Consolidado de Billeteras en Moneda de Preferencia)
         item {
-            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
-            val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
             val countryInfo = remember(selectedCountryCode) {
                 com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
+            }
+            val preferredPrimary = primaryCurrencyState.ifBlank { countryInfo.localCurrency }
+            val preferredSecondary = secondaryCurrencyState.trim().uppercase()
+            val hasSecondary = preferredSecondary.isNotBlank() &&
+                preferredSecondary != "NONE" &&
+                !preferredSecondary.equals(preferredPrimary, ignoreCase = true)
+            val displayCurrency = if (viewInSecondary && hasSecondary) preferredSecondary else preferredPrimary
+            val otherCurrency = if (hasSecondary) {
+                if (displayCurrency.equals(preferredPrimary, ignoreCase = true)) preferredSecondary else preferredPrimary
+            } else null
+
+            val totalWalletsDisplay = viewModel.computeTotalWalletsInCurrency(
+                targetCurrency = displayCurrency,
+                walletList = wallets,
+                primaryCurr = preferredPrimary,
+                primaryRateToUsd = bcvRate,
+                secondaryCurr = preferredSecondary,
+                secondaryRateToUsd = secondaryExchangeRate,
+                extraRatesToUsd = walletRatesToUsd
+            )
+            val totalWalletsOther = otherCurrency?.let { otherCurr ->
+                viewModel.computeTotalWalletsInCurrency(
+                    targetCurrency = otherCurr,
+                    walletList = wallets,
+                    primaryCurr = preferredPrimary,
+                    primaryRateToUsd = bcvRate,
+                    secondaryCurr = preferredSecondary,
+                    secondaryRateToUsd = secondaryExchangeRate,
+                    extraRatesToUsd = walletRatesToUsd
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                com.example.ui.Tactile3DButton(
-                    onClick = { onLaunchCamera() },
-                    modifier = Modifier.weight(1f),
-                    faceColor = FamiCoral,
-                    lipColor = Lip3DCoral,
-                    borderColor = paper.border,
-                    cornerRadius = 14.dp,
-                    lipHeight = 4.dp,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
-                ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = "Escanear", tint = Color.White, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text("ESCANEAR", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
-                }
-
-                com.example.ui.Tactile3DButton(
-                    onClick = { onLaunchGallery() },
-                    modifier = Modifier.weight(1f),
-                    faceColor = FamiMidnight,
-                    lipColor = paper.lipNavy,
-                    borderColor = paper.border,
-                    cornerRadius = 14.dp,
-                    lipHeight = 4.dp,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
-                ) {
-                    Icon(Icons.Default.Image, contentDescription = "Galería", tint = Color.White, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text("FACTURA", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
-                }
-
-                com.example.ui.Tactile3DButton(
-                    onClick = { viewModel.toggleViewInSecondary() },
-                    modifier = Modifier.weight(1f),
-                    faceColor = paper.stickyMint,
-                    lipColor = Lip3DMint,
-                    borderColor = paper.border,
-                    cornerRadius = 14.dp,
-                    lipHeight = 4.dp,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
-                ) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = "Moneda", tint = paper.ink, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (viewInSecondary) "VER USD" else "VER ${countryInfo.localCurrency}",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Black,
-                        color = paper.ink,
-                        maxLines = 1
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        // 3. HOJA MAYOR DE CONTABILIDAD FAMILIAR (Papel Rayado + Margen Coral + Mascota Nano Banana)
-        item {
-            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
-            val viewInSecondary by viewModel.viewInSecondary.collectAsStateWithLifecycle()
-            val countryInfo = remember(selectedCountryCode) {
-                com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
-            }
 
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
@@ -1328,7 +1310,7 @@ fun DashboardTab(
                         .fillMaxWidth()
                         .padding(start = 28.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)
                 ) {
-                    // Cabecera de Fecha y Sello de Referencia Interna dentro de la Hoja
+                    // Cabecera de Hoja, Cambio Rápido de Moneda y Tasa de Referencia
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1364,18 +1346,51 @@ fun DashboardTab(
                             }
                         }
 
-                        Surface(
-                            color = paper.stickyYellow,
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.2.dp, paper.border)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "1$ = ${countryInfo.symbol} $bcvRateStr",
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Black,
-                                color = paper.ink,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                            if (hasSecondary) {
+                                Surface(
+                                    onClick = { viewModel.toggleViewInSecondary() },
+                                    color = paper.stickyMint,
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.2.dp, paper.border)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SwapHoriz,
+                                            contentDescription = "Cambiar moneda",
+                                            tint = paper.ink,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = if (viewInSecondary) preferredPrimary else preferredSecondary,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = paper.ink
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                color = paper.stickyYellow,
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.2.dp, paper.border)
+                            ) {
+                                Text(
+                                    text = "1$ = ${countryInfo.symbol} ${String.format(Locale.US, "%.2f", bcvRate)}",
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
                     }
 
@@ -1383,19 +1398,21 @@ fun DashboardTab(
                     ModernMonthSelector(selectedMonth = selectedMonth, onMonthChange = { viewModel.updateSelectedMonth(it) })
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Bloque Principal: Saldo + Ilustración Nano Banana sin recortes
+                    // Bloque Principal: Suma Consolidada de Billeteras + Ilustración Nano Banana
+                    val displaySymbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(displayCurrency)
                     val primaryDisplayText = if (!showBalance) {
                         "••••••"
-                    } else if (viewInSecondary) {
-                        "${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)}"
                     } else {
-                        "$${String.format(Locale.US, "%,.2f", disponibleUsd)} USD"
+                        "$displaySymbol ${String.format(Locale.US, "%,.2f", totalWalletsDisplay)} $displayCurrency"
                     }
 
-                    val secondaryDisplayText = if (viewInSecondary) {
-                        "Equivale a $${String.format(Locale.US, "%,.2f", disponibleUsd)} USD"
-                    } else {
-                        "Equivale a ${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} ${countryInfo.localCurrency}"
+                    val secondaryDisplayText = when {
+                        wallets.isEmpty() -> "Agrega tus billeteras en Cuentas para reflejar tu saldo"
+                        otherCurrency != null && totalWalletsOther != null -> {
+                            val otherSymbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(otherCurrency)
+                            "Suma de ${wallets.size} billetera(s) • ≈ $otherSymbol ${String.format(Locale.US, "%,.2f", totalWalletsOther)} $otherCurrency"
+                        }
+                        else -> "Suma total de ${wallets.size} billetera(s)"
                     }
 
                     Row(
@@ -1405,7 +1422,7 @@ fun DashboardTab(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (viewInSecondary) "SALDO DISPONIBLE (${countryInfo.localCurrency})" else "SALDO DISPONIBLE EN HOJA",
+                                text = "SALDO DISPONIBLE ($displayCurrency)",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
                                 color = FamiCoralDeep,
@@ -1414,7 +1431,7 @@ fun DashboardTab(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = primaryDisplayText,
-                                fontSize = 27.sp,
+                                fontSize = 26.sp,
                                 fontWeight = FontWeight.Black,
                                 color = paper.ink,
                                 letterSpacing = (-0.6).sp
@@ -1550,159 +1567,7 @@ fun DashboardTab(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // 3B. BILLETERAS MULTI-MONEDA SIMULTÁNEAS (Moneda Local + Divisas + Transferencias)
-        item {
-            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
-            val countryInfo = remember(selectedCountryCode) {
-                com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
-            }
-            val defaultLocalCurr = primaryCurrencyState.ifBlank { countryInfo.localCurrency }
-
-            com.example.ui.NotebookPaperSheet(
-                modifier = Modifier.fillMaxWidth(),
-                sheetColor = paper.sheet,
-                showRuledLines = false,
-                showMarginLine = true,
-                showSpiralTop = false
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "👛 MIS BILLETERAS MULTI-MONEDA",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = paper.ink
-                            )
-                            Text(
-                                text = "Moneda local y extranjera al mismo tiempo",
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = paper.inkMuted
-                            )
-                        }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            if (wallets.size >= 2) {
-                                com.example.ui.Tactile3DButton(
-                                    onClick = { showTransferDialog = true },
-                                    faceColor = paper.stickyYellow,
-                                    lipColor = Lip3DGold,
-                                    borderColor = paper.border,
-                                    cornerRadius = 10.dp,
-                                    lipHeight = 2.5.dp,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp)
-                                ) {
-                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = paper.ink, modifier = Modifier.size(13.dp))
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text("Transferir", fontSize = 10.sp, fontWeight = FontWeight.Black, color = paper.ink)
-                                }
-                            }
-                            com.example.ui.Tactile3DButton(
-                                onClick = {
-                                    editingWallet = null
-                                    walletNameInput = ""
-                                    walletCurrencyInput = if (wallets.any { it.currency.equals(defaultLocalCurr, ignoreCase = true) }) "USD" else defaultLocalCurr
-                                    walletBalanceInput = ""
-                                    showWalletDialog = true
-                                },
-                                faceColor = paper.stickyMint,
-                                lipColor = Lip3DMint,
-                                borderColor = paper.border,
-                                cornerRadius = 10.dp,
-                                lipHeight = 2.5.dp,
-                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = null, tint = paper.ink, modifier = Modifier.size(13.dp))
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text("Billetera", fontSize = 10.sp, fontWeight = FontWeight.Black, color = paper.ink)
-                            }
-                        }
-                    }
-
-                    if (wallets.isEmpty()) {
-                        com.example.ui.RuledNotebookText(
-                            text = "Toca '+ Billetera' para llevar tus cuentas en $defaultLocalCurr, USD o EUR simultáneamente.",
-                            fontSize = 11.5.sp,
-                            color = paper.inkMuted,
-                            lineHeight = 24.sp
-                        )
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(wallets, key = { it.id.ifEmpty { "${it.name}_${it.currency}" } }) { w ->
-                                val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(w.currency)
-                                val bgColor = if (w.currency.equals(defaultLocalCurr, ignoreCase = true)) paper.stickyPeach else paper.stickyYellow
-                                Surface(
-                                    onClick = {
-                                        editingWallet = w
-                                        walletNameInput = w.name
-                                        walletCurrencyInput = w.currency
-                                        walletBalanceInput = if (w.balance == 0.0) "" else w.balance.toString()
-                                        showWalletDialog = true
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = bgColor,
-                                    border = BorderStroke(1.5.dp, paper.border),
-                                    modifier = Modifier.widthIn(min = 132.dp)
-                                ) {
-                                    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = w.currency,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = FamiCoralDeep
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Icon(
-                                                imageVector = Icons.Default.Edit,
-                                                contentDescription = "Editar",
-                                                tint = paper.inkMuted,
-                                                modifier = Modifier.size(11.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = w.name,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = paper.ink,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = if (showBalance) "$sym ${String.format(Locale.US, "%,.2f", w.balance)}" else "••••",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = paper.ink
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-        }
-
-        // 4. NOTA ADHESIVA DEL ASESOR FAMI IA (Reorganizada justo debajo de la Hoja Mayor)
+        // 3. NOTA ADHESIVA DEL ASESOR FAMI IA (Escritura, Voz, Envío y Escáner/Galería abajo)
         item {
             com.example.ui.StickyNoteSheet(
                 modifier = Modifier.fillMaxWidth(),
@@ -1732,7 +1597,7 @@ fun DashboardTab(
                                     color = paper.ink
                                 )
                                 Text(
-                                    text = "Escribe tu gasto como en un cuaderno y Fami lo clasifica solo",
+                                    text = "Escribe o dicta tu gasto y Fami lo clasifica solo",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = paper.inkMuted
@@ -1741,40 +1606,8 @@ fun DashboardTab(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    val quickPrompts = listOf(
-                        "🛒 Mercado 45$" to "Gasté 45$ en Supermercado",
-                        "⛽ Gasolina 20$" to "Gasté 20$ en Gasolina",
-                        "🥖 Panadería 350" to "Gasté 350 $primaryCurrencyState en Panadería",
-                        "💊 Farmacia 15$" to "Gasté 15$ en Farmacia"
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(quickPrompts) { (chipLabel, promptText) ->
-                            com.example.ui.Tactile3DButton(
-                                onClick = { nlpInputText = promptText },
-                                faceColor = paper.sheet,
-                                lipColor = paper.lipPaper,
-                                borderColor = paper.border,
-                                cornerRadius = 10.dp,
-                                lipHeight = 2.5.dp,
-                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
-                            ) {
-                                Text(
-                                    text = chipLabel,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = paper.ink
-                                )
-                            }
-                        }
-                    }
-
                     if (wallets.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -1793,32 +1626,110 @@ fun DashboardTab(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedTextField(
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        value = nlpInputText,
-                        onValueChange = { nlpInputText = it },
-                        placeholder = { Text("Ej: Anota 25$ de almuerzo familiar...", fontSize = 12.5.sp, color = paper.inkMuted) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(paper.sheet, RoundedCornerShape(14.dp)),
-                        shape = RoundedCornerShape(14.dp),
-                        trailingIcon = {
-                            if (isRegisteringNlp) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = FamiCoral)
-                            } else if (nlpInputText.isNotEmpty()) {
-                                IconButton(onClick = { nlpInputText = "" }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = paper.ink, modifier = Modifier.size(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                                imeAction = ImeAction.Send
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSend = {
+                                    if (nlpInputText.isNotBlank() && !isRegisteringNlp) {
+                                        viewModel.registerFromNaturalLanguage(nlpInputText, selectedNlpWalletId)
+                                        nlpInputText = ""
+                                    }
                                 }
+                            ),
+                            value = nlpInputText,
+                            onValueChange = { nlpInputText = it },
+                            placeholder = { Text("Escribe o dicta tu gasto...", fontSize = 12.5.sp, color = paper.inkMuted) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(paper.sheet, RoundedCornerShape(14.dp)),
+                            shape = RoundedCornerShape(14.dp),
+                            trailingIcon = {
+                                if (nlpInputText.isNotEmpty() && !isRegisteringNlp) {
+                                    IconButton(onClick = { nlpInputText = "" }, modifier = Modifier.size(28.dp)) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = paper.ink, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = paper.border,
+                                unfocusedBorderColor = paper.border,
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
+                            ),
+                            maxLines = 2
+                        )
+
+                        com.example.ui.Tactile3DButton(
+                            onClick = {
+                                val speechLocale = when (appLanguage.lowercase()) {
+                                    "en" -> "en-US"
+                                    "pt" -> "pt-BR"
+                                    else -> "es-ES"
+                                }
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechLocale)
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla para anotar tu gasto o ingreso")
+                                }
+                                try {
+                                    speechLauncher.launch(intent)
+                                } catch (_: ActivityNotFoundException) {
+                                    Toast.makeText(context, "Dictado por voz no disponible en este dispositivo", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            faceColor = paper.stickyMint,
+                            lipColor = Lip3DMint,
+                            borderColor = paper.border,
+                            cornerRadius = 13.dp,
+                            lipHeight = 3.5.dp,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Dictar gasto por voz",
+                                tint = paper.ink,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        com.example.ui.Tactile3DButton(
+                            onClick = {
+                                if (nlpInputText.isNotBlank() && !isRegisteringNlp) {
+                                    viewModel.registerFromNaturalLanguage(nlpInputText, selectedNlpWalletId)
+                                    nlpInputText = ""
+                                }
+                            },
+                            faceColor = FamiCoral,
+                            lipColor = Lip3DCoral,
+                            borderColor = paper.border,
+                            cornerRadius = 13.dp,
+                            lipHeight = 3.5.dp,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                        ) {
+                            if (isRegisteringNlp) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "Enviar gasto",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = paper.border,
-                            unfocusedBorderColor = paper.border,
-                            focusedTextColor = paper.ink,
-                            unfocusedTextColor = paper.ink
-                        ),
-                        maxLines = 2
-                    )
+                        }
+                    }
 
                     if (nlpError != null) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -1837,27 +1748,22 @@ fun DashboardTab(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         com.example.ui.Tactile3DButton(
-                            onClick = {
-                                if (nlpInputText.isNotBlank()) {
-                                    viewModel.registerFromNaturalLanguage(nlpInputText, selectedNlpWalletId)
-                                    nlpInputText = ""
-                                }
-                            },
-                            modifier = Modifier.weight(1.3f),
+                            onClick = { onLaunchCamera() },
+                            modifier = Modifier.weight(1f),
                             faceColor = FamiCoral,
                             lipColor = Lip3DCoral,
                             borderColor = paper.border,
                             cornerRadius = 12.dp,
                             lipHeight = 4.dp,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.Send, contentDescription = "Anotar", tint = Color.White, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Escanear", tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("ANOTAR EN HOJA", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                            Text("ESCANEAR", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
                         }
 
                         com.example.ui.Tactile3DButton(
-                            onClick = { onLaunchCamera() },
+                            onClick = { onLaunchGallery() },
                             modifier = Modifier.weight(1f),
                             faceColor = FamiMidnight,
                             lipColor = paper.lipNavy,
@@ -1866,9 +1772,9 @@ fun DashboardTab(
                             lipHeight = 4.dp,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = "Foto", tint = Color.White, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text("FOTO RECIBO", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                            Icon(Icons.Default.Image, contentDescription = "Galería", tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("GALERÍA", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
                         }
                     }
 
@@ -2048,161 +1954,6 @@ fun DashboardTab(
         },
         localCurrency = primaryCurrencyState.ifBlank { "VES" }
     )
-
-    if (showTransferDialog && wallets.size >= 2) {
-        com.example.ui.WalletTransferDialog(
-            wallets = wallets,
-            bcvRate = bcvRate,
-            localCurrency = primaryCurrencyState,
-            onDismiss = { showTransferDialog = false },
-            onConfirmTransfer = { fromW, toW, fromAmt, toAmt, note ->
-                viewModel.transferBetweenWallets(fromW, toW, fromAmt, toAmt, note)
-                showTransferDialog = false
-            }
-        )
-    }
-
-    if (showWalletDialog) {
-        val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
-        val localCurr = primaryCurrencyState.ifBlank {
-            com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode).localCurrency
-        }
-        AlertDialog(
-            onDismissRequest = { showWalletDialog = false },
-            containerColor = paper.sheet,
-            titleContentColor = paper.ink,
-            textContentColor = paper.ink,
-            title = {
-                Text(
-                    text = if (editingWallet == null) "Nueva Billetera Multi-Moneda" else "Editar Billetera",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black,
-                    color = paper.ink
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = walletNameInput,
-                        onValueChange = { walletNameInput = it },
-                        label = { Text("Nombre (Ej. Efectivo, Banco, Zelle)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-                    )
-                    com.example.ui.NotebookDropdownField(
-                        label = "Moneda de la Billetera",
-                        value = "$walletCurrencyInput (${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(walletCurrencyInput)})",
-                        subtitle = "Toca para cambiar entre moneda local o divisa",
-                        onClick = { showWalletCurrencyPicker = true }
-                    )
-                    OutlinedTextField(
-                        value = walletBalanceInput,
-                        onValueChange = { walletBalanceInput = it },
-                        label = { Text("Saldo inicial / actual ($walletCurrencyInput)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                    )
-                    if (editingWallet != null) {
-                        var deltaAdjustInput by remember { mutableStateOf("") }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = deltaAdjustInput,
-                                onValueChange = { deltaAdjustInput = it },
-                                label = { Text("Ajuste rápido (+/-)", fontSize = 11.sp) },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                            )
-                            TextButton(onClick = {
-                                val d = deltaAdjustInput.replace(",", ".").toDoubleOrNull() ?: 0.0
-                                if (d > 0.0) {
-                                    viewModel.adjustWalletBalance(editingWallet!!.id, d)
-                                    val newBal = (walletBalanceInput.replace(",", ".").toDoubleOrNull() ?: editingWallet!!.balance) + d
-                                    walletBalanceInput = String.format(Locale.US, "%.2f", newBal)
-                                    deltaAdjustInput = ""
-                                }
-                            }) {
-                                Text("+ Sumar", color = FamiEmerald, fontWeight = FontWeight.Black, fontSize = 11.sp)
-                            }
-                            TextButton(onClick = {
-                                val d = deltaAdjustInput.replace(",", ".").toDoubleOrNull() ?: 0.0
-                                if (d > 0.0) {
-                                    viewModel.adjustWalletBalance(editingWallet!!.id, -d)
-                                    val newBal = (walletBalanceInput.replace(",", ".").toDoubleOrNull() ?: editingWallet!!.balance) - d
-                                    walletBalanceInput = String.format(Locale.US, "%.2f", newBal)
-                                    deltaAdjustInput = ""
-                                }
-                            }) {
-                                Text("- Restar", color = FamiAlertRed, fontWeight = FontWeight.Black, fontSize = 11.sp)
-                            }
-                        }
-                    }
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (editingWallet != null) {
-                        TextButton(onClick = {
-                            viewModel.deleteWallet(editingWallet!!)
-                            showWalletDialog = false
-                            editingWallet = null
-                        }) {
-                            Text("Eliminar", color = FamiAlertRed, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    TextButton(onClick = { showWalletDialog = false }) {
-                        Text("Cancelar", color = paper.inkMuted)
-                    }
-                }
-            },
-            confirmButton = {
-                com.example.ui.Tactile3DButton(
-                    onClick = {
-                        val cleanName = walletNameInput.trim().ifBlank { "Billetera $walletCurrencyInput" }
-                        val parsedBal = walletBalanceInput.replace(",", ".").toDoubleOrNull() ?: 0.0
-                        val walletToSave = (editingWallet ?: com.example.database.Wallet()).copy(
-                            name = cleanName,
-                            currency = walletCurrencyInput,
-                            balance = parsedBal,
-                            isLocal = walletCurrencyInput.equals(localCurr, ignoreCase = true),
-                            ownerName = editingWallet?.ownerName?.ifBlank { currentUser } ?: currentUser
-                        )
-                        viewModel.addOrEditWallet(walletToSave)
-                        showWalletDialog = false
-                        editingWallet = null
-                    },
-                    faceColor = FamiCoral,
-                    lipColor = Lip3DCoral,
-                    borderColor = paper.border,
-                    cornerRadius = 10.dp,
-                    lipHeight = 3.dp,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Text("Guardar", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
-                }
-            }
-        )
-    }
-
-    if (showWalletCurrencyPicker) {
-        com.example.ui.CurrencyPickerDialog(
-            title = "Moneda de la Billetera",
-            selectedCurrencyCode = walletCurrencyInput,
-            allowNone = false,
-            noneLabel = "",
-            onDismiss = { showWalletCurrencyPicker = false },
-            onSelectCurrency = { code ->
-                walletCurrencyInput = code
-                showWalletCurrencyPicker = false
-            }
-        )
-    }
 
     if (showConfirmScanDialog) {
         com.example.ui.ReceiptScanConfirmDialog(

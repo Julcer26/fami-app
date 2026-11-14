@@ -105,6 +105,9 @@ class FamilyViewModel(
     val wallets: StateFlow<List<Wallet>> = repository.allWallets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _walletRatesToUsd = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val walletRatesToUsd: StateFlow<Map<String, Double>> = _walletRatesToUsd.asStateFlow()
+
     val viewInSecondary: StateFlow<Boolean> = dataStoreManager.viewInSecondaryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -247,7 +250,7 @@ class FamilyViewModel(
             val cleanCurr = currency.trim().uppercase().ifBlank { "USD" }
             dataStoreManager.setMonthlyIncome(amount, cleanCurr)
             val user = _currentUser.value.ifBlank { "Usuario" }
-            val rate = if (cleanCurr == "USD" || cleanCurr == "EUR") 1.0 else {
+            val rate = if (cleanCurr == "USD") 1.0 else {
                 val live = liveExchangeRate.value
                 if (live > 0.0 && cleanCurr.equals(primaryCurrency.value, ignoreCase = true)) live
                 else com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(cleanCurr).takeIf { it > 0.0 } ?: 1.0
@@ -257,6 +260,43 @@ class FamilyViewModel(
             repository.insertSetting("monthly_income_currency", cleanCurr, user)
             repository.insertSetting("total_limit_usd", String.format(java.util.Locale.US, "%.2f", amountUsd), user)
             notifyUser("Ingreso mensual actualizado: ${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(cleanCurr)} ${String.format(java.util.Locale.US, "%,.2f", amount)} $cleanCurr")
+        }
+    }
+
+    fun computeTotalWalletsInCurrency(
+        targetCurrency: String,
+        walletList: List<Wallet>,
+        primaryCurr: String,
+        primaryRateToUsd: Double,
+        secondaryCurr: String,
+        secondaryRateToUsd: Double,
+        extraRatesToUsd: Map<String, Double>
+    ): Double {
+        if (walletList.isEmpty()) return 0.0
+        val target = targetCurrency.trim().uppercase().ifBlank { "USD" }
+        val pCurr = primaryCurr.trim().uppercase()
+        val sCurr = secondaryCurr.trim().uppercase()
+
+        fun ratePerUsd(code: String): Double {
+            val c = code.trim().uppercase()
+            return when {
+                c == "USD" -> 1.0
+                c == pCurr && primaryRateToUsd > 0.0 -> primaryRateToUsd
+                c == sCurr && secondaryRateToUsd > 0.0 -> secondaryRateToUsd
+                (extraRatesToUsd[c] ?: 0.0) > 0.0 -> extraRatesToUsd[c]!!
+                else -> 1.0
+            }
+        }
+
+        val targetPerUsd = ratePerUsd(target)
+        return walletList.sumOf { wallet ->
+            val wCurr = wallet.currency.trim().uppercase().ifBlank { "USD" }
+            if (wCurr == target) {
+                wallet.balance
+            } else {
+                val usdEquiv = wallet.balance / ratePerUsd(wCurr)
+                if (target == "USD") usdEquiv else usdEquiv * targetPerUsd
+            }
         }
     }
 
@@ -884,12 +924,13 @@ class FamilyViewModel(
         repository.insertSetting("management_mode", mode, userName)
 
         if (monthlyInc > 0.0) {
-            val amountUsd = if (monthlyIncCurr.equals("USD", ignoreCase = true) || monthlyIncCurr.equals("EUR", ignoreCase = true)) {
-                monthlyInc
-            } else if (liveRate > 0.0) {
-                monthlyInc / liveRate
-            } else {
-                monthlyInc
+            val amountUsd = when {
+                monthlyIncCurr.equals("USD", ignoreCase = true) -> monthlyInc
+                monthlyIncCurr.equals(primaryCurrency.value, ignoreCase = true) && liveRate > 0.0 -> monthlyInc / liveRate
+                else -> {
+                    val fetched = com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(monthlyIncCurr).takeIf { it > 0.0 } ?: 1.0
+                    monthlyInc / fetched
+                }
             }
             repository.insertSetting("monthly_income_amount", String.format(java.util.Locale.US, "%.2f", monthlyInc), userName)
             repository.insertSetting("monthly_income_currency", monthlyIncCurr, userName)
