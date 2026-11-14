@@ -4850,9 +4850,10 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             title = "Moneda para tu meta",
             selectedCurrencyCode = goalCurrencyInput,
             allowNone = false,
+            noneLabel = "",
             onDismiss = { showGoalCurrencyPicker = false },
             onSelectCurrency = { code ->
-                if (!code.isNullOrBlank()) {
+                if (code.isNotBlank()) {
                     goalCurrencyInput = code
                 }
                 showGoalCurrencyPicker = false

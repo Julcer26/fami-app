@@ -620,7 +620,7 @@ fun ModernTransactionCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, top = 16.dp, bottom = 11.dp),
+                .padding(start = 14.dp, top = 16.dp, end = 14.dp, bottom = 11.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

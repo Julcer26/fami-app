@@ -626,7 +626,7 @@ class FamilyRepository {
         )
     }
 
-    private suspend fun insertLog(log: ActivityLog) {
+    suspend fun insertLog(log: ActivityLog) {
         val logsRef = getFamilyRef("activity_logs") ?: return
         val pushRef = if (log.id.isEmpty()) logsRef.push() else logsRef.child(log.id)
         pushRef.setValue(log.copy(id = pushRef.key ?: "")).await()
