@@ -4778,7 +4778,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                                     depositAmountInput = ""
                                                 },
                                                 faceColor = FamiEmerald,
-                                                lipColor = Lip3DEmerald,
+                                                lipColor = Lip3DMint,
                                                 borderColor = paper.border,
                                                 cornerRadius = 11.dp,
                                                 lipHeight = 3.dp,
