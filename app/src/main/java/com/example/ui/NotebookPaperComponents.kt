@@ -264,6 +264,15 @@ fun NotebookPaperSheet(
         )
     } else Modifier
 
+    val resolvedPaperColor = if (paperColor.alpha < 1f) {
+        androidx.compose.ui.graphics.Color(
+            red = paperColor.red * paperColor.alpha + FamiTheme.paper.sheet.red * (1f - paperColor.alpha),
+            green = paperColor.green * paperColor.alpha + FamiTheme.paper.sheet.green * (1f - paperColor.alpha),
+            blue = paperColor.blue * paperColor.alpha + FamiTheme.paper.sheet.blue * (1f - paperColor.alpha),
+            alpha = 1f
+        )
+    } else paperColor
+
     Box(
         modifier = modifier
             .padding(bottom = 4.dp, end = 3.dp)
@@ -278,7 +287,7 @@ fun NotebookPaperSheet(
             }
             .offset(x = pressOffset * 0.6f, y = pressOffset)
             .clip(RoundedCornerShape(cornerRadius))
-            .background(paperColor)
+            .background(resolvedPaperColor)
             .border(1.8.dp, borderColor, RoundedCornerShape(cornerRadius))
             .then(clickMod)
             .drawBehind {
@@ -326,8 +335,32 @@ fun StickyNoteSheet(
     tapeColor: Color = FamiCoralSoft.copy(alpha = 0.65f),
     borderColor: Color = FamiTheme.paper.border,
     shadowColor: Color = FamiTheme.paper.shadow3D,
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressOffset by animateDpAsState(
+        targetValue = if (onClick != null && isPressed) 2.dp else 0.dp,
+        label = "stickyPress"
+    )
+    val clickMod = if (onClick != null) {
+        Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
+        )
+    } else Modifier
+
+    val resolvedNoteColor = if (noteColor.alpha < 1f) {
+        Color(
+            red = noteColor.red * noteColor.alpha + FamiTheme.paper.sheet.red * (1f - noteColor.alpha),
+            green = noteColor.green * noteColor.alpha + FamiTheme.paper.sheet.green * (1f - noteColor.alpha),
+            blue = noteColor.blue * noteColor.alpha + FamiTheme.paper.sheet.blue * (1f - noteColor.alpha),
+            alpha = 1f
+        )
+    } else noteColor
+
     Box(
         modifier = modifier
             .padding(top = 6.dp, bottom = 4.dp, end = 3.dp)
@@ -340,9 +373,11 @@ fun StickyNoteSheet(
                     cornerRadius = CornerRadius(r, r)
                 )
             }
+            .offset(x = pressOffset * 0.5f, y = pressOffset)
             .clip(RoundedCornerShape(16.dp))
-            .background(noteColor)
+            .background(resolvedNoteColor)
             .border(1.8.dp, borderColor, RoundedCornerShape(16.dp))
+            .then(clickMod)
     ) {
         Box(
             modifier = Modifier

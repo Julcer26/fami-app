@@ -540,6 +540,40 @@ class FamilyRepository {
         insertLog(ActivityLog(tag = "NOTAS", message = "${user} eliminó la nota: '${note.title}'", user = user))
     }
 
+    suspend fun submitSupportTicket(
+        type: String,
+        section: String,
+        subject: String,
+        description: String,
+        appVersion: String,
+        deviceInfo: String,
+        user: String
+    ) {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val payload = mapOf(
+            "type" to type,
+            "section" to section,
+            "subject" to subject,
+            "description" to description,
+            "appVersion" to appVersion,
+            "deviceInfo" to deviceInfo,
+            "user" to user,
+            "timestamp" to System.currentTimeMillis()
+        )
+        if (!uid.isNullOrBlank()) {
+            com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                .child("users").child(uid).child("support_tickets").push().setValue(payload).await()
+        }
+        getFamilyRef("support_tickets")?.push()?.setValue(payload)?.await()
+        insertLog(
+            ActivityLog(
+                tag = "SOPORTE",
+                message = "$user envió $type ($section): $subject",
+                user = user
+            )
+        )
+    }
+
     suspend fun insertWallet(wallet: Wallet, user: String) {
         val walletsRef = getFamilyRef("wallets") ?: return
         val pushRef = if (wallet.id.isEmpty()) walletsRef.push() else walletsRef.child(wallet.id)

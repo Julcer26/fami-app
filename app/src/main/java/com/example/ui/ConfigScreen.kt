@@ -139,6 +139,7 @@ fun HorizontalCategoryTabs(
 @Composable
 fun ConfigMainContent(
     selectedCategory: Int,
+    onSelectCategory: (Int) -> Unit = {},
     profiles: List<UserProfile>,
     settings: List<AppSetting>,
     activityLogs: List<ActivityLog>,
@@ -159,6 +160,7 @@ fun ConfigMainContent(
     var showEditAliasDialog by remember { mutableStateOf(false) }
     var aliasInput by remember { mutableStateOf("") }
     var profileToDelete by remember { mutableStateOf<UserProfile?>(null) }
+    var legalDialogTab by remember { mutableStateOf<String?>(null) }
 
     val currentAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val unlockMethod by viewModel.unlockMethod.collectAsStateWithLifecycle()
@@ -405,26 +407,51 @@ fun ConfigMainContent(
                 }
             }
 
-            // --- GUÍA INTERACTIVA DE OPCIONES ---
+            // --- GUÍA INTERACTIVA Y AYUDA ---
             item {
-                Tactile3DButton(
-                    onClick = onOpenGuide,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    faceColor = paper.stickyMint,
-                    lipColor = Lip3DMint,
-                    borderColor = paper.border,
-                    cornerRadius = 14.dp,
-                    lipHeight = 4.dp,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.HelpOutline, contentDescription = null, tint = paper.ink, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Ver Guía Interactiva de Opciones",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Black,
-                        color = paper.ink
-                    )
+                    Tactile3DButton(
+                        onClick = onOpenGuide,
+                        modifier = Modifier.weight(1f),
+                        faceColor = paper.stickyMint,
+                        lipColor = Lip3DMint,
+                        borderColor = paper.border,
+                        cornerRadius = 14.dp,
+                        lipHeight = 4.dp,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                    ) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Guía de Uso",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                    }
+
+                    Tactile3DButton(
+                        onClick = { onSelectCategory(2) },
+                        modifier = Modifier.weight(1f),
+                        faceColor = paper.stickySky,
+                        lipColor = paper.lipPaper,
+                        borderColor = paper.border,
+                        cornerRadius = 14.dp,
+                        lipHeight = 4.dp,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                    ) {
+                        Icon(Icons.Default.SupportAgent, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Ayuda / Fallas",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                    }
                 }
             }
 
@@ -463,7 +490,7 @@ fun ConfigMainContent(
                                     color = paper.ink
                                 )
                                 Text(
-                                    "Alterna entre cuaderno claro y papel grafito nocturno",
+                                    "Alterna entre cuaderno claro y modo azul oscuro oficial",
                                     fontSize = 11.sp,
                                     color = paper.inkMuted
                                 )
@@ -544,30 +571,45 @@ fun ConfigMainContent(
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Privacidad y Legal",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
-                                onClick = {
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://somosfami.app/privacy.html"))
-                                    context.startActivity(browserIntent)
-                                },
+                                onClick = { legalDialogTab = "privacy" },
                                 border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f)),
                                 modifier = Modifier.weight(1f)
                             ) {
+                                Icon(Icons.Default.PrivacyTip, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text("Privacidad", fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
                             }
                             OutlinedButton(
-                                onClick = {
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://somosfami.app/terms.html"))
-                                    context.startActivity(browserIntent)
-                                },
+                                onClick = { legalDialogTab = "terms" },
                                 border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f)),
                                 modifier = Modifier.weight(1f)
                             ) {
+                                Icon(Icons.Default.Description, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text("Términos", fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
                             }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedButton(
+                            onClick = { legalDialogTab = "legal" },
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Gavel, contentDescription = null, tint = paper.ink, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Aviso Legal e Información de Versión", fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Tactile3DButton(
@@ -724,95 +766,14 @@ fun ConfigMainContent(
                     }
                 }
             }
-        } else {
-            // --- HISTORY LOGS ---
+        } else if (selectedCategory == 2) {
+            // --- AYUDA, SOPORTE Y SUGERENCIAS ---
             item {
-                Text(
-                    "Historial de Actividades Recientes",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    color = paper.ink
+                HelpSupportContent(
+                    viewModel = viewModel,
+                    onOpenGuide = onOpenGuide,
+                    onOpenLegal = { tab -> legalDialogTab = tab }
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-
-            if (activityLogs.isEmpty()) {
-                item {
-                    StickyNoteSheet(
-                        modifier = Modifier.fillMaxWidth(),
-                        noteColor = paper.stickyYellow
-                    ) {
-                        Text(
-                            "No hay logs de actividad registrados.",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = paper.inkMuted,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-            } else {
-                items(activityLogs.take(30)) { log ->
-                    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                    val dateStr = format.format(Date(log.timestamp))
-
-                    val tagColor = when (log.tag.uppercase()) {
-                        "FINANZAS" -> FamiCoral
-                        "TAREAS" -> Color(0xFFE65100)
-                        "COMPRAS" -> Color(0xFF0D9488)
-                        "METAS" -> Color(0xFF7C3AED)
-                        "ALERTA" -> AlertRed
-                        else -> paper.inkMuted
-                    }
-
-                    NotebookPaperSheet(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp),
-                        sheetColor = paper.sheet,
-                        showRuledLines = false,
-                        showMarginLine = false,
-                        showSpiralTop = false
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(tagColor.copy(alpha = 0.14f))
-                                    .border(1.dp, tagColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 7.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = log.tag,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = tagColor
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = log.message,
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.weight(1f),
-                                color = paper.ink
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = dateStr,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = paper.inkMuted
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -983,6 +944,13 @@ fun ConfigMainContent(
             }
         )
     }
+
+    legalDialogTab?.let { initialTab ->
+        LegalDocumentDialog(
+            initialTab = initialTab,
+            onDismiss = { legalDialogTab = null }
+        )
+    }
 }
 
 @Composable
@@ -1003,7 +971,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
 
     val profileAvatarColors = listOf("#D0BCFF", "#EFB8C8", "#81C784", "#64B5F6", "#FFD54F", "#BA68C8", "#E0E0E0")
     var selectedCategory by remember { mutableStateOf(0) }
-    val categoriesList = listOf("General", "Miembros")
+    val categoriesList = listOf("General", "Miembros", "Ayuda")
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWideScreen = maxWidth > 600.dp
@@ -1025,6 +993,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                 Box(modifier = Modifier.weight(1f)) {
                     ConfigMainContent(
                         selectedCategory = selectedCategory,
+                        onSelectCategory = { selectedCategory = it },
                         profiles = profiles,
                         settings = settings,
                         activityLogs = activityLogs,
@@ -1081,6 +1050,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                 ) {
                     ConfigMainContent(
                         selectedCategory = selectedCategory,
+                        onSelectCategory = { selectedCategory = it },
                         profiles = profiles,
                         settings = settings,
                         activityLogs = activityLogs,

@@ -420,7 +420,12 @@ class FamilyViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val notes: StateFlow<List<Note>> = combine(repository.allNotes, _currentUser) { list, user ->
-        list.filter { it.createdBy == user } // Notas totalmente privadas
+        list.filter { !it.isPrivate || it.createdBy == user }
+            .sortedWith(
+                compareByDescending<Note> { it.isPinned && !it.isCompleted }
+                    .thenBy { it.isCompleted }
+                    .thenByDescending { maxOf(it.updatedDate, it.createdDate) }
+            )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val recurringPayments: StateFlow<List<com.example.database.RecurringPayment>> = repository.allRecurringPayments
@@ -1331,14 +1336,91 @@ class FamilyViewModel(
         viewModelScope.launch { repository.insertGoal(goal, _currentUser.value) } }
     fun deleteGoal(goal: Goal) { viewModelScope.launch { repository.deleteGoal(goal, _currentUser.value) } }
 
-    fun addNote(title: String, content: String) {
+    fun addNote(
+        title: String,
+        content: String,
+        colorKey: String = "yellow",
+        category: String = "General",
+        isPinned: Boolean = false,
+        isPrivate: Boolean = true,
+        checklist: List<NoteCheckItem> = emptyList()
+    ) {
         viewModelScope.launch {
-            val note = Note(title = title, content = content, createdBy = _currentUser.value, createdDate = System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            val note = Note(
+                title = title,
+                content = content,
+                createdBy = _currentUser.value,
+                createdDate = now,
+                isPrivate = isPrivate,
+                colorKey = colorKey,
+                category = category,
+                isPinned = isPinned,
+                updatedDate = now,
+                checklist = checklist
+            )
             repository.insertNote(note, _currentUser.value)
         }
     }
-    fun editNote(note: Note) { viewModelScope.launch { repository.insertNote(note, _currentUser.value) } }
+
+    fun editNote(note: Note) {
+        viewModelScope.launch {
+            repository.insertNote(note.copy(updatedDate = System.currentTimeMillis()), _currentUser.value)
+        }
+    }
+
+    fun toggleNotePin(note: Note) {
+        viewModelScope.launch {
+            repository.insertNote(
+                note.copy(isPinned = !note.isPinned, updatedDate = System.currentTimeMillis()),
+                _currentUser.value
+            )
+        }
+    }
+
+    fun toggleNoteChecklistItem(note: Note, index: Int) {
+        if (index !in note.checklist.indices) return
+        val updatedList = note.checklist.mapIndexed { idx, item ->
+            if (idx == index) item.copy(isDone = !item.isDone) else item
+        }
+        viewModelScope.launch {
+            repository.insertNote(
+                note.copy(checklist = updatedList, updatedDate = System.currentTimeMillis()),
+                _currentUser.value
+            )
+        }
+    }
+
     fun deleteNote(note: Note) { viewModelScope.launch { repository.deleteNote(note, _currentUser.value) } }
+
+    fun submitSupportTicket(
+        type: String,
+        section: String,
+        subject: String,
+        description: String,
+        appVersion: String,
+        deviceInfo: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                repository.submitSupportTicket(
+                    type = type,
+                    section = section,
+                    subject = subject,
+                    description = description,
+                    appVersion = appVersion,
+                    deviceInfo = deviceInfo,
+                    user = _currentUser.value.ifBlank { "Usuario Fami" }
+                )
+                notifyUser("¡Gracias! Tu mensaje fue registrado para el equipo Fami.")
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.localizedMessage ?: "No se pudo enviar el reporte en este momento.")
+            }
+        }
+    }
     fun deleteUserAccount(onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {

@@ -73,7 +73,9 @@ fun ModernTabHeader(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_fami_logo_wide),
+                            painter = painterResource(
+                                id = if (paper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
+                            ),
                             contentDescription = "Fami Logo",
                             modifier = Modifier.height(15.dp)
                         )
@@ -201,7 +203,7 @@ fun ModernListSelectorChips(
             val count = itemCounts[listName]
             Tactile3DButton(
                 onClick = { onSelectList(listName) },
-                faceColor = if (isSelected) FamiMidnight else paper.sheet,
+                faceColor = if (isSelected) (if (paper.isDark) Color(0xFF273470) else FamiMidnight) else paper.sheet,
                 lipColor = if (isSelected) paper.lipNavy else paper.lipPaper,
                 borderColor = paper.border,
                 cornerRadius = 12.dp,

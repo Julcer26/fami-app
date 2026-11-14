@@ -118,10 +118,20 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         setContent {
             val context = LocalContext.current
+            val view = androidx.compose.ui.platform.LocalView.current
             val viewModel: FamilyViewModel = viewModel(factory = FamilyViewModelFactory(context.applicationContext))
             val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
+            val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
             val isDarkThemeSetting by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+
+            if (!view.isInEditMode) {
+                SideEffect {
+                    val window = (view.context as? Activity)?.window ?: return@SideEffect
+                    val controller = androidx.core.view.WindowCompat.getInsetsController(window, view)
+                    controller.isAppearanceLightStatusBars = !isDarkThemeSetting
+                    controller.isAppearanceLightNavigationBars = !isDarkThemeSetting
+                }
+            }
 
             MyApplicationTheme(darkTheme = isDarkThemeSetting) {
                 MainScreen(viewModel)
@@ -1195,7 +1205,9 @@ fun DashboardTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_logo_wide),
+                                painter = androidx.compose.ui.res.painterResource(
+                                    id = if (paper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
+                                ),
                                 contentDescription = "Logo Oficial Fami",
                                 modifier = Modifier.height(20.dp)
                             )
@@ -4114,8 +4126,11 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 // --- BRAND IDENTITY LOGO COMPOSE CANVAS ---
 @Composable
 fun FamiLogo(modifier: Modifier = Modifier) {
+    val paper = FamiTheme.paper
     androidx.compose.foundation.Image(
-        painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_logo_wide),
+        painter = androidx.compose.ui.res.painterResource(
+            id = if (paper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
+        ),
         contentDescription = "Fami Logo Oficial",
         modifier = modifier
     )
@@ -4149,10 +4164,10 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     var depositAmountInput by remember { mutableStateOf("") }
 
     var showAddNoteDialog by remember { mutableStateOf(false) }
-    var noteTitleInput by remember { mutableStateOf("") }
-    var noteContentInput by remember { mutableStateOf("") }
-    
     var editingNote by remember { mutableStateOf<Note?>(null) }
+    var noteSearchQuery by remember { mutableStateOf("") }
+    var noteFilter by remember { mutableStateOf("Todas") }
+    var isNoteGridMode by remember { mutableStateOf(true) }
     var editingGoal by remember { mutableStateOf<Goal?>(null) }
 
     val openNewGoalDialog = {
@@ -4175,14 +4190,12 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             ModernTabHeader(
                 title = "Alcancía y Metas Fami",
                 subtitle = "Ahorros compartidos, proyectos y libreta familiar",
-                actionText = if (activeSubTab == "deseos") "Nueva Meta" else "Nueva Nota",
+                actionText = if (activeSubTab == "deseos") "Nueva Meta" else "Nueva Notita",
                 onActionClick = { 
                     if (activeSubTab == "deseos") {
                         openNewGoalDialog()
                     } else {
                         editingNote = null
-                        noteTitleInput = ""
-                        noteContentInput = ""
                         showAddNoteDialog = true 
                     }
                 }
@@ -4513,112 +4526,120 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 }
             }
         } else {
-            // Notas
+            // Libreta y Notitas Fami
+            val pinnedCount = notes.count { it.isPinned && !it.isCompleted }
+            val completedCount = notes.count { it.isCompleted }
+            val filteredNotes = notes.filter { n ->
+                val matchesSearch = noteSearchQuery.isBlank() ||
+                    n.title.contains(noteSearchQuery, ignoreCase = true) ||
+                    n.content.contains(noteSearchQuery, ignoreCase = true) ||
+                    n.checklist.any { it.text.contains(noteSearchQuery, ignoreCase = true) }
+                val matchesFilter = when (noteFilter) {
+                    "Todas" -> !n.isCompleted
+                    "Fijadas" -> n.isPinned && !n.isCompleted
+                    "Archivadas" -> n.isCompleted
+                    else -> n.category.equals(noteFilter, ignoreCase = true) && !n.isCompleted
+                }
+                matchesSearch && matchesFilter
+            }
+
+            item {
+                com.example.ui.NotesToolbar(
+                    searchQuery = noteSearchQuery,
+                    onSearchChange = { noteSearchQuery = it },
+                    selectedFilter = noteFilter,
+                    onSelectFilter = { noteFilter = it },
+                    isGridMode = isNoteGridMode,
+                    onToggleGridMode = { isNoteGridMode = !isNoteGridMode },
+                    totalCount = notes.count { !it.isCompleted },
+                    pinnedCount = pinnedCount,
+                    completedCount = completedCount
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             if (notes.isEmpty()) {
                 item {
                     ModernEmptyState(
                         icon = Icons.Default.EditNote,
                         title = "Tu libreta está vacía",
-                        subtitle = "Anota recordatorios, ideas o apuntes compartidos del hogar.",
-                        actionText = "+ Nueva Nota",
+                        subtitle = "Crea notitas adhesivas con colores, categorías y listas de verificación.",
+                        actionText = "+ Nueva Notita",
                         onActionClick = {
                             editingNote = null
-                            noteTitleInput = ""
-                            noteContentInput = ""
                             showAddNoteDialog = true
                         }
                     )
                 }
-            } else {
-                items(notes) { note ->
-                    val cleanAuthor = cleanMemberAlias(note.createdBy)
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                        com.example.ui.NotebookPaperSheet(
-                            modifier = Modifier.fillMaxWidth(),
-                            sheetColor = if (note.isCompleted) paper.sheetCream else paper.stickyYellow.copy(alpha = if (paper.isDark) 0.55f else 0.35f),
-                            showRuledLines = false,
-                            showMarginLine = true,
-                            showSpiralTop = false,
-                            onClick = {
-                                editingNote = note
-                                noteTitleInput = note.title
-                                noteContentInput = note.content
-                                showAddNoteDialog = true
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                val checkboxBg = if (note.isCompleted) FamiEmerald else Color.Transparent
-                                val checkboxBorderColor = if (note.isCompleted) FamiEmerald else FamiCoral
-
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 3.dp)
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .background(checkboxBg)
-                                        .border(2.dp, checkboxBorderColor, CircleShape)
-                                        .clickable { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (note.isCompleted) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Desmarcar",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    com.example.ui.RuledNotebookText(
-                                        text = note.title,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.5.sp,
-                                        maxLines = 2,
-                                        lineHeight = 24.sp,
-                                        textDecoration = if (note.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                                        color = if (note.isCompleted) paper.inkMuted.copy(alpha = 0.65f) else paper.ink
-                                    )
-                                    if (note.content.isNotBlank()) {
-                                        com.example.ui.RuledNotebookText(
-                                            text = note.content,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            lineHeight = 24.sp,
-                                            minRuledLines = 2,
-                                            color = if (note.isCompleted) paper.inkMuted.copy(alpha = 0.55f) else paper.ink
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        com.example.ui.MemberAvatarBadge(
-                                            memberName = cleanAuthor,
-                                            profiles = profiles,
-                                            currentUser = currentUser,
-                                            currentUserAvatarId = userAvatarIdState,
-                                            size = 18.dp
-                                        )
-                                        Text(
-                                            text = "Por $cleanAuthor",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = paper.inkMuted
-                                        )
-                                    }
-                                }
-                            }
+            } else if (filteredNotes.isEmpty()) {
+                item {
+                    ModernEmptyState(
+                        icon = Icons.Default.Search,
+                        title = "Sin notitas en esta vista",
+                        subtitle = "Prueba otro filtro o crea una notita nueva.",
+                        actionText = "+ Nueva Notita",
+                        onActionClick = {
+                            editingNote = null
+                            showAddNoteDialog = true
                         }
+                    )
+                }
+            } else if (isNoteGridMode) {
+                val noteRows = filteredNotes.chunked(2)
+                items(noteRows) { rowNotes ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        rowNotes.forEach { note ->
+                            val cleanAuthor = cleanMemberAlias(note.createdBy)
+                            com.example.ui.StickyNoteCard(
+                                note = note,
+                                cleanAuthor = cleanAuthor,
+                                profiles = profiles,
+                                currentUser = currentUser,
+                                currentUserAvatarId = userAvatarIdState,
+                                compact = true,
+                                onOpenEdit = {
+                                    editingNote = note
+                                    showAddNoteDialog = true
+                                },
+                                onTogglePin = { viewModel.toggleNotePin(note) },
+                                onToggleComplete = { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
+                                onToggleCheckItem = { idx -> viewModel.toggleNoteChecklistItem(note, idx) },
+                                onDelete = { viewModel.deleteNote(note) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowNotes.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            } else {
+                items(filteredNotes, key = { it.id.ifEmpty { "${it.title}_${it.createdDate}" } }) { note ->
+                    val cleanAuthor = cleanMemberAlias(note.createdBy)
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        com.example.ui.StickyNoteCard(
+                            note = note,
+                            cleanAuthor = cleanAuthor,
+                            profiles = profiles,
+                            currentUser = currentUser,
+                            currentUserAvatarId = userAvatarIdState,
+                            compact = false,
+                            onOpenEdit = {
+                                editingNote = note
+                                showAddNoteDialog = true
+                            },
+                            onTogglePin = { viewModel.toggleNotePin(note) },
+                            onToggleComplete = { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
+                            onToggleCheckItem = { idx -> viewModel.toggleNoteChecklistItem(note, idx) },
+                            onDelete = { viewModel.deleteNote(note) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
@@ -4984,93 +5005,45 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     }
 
     if (showAddNoteDialog) {
-        AlertDialog(
-            onDismissRequest = { 
+        com.example.ui.StickyNoteEditorDialog(
+            initialNote = editingNote,
+            onDismiss = {
                 showAddNoteDialog = false
                 editingNote = null
-                noteTitleInput = ""
-                noteContentInput = ""
             },
-            containerColor = paper.sheet,
-            shape = RoundedCornerShape(24.dp),
-            title = {
-                Text(
-                    text = if (editingNote != null) "Editar Nota" else "Nueva Nota",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
-                    color = paper.ink
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp) ){
-                    OutlinedTextField(
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
-                        value = noteTitleInput,
-                        onValueChange = { noteTitleInput = it },
-                        label = { Text("Título") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FamiCoral,
-                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
-                            focusedTextColor = paper.ink,
-                            unfocusedTextColor = paper.ink
-                        )
-                    )
-                    OutlinedTextField(
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
-                        value = noteContentInput,
-                        onValueChange = { noteContentInput = it },
-                        label = { Text("Contenido") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FamiCoral,
-                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
-                            focusedTextColor = paper.ink,
-                            unfocusedTextColor = paper.ink
-                        )
-                    )
-                }
-            },
-            dismissButton = {
+            onSave = { title, content, colorKey, category, isPinned, isPrivate, checklist ->
                 if (editingNote != null) {
-                    TextButton(onClick = { 
-                        viewModel.deleteNote(editingNote!!)
-                        editingNote = null
-                        showAddNoteDialog = false
-                    }) {
-                        Text("Eliminar", color = AlertRed, fontWeight = FontWeight.Bold)
-                    }
+                    val updated = editingNote!!.copy(
+                        title = title,
+                        content = content,
+                        colorKey = colorKey,
+                        category = category,
+                        isPinned = isPinned,
+                        isPrivate = isPrivate,
+                        checklist = checklist
+                    )
+                    viewModel.editNote(updated)
                 } else {
-                    TextButton(onClick = { showAddNoteDialog = false }) {
-                        Text("Cancelar", color = paper.inkMuted)
-                    }
+                    viewModel.addNote(
+                        title = title,
+                        content = content,
+                        colorKey = colorKey,
+                        category = category,
+                        isPinned = isPinned,
+                        isPrivate = isPrivate,
+                        checklist = checklist
+                    )
                 }
+                showAddNoteDialog = false
+                editingNote = null
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (noteTitleInput.isNotBlank() ){
-                            if (editingNote != null) {
-                                val updated = editingNote!!.copy(title = noteTitleInput.trim(), content = noteContentInput.trim())
-                                viewModel.editNote(updated)
-                            } else {
-                                viewModel.addNote(noteTitleInput.trim(), noteContentInput.trim())
-                            }
-                            showAddNoteDialog = false
-                            editingNote = null
-                            noteTitleInput = ""
-                            noteContentInput = ""
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
-                    shape = CircleShape
-                ) {
-                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
+            onDelete = if (editingNote != null) {
+                {
+                    viewModel.deleteNote(editingNote!!)
+                    showAddNoteDialog = false
+                    editingNote = null
                 }
-            }
+            } else null
         )
     }
 }

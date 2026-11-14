@@ -241,7 +241,9 @@ fun OnboardingScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = R.drawable.ic_fami_logo_wide),
+                        painter = painterResource(
+                            id = if (paper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
+                        ),
                         contentDescription = "Logo Oficial Fami",
                         modifier = Modifier.height(26.dp),
                         contentScale = ContentScale.FillHeight

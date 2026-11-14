@@ -112,6 +112,12 @@ data class Goal(
     var isPrivate: Boolean = false
 )
 
+data class NoteCheckItem(
+    val text: String = "",
+    @get:PropertyName("isDone") @set:PropertyName("isDone")
+    var isDone: Boolean = false
+)
+
 data class Note(
     var id: String = "",
     val title: String = "",
@@ -121,7 +127,13 @@ data class Note(
     @get:PropertyName("isCompleted") @set:PropertyName("isCompleted")
     var isCompleted: Boolean = false,
     @get:PropertyName("isPrivate") @set:PropertyName("isPrivate")
-    var isPrivate: Boolean = true
+    var isPrivate: Boolean = true,
+    val colorKey: String = "yellow",
+    val category: String = "General",
+    @get:PropertyName("isPinned") @set:PropertyName("isPinned")
+    var isPinned: Boolean = false,
+    val updatedDate: Long = 0L,
+    val checklist: List<NoteCheckItem> = emptyList()
 )
 
 data class RecurringPayment(

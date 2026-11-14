@@ -279,7 +279,9 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                                 .clip(RoundedCornerShape(14.dp))
                         )
                         Image(
-                            painter = painterResource(id = R.drawable.ic_fami_logo_wide),
+                            painter = painterResource(
+                                id = if (paper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
+                            ),
                             contentDescription = "Logo Oficial Fami",
                             modifier = Modifier.height(32.dp)
                         )
@@ -674,6 +676,7 @@ private fun SelectModeContent(
 
         Spacer(modifier = Modifier.height(6.dp))
 
+        var legalTab by remember { mutableStateOf<String?>(null) }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -685,9 +688,7 @@ private fun SelectModeContent(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TERMS_URL)))
-                }
+                modifier = Modifier.clickable { legalTab = "terms" }
             )
             Text(" y ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
@@ -695,9 +696,13 @@ private fun SelectModeContent(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
-                }
+                modifier = Modifier.clickable { legalTab = "privacy" }
+            )
+        }
+        legalTab?.let { tab ->
+            com.example.ui.LegalDocumentDialog(
+                initialTab = tab,
+                onDismiss = { legalTab = null }
             )
         }
     }

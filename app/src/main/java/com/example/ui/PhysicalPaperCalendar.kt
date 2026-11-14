@@ -124,14 +124,14 @@ fun PhysicalPaperCalendar(
                     .fillMaxWidth()
                     .height(26.dp)
             ) {
-                // Barra encuadernadora superior (cabezal de cartón marino / pizarra)
+                // Barra encuadernadora superior (cabezal de cartón marino)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(14.dp)
                         .align(Alignment.BottomCenter)
                         .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .background(if (paper.isDark) paper.lipNavy else FamiMidnight)
+                        .background(if (paper.isDark) Color(0xFF1C2658) else FamiMidnight)
                 )
                 // Espirales metálicos dobles que atraviesan la parte superior
                 Canvas(
@@ -145,7 +145,7 @@ fun PhysicalPaperCalendar(
                         val cx = step * i
                         // Perforación ovalada en el papel
                         drawOval(
-                            color = if (paper.isDark) Color(0xFF0A0D14) else Color(0xFF1F2752),
+                            color = if (paper.isDark) Color(0xFF06091A) else Color(0xFF1F2752),
                             topLeft = Offset(cx - 4.5.dp.toPx(), size.height - 6.dp.toPx()),
                             size = Size(9.dp.toPx(), 6.dp.toPx())
                         )
