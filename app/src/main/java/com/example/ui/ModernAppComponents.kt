@@ -36,11 +36,16 @@ fun ModernTabHeader(
     actionIcon: ImageVector = Icons.Default.Add,
     onActionClick: (() -> Unit)? = null
 ) {
+    val paper = FamiTheme.paper
     NotebookPaperSheet(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        sheetColor = PaperSheetWhite,
+        sheetColor = paper.sheet,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D,
+        ruleColor = paper.ruleLine.copy(alpha = 0.58f),
+        marginColor = paper.marginLine.copy(alpha = 0.42f),
         showRuledLines = true,
         showMarginLine = true,
         showSpiralTop = true
@@ -56,14 +61,13 @@ fun ModernTabHeader(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Mascota Fami redimensionada con Nano Banana (sin recortes)
                 Image(
                     painter = painterResource(id = R.drawable.ic_fami_mascot),
                     contentDescription = "Mascota Fami",
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .border(1.5.dp, FamiMidnight, RoundedCornerShape(12.dp))
+                        .border(1.5.dp, paper.border, RoundedCornerShape(12.dp))
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
@@ -75,15 +79,15 @@ fun ModernTabHeader(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
-                            color = PaperStickyYellow,
+                            color = paper.stickyYellow,
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, FamiMidnight)
+                            border = BorderStroke(1.dp, paper.border)
                         ) {
                             Text(
                                 text = "CUADERNO",
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight,
+                                color = paper.ink,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }
@@ -93,13 +97,13 @@ fun ModernTabHeader(
                         text = title,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiMidnight,
+                        color = paper.ink,
                         letterSpacing = (-0.4).sp
                     )
                     Text(
                         text = subtitle,
                         fontSize = 11.sp,
-                        color = FamiMidnight.copy(alpha = 0.72f),
+                        color = paper.inkMuted,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -111,6 +115,7 @@ fun ModernTabHeader(
                     onClick = onActionClick,
                     faceColor = FamiCoral,
                     lipColor = Lip3DCoral,
+                    borderColor = paper.border,
                     cornerRadius = 12.dp,
                     lipHeight = 4.dp,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
@@ -143,6 +148,7 @@ fun ModernFilterPills(
     selectedId: String,
     onSelect: (String) -> Unit
 ) {
+    val paper = FamiTheme.paper
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -152,9 +158,9 @@ fun ModernFilterPills(
             Tactile3DButton(
                 onClick = { onSelect(id) },
                 modifier = Modifier.weight(1f),
-                faceColor = if (isSelected) FamiCoral else PaperSheetWhite,
-                lipColor = if (isSelected) Lip3DCoral else Lip3DPaper,
-                borderColor = FamiMidnight,
+                faceColor = if (isSelected) FamiCoral else paper.sheet,
+                lipColor = if (isSelected) Lip3DCoral else paper.lipPaper,
+                borderColor = paper.border,
                 cornerRadius = 12.dp,
                 lipHeight = if (isSelected) 4.dp else 3.dp,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 9.dp)
@@ -163,7 +169,7 @@ fun ModernFilterPills(
                     text = label,
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Black,
-                    color = if (isSelected) Color.White else FamiMidnight,
+                    color = if (isSelected) Color.White else paper.ink,
                     maxLines = 1
                 )
             }
@@ -184,6 +190,7 @@ fun ModernListSelectorChips(
     onAddListClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val paper = FamiTheme.paper
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -194,9 +201,9 @@ fun ModernListSelectorChips(
             val count = itemCounts[listName]
             Tactile3DButton(
                 onClick = { onSelectList(listName) },
-                faceColor = if (isSelected) FamiMidnight else PaperSheetWhite,
-                lipColor = if (isSelected) Lip3DNavy else Lip3DPaper,
-                borderColor = FamiMidnight,
+                faceColor = if (isSelected) FamiMidnight else paper.sheet,
+                lipColor = if (isSelected) paper.lipNavy else paper.lipPaper,
+                borderColor = paper.border,
                 cornerRadius = 12.dp,
                 lipHeight = 3.5.dp,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
@@ -205,22 +212,22 @@ fun ModernListSelectorChips(
                     text = listName,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
-                    color = if (isSelected) Color.White else FamiMidnight
+                    color = if (isSelected) Color.White else paper.ink
                 )
                 if (count != null) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(if (isSelected) FamiCoral else PaperStickyYellow)
-                            .border(1.dp, FamiMidnight, CircleShape)
+                            .background(if (isSelected) FamiCoral else paper.stickyYellow)
+                            .border(1.dp, paper.border, CircleShape)
                             .padding(horizontal = 6.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = count.toString(),
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (isSelected) Color.White else FamiMidnight
+                            color = if (isSelected) Color.White else paper.ink
                         )
                     }
                 }
@@ -231,9 +238,9 @@ fun ModernListSelectorChips(
             item {
                 Tactile3DButton(
                     onClick = onAddListClick,
-                    faceColor = PaperStickyPeach,
-                    lipColor = Lip3DPaper,
-                    borderColor = FamiMidnight,
+                    faceColor = paper.stickyPeach,
+                    lipColor = paper.lipPaper,
+                    borderColor = paper.border,
                     cornerRadius = 12.dp,
                     lipHeight = 3.5.dp,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
@@ -249,7 +256,7 @@ fun ModernListSelectorChips(
                         text = "Nueva Hoja",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiMidnight
+                        color = paper.ink
                     )
                 }
             }
@@ -268,11 +275,14 @@ fun ModernEmptyState(
     actionText: String? = null,
     onActionClick: (() -> Unit)? = null
 ) {
+    val paper = FamiTheme.paper
     StickyNoteSheet(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 10.dp),
-        noteColor = PaperStickyYellow
+        noteColor = paper.stickyYellow,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D
     ) {
         Column(
             modifier = Modifier
@@ -286,20 +296,20 @@ fun ModernEmptyState(
                 modifier = Modifier
                     .size(92.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .border(1.5.dp, FamiMidnight, RoundedCornerShape(18.dp))
+                    .border(1.5.dp, paper.border, RoundedCornerShape(18.dp))
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Black,
-                color = FamiMidnight
+                color = paper.ink
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = FamiMidnight.copy(alpha = 0.75f),
+                color = paper.inkMuted,
                 fontWeight = FontWeight.Medium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -309,6 +319,7 @@ fun ModernEmptyState(
                     onClick = onActionClick,
                     faceColor = FamiCoral,
                     lipColor = Lip3DCoral,
+                    borderColor = paper.border,
                     cornerRadius = 12.dp,
                     lipHeight = 4.dp
                 ) {

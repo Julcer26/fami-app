@@ -69,6 +69,7 @@ fun OnboardingScreen(
     initialManagementMode: String = "familiar",
     initialFamilyAction: String = "create",
     initialFamilyName: String = "",
+    initialUserAlias: String = "",
     initialAvatarId: String = "woman_1",
     onLoginExisting: () -> Unit = {},
     onComplete: (
@@ -83,7 +84,8 @@ fun OnboardingScreen(
         avatarId: String,
         monthlyIncome: Double,
         monthlyIncomeCurrency: String,
-        initialWallets: List<Wallet>
+        initialWallets: List<Wallet>,
+        userAlias: String
     ) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -106,6 +108,7 @@ fun OnboardingScreen(
     var managementMode by remember { mutableStateOf(initialManagementMode.ifBlank { "familiar" }) }
     var familyAction by remember { mutableStateOf(initialFamilyAction.ifBlank { "create" }) }
     var familyNameInput by remember { mutableStateOf(initialFamilyName) }
+    var userAliasInput by remember { mutableStateOf(initialUserAlias) }
     var selectedRole by remember { mutableStateOf(initialFamilyRole.ifBlank { "Administrador" }) }
     var customRoleInput by remember { mutableStateOf("") }
 
@@ -212,7 +215,8 @@ fun OnboardingScreen(
             selectedAvatarId,
             parsedIncome,
             monthlyIncomeCurrency.ifBlank { selectedPrimaryCurrency },
-            buildFinalWallets()
+            buildFinalWallets(),
+            userAliasInput.trim()
         )
     }
 
@@ -704,6 +708,31 @@ fun OnboardingScreen(
                                         )
                                     }
                                 }
+
+                                OutlinedTextField(
+                                    value = userAliasInput,
+                                    onValueChange = { userAliasInput = it },
+                                    label = { Text(if (isEn) "Your Alias / Nickname (shown in app)" else "Tu Nombre o Alias (como aparecerás en la app)", fontSize = 11.sp) },
+                                    placeholder = { Text(if (isEn) "e.g., Mom, Alex, Sofia..." else "Ej: Mamá, Carlos, Sofía...", fontSize = 11.sp, color = paper.inkMuted) },
+                                    supportingText = {
+                                        Text(
+                                            if (isEn) "We will always show this alias instead of your email" else "Usaremos este alias en todas las notas y tareas en lugar de tu correo",
+                                            fontSize = 10.sp,
+                                            color = paper.inkMuted
+                                        )
+                                    },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = FamiCoral,
+                                        unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                        focusedContainerColor = paper.sheetCream,
+                                        unfocusedContainerColor = paper.sheetCream,
+                                        focusedTextColor = paper.ink,
+                                        unfocusedTextColor = paper.ink
+                                    )
+                                )
 
                                 Text(
                                     text = "👑 ${strings.familyRoleLabel}:",

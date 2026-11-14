@@ -1,6 +1,26 @@
 package com.example.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.R
+import com.example.database.UserProfile
+import com.example.ui.theme.FamiCoral
+import com.example.ui.theme.FamiTheme
+import kotlin.math.abs
 
 data class AvatarOption(
     val id: String,
@@ -30,5 +50,75 @@ object AvatarCatalog {
     fun getById(id: String?): AvatarOption {
         if (id.isNullOrBlank()) return ALL.first()
         return ALL.find { it.id.equals(id, ignoreCase = true) } ?: ALL.first()
+    }
+
+    fun resolveDrawableForMember(
+        memberName: String,
+        profiles: List<UserProfile> = emptyList(),
+        currentUser: String = "",
+        currentUserAvatarId: String = "",
+        explicitAvatarId: String = ""
+    ): Int {
+        val clean = memberName.trim()
+        if (clean.equals("Todos", ignoreCase = true) || clean.equals("Hogar", ignoreCase = true) || clean.equals("Familia", ignoreCase = true)) {
+            return R.drawable.ic_fami_mascot
+        }
+        if (explicitAvatarId.isNotBlank()) {
+            return getById(explicitAvatarId).drawableRes
+        }
+        if (clean.isNotBlank() && clean.equals(currentUser.trim(), ignoreCase = true) && currentUserAvatarId.isNotBlank()) {
+            return getById(currentUserAvatarId).drawableRes
+        }
+        val matchedProfile = profiles.firstOrNull { it.name.trim().equals(clean, ignoreCase = true) }
+        if (matchedProfile != null && matchedProfile.avatarId.isNotBlank()) {
+            return getById(matchedProfile.avatarId).drawableRes
+        }
+        if (clean.isBlank() && currentUserAvatarId.isNotBlank()) {
+            return getById(currentUserAvatarId).drawableRes
+        }
+        val idx = abs(clean.lowercase().hashCode()) % ALL.size
+        return ALL[idx].drawableRes
+    }
+}
+
+@Composable
+fun MemberAvatarBadge(
+    memberName: String,
+    profiles: List<UserProfile> = emptyList(),
+    currentUser: String = "",
+    currentUserAvatarId: String = "",
+    explicitAvatarId: String = "",
+    size: Dp = 24.dp,
+    borderColor: Color = Color.Unspecified,
+    borderWidth: Dp = 1.4.dp,
+    modifier: Modifier = Modifier
+) {
+    val paper = FamiTheme.paper
+    val resolvedBorder = if (borderColor == Color.Unspecified) {
+        if (memberName.trim().equals("Todos", ignoreCase = true)) FamiCoral else paper.border
+    } else {
+        borderColor
+    }
+    val drawableRes = AvatarCatalog.resolveDrawableForMember(
+        memberName = memberName,
+        profiles = profiles,
+        currentUser = currentUser,
+        currentUserAvatarId = currentUserAvatarId,
+        explicitAvatarId = explicitAvatarId
+    )
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(paper.stickyYellow)
+            .border(borderWidth, resolvedBorder, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = drawableRes),
+            contentDescription = memberName.ifBlank { "Avatar" },
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import com.example.database.CategoryDetail
 import com.example.database.Transaction
 import com.example.database.RecurringPayment
+import com.example.database.UserProfile
+import com.example.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -52,43 +54,52 @@ private fun String.toColorSafe(): Color {
     }
 }
 
-// 1. NAVEGADOR DE MES ULTRA-MODERNO (FLOATING PILL WIDGET)
+// 1. NAVEGADOR DE MES (ESTILO HOJA DE CUADERNO)
 @Composable
 fun ModernMonthSelector(
     selectedMonth: Calendar,
     onMonthChange: (Calendar) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val paper = FamiTheme.paper
     val monthFormat = SimpleDateFormat("MMMM yyyy", Locale("es", "ES"))
     val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.uppercase() }
     val context = LocalContext.current
 
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        modifier = modifier.fillMaxWidth()
+    NotebookPaperSheet(
+        modifier = modifier.fillMaxWidth(),
+        sheetColor = paper.sheetCream,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D,
+        cornerRadius = 16.dp,
+        showRuledLines = false,
+        showMarginLine = false
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
+            Tactile3DButton(
                 onClick = {
                     val prev = selectedMonth.clone() as Calendar
                     prev.add(Calendar.MONTH, -1)
                     onMonthChange(prev)
                 },
-                modifier = Modifier.size(36.dp)
+                faceColor = paper.sheet,
+                lipColor = paper.lipPaper,
+                borderColor = paper.border,
+                cornerRadius = 10.dp,
+                lipHeight = 3.dp,
+                contentPadding = PaddingValues(8.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Mes Anterior",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(18.dp)
+                    tint = paper.ink,
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
@@ -116,38 +127,43 @@ fun ModernMonthSelector(
                 Icon(
                     imageVector = Icons.Default.CalendarToday,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = FamiCoral,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = monthStr,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.ArrowDropDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = paper.inkMuted,
                     modifier = Modifier.size(18.dp)
                 )
             }
 
-            IconButton(
+            Tactile3DButton(
                 onClick = {
                     val next = selectedMonth.clone() as Calendar
                     next.add(Calendar.MONTH, 1)
                     onMonthChange(next)
                 },
-                modifier = Modifier.size(36.dp)
+                faceColor = paper.sheet,
+                lipColor = paper.lipPaper,
+                borderColor = paper.border,
+                cornerRadius = 10.dp,
+                lipHeight = 3.dp,
+                contentPadding = PaddingValues(8.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Mes Siguiente",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(18.dp)
+                    tint = paper.ink,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
@@ -549,7 +565,7 @@ fun ModernCategoryFilterChips(
     }
 }
 
-// 5. TARJETA DE TRANSACCIÓN MODERNA Y UNIFORME (ESTRICTAMENTE ESTANDARIZADA)
+// 5. TARJETA DE TRANSACCIÓN (NOTITA ADHESIVA + AVATAR DEL MIEMBRO)
 @Composable
 fun ModernTransactionCard(
     tx: Transaction,
@@ -557,8 +573,12 @@ fun ModernTransactionCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onShowPhoto: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    profiles: List<UserProfile> = emptyList(),
+    currentUser: String = "",
+    currentUserAvatarId: String = ""
 ) {
+    val paper = FamiTheme.paper
     // Sanitización robusta: eliminar cualquier salto de línea \r \n devuelto por OCR o digitado
     val cleanDescription = tx.description
         .replace(Regex("[\\r\\n\\t]+"), " ")
@@ -576,36 +596,45 @@ fun ModernTransactionCard(
 
     val foundCat = categories.find { it.categoryName.equals(cleanCategory, ignoreCase = true) }
     val iconEmoji = foundCat?.iconEmoji ?: ""
-    val catColor = if (tx.isIncome) Color(0xFF00D09C) else (foundCat?.colorHex?.toColorSafe() ?: Color(0xFFE54629))
+    val noteBg = when {
+        tx.isTransfer -> paper.stickyPeach
+        tx.isIncome -> paper.stickyMint
+        else -> paper.stickyYellow
+    }
+    val authorLabel = remember(tx.registeredBy, currentUser) {
+        val raw = tx.registeredBy.trim()
+        when {
+            raw.isBlank() -> ""
+            raw.contains("@") -> currentUser.takeIf { it.isNotBlank() && !it.contains("@") } ?: "Familiar"
+            else -> raw
+        }
+    }
 
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)),
-        shadowElevation = 1.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 68.dp, max = 74.dp)
+    StickyNoteSheet(
+        modifier = modifier.fillMaxWidth(),
+        noteColor = noteBg,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, top = 16.dp, bottom = 11.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Izquierda: Squircle Avatar & Textos limpios de 2 líneas
+            // Izquierda: Sello de categoría & Textos limpios
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(catColor.copy(alpha = 0.15f))
-                        .border(1.dp, catColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                        .background(paper.sheet)
+                        .border(1.4.dp, paper.border, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (tx.isIncome) {
@@ -613,12 +642,7 @@ fun ModernTransactionCard(
                     } else if (iconEmoji.isNotBlank()) {
                         Text(iconEmoji, fontSize = 18.sp)
                     } else {
-                        Text(
-                            text = cleanCategory.take(1).uppercase(),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = catColor
-                        )
+                        Text("💳", fontSize = 17.sp)
                     }
                 }
 
@@ -631,8 +655,8 @@ fun ModernTransactionCard(
                     Text(
                         text = cleanDescription,
                         fontSize = 13.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = paper.ink,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -643,8 +667,8 @@ fun ModernTransactionCard(
                         Text(
                             text = cleanCategory,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = catColor,
+                            fontWeight = FontWeight.Bold,
+                            color = FamiCoral,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
@@ -653,26 +677,27 @@ fun ModernTransactionCard(
                         if (tx.items.isNotEmpty()) {
                             Spacer(modifier = Modifier.width(5.dp))
                             Surface(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(5.dp)
+                                color = paper.sheet,
+                                shape = RoundedCornerShape(5.dp),
+                                border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.5f))
                             ) {
                                 Text(
                                     text = "🧾 ${tx.items.size}",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = FamiCoral,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.width(5.dp))
-                        Text("•", fontSize = 9.sp, color = MaterialTheme.colorScheme.outlineVariant)
+                        Text("•", fontSize = 9.sp, color = paper.inkMuted)
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = dateString,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = paper.inkMuted,
                             maxLines = 1
                         )
                     }
@@ -681,19 +706,19 @@ fun ModernTransactionCard(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Derecha: Monto, Equivalencia USD y Usuario
+            // Derecha: Monto, Equivalencia USD y Avatar del autor
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
             ) {
                 val symbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(tx.currency)
                 val prefix = if (tx.isIncome) "+" else "-"
-                val amountColor = if (tx.isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface
+                val amountColor = if (tx.isIncome) FamiEmerald else paper.ink
 
                 Text(
                     text = "$prefix$symbol${String.format(Locale.US, "%,.2f", tx.originalAmount)}",
                     fontSize = 14.5.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     color = amountColor,
                     maxLines = 1
                 )
@@ -708,31 +733,35 @@ fun ModernTransactionCard(
                         Text(
                             text = "≈ $${String.format(Locale.US, "%.2f", tx.amount)}",
                             fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                            color = paper.inkMuted,
                             maxLines = 1
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                     }
 
-                    if (tx.registeredBy.isNotBlank()) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(5.dp)
-                        ) {
-                            Text(
-                                text = tx.registeredBy,
-                                fontSize = 8.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                                maxLines = 1
-                            )
-                        }
+                    if (authorLabel.isNotBlank()) {
+                        MemberAvatarBadge(
+                            memberName = authorLabel,
+                            profiles = profiles,
+                            currentUser = currentUser,
+                            currentUserAvatarId = currentUserAvatarId,
+                            size = 17.dp,
+                            borderWidth = 1.dp
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = authorLabel,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = paper.inkMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     if (tx.receiptUrl.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(3.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text("📷", fontSize = 10.sp)
                     }
                 }
@@ -741,7 +770,7 @@ fun ModernTransactionCard(
     }
 }
 
-// 6. SECCIÓN MODERNA DE PAGOS RECURRENTES Y SERVICIOS (INICIO & FINANZAS)
+// 6. SECCIÓN DE PAGOS RECURRENTES Y SERVICIOS (CUADERNO)
 @Composable
 fun ModernRecurringPaymentsSection(
     recurringPayments: List<RecurringPayment>,
@@ -751,6 +780,7 @@ fun ModernRecurringPaymentsSection(
     onSeedDefaultPayments: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val paper = FamiTheme.paper
     val paidCount = recurringPayments.count { it.paidMonths[monthKey] == true }
     val totalCount = recurringPayments.size
 
@@ -759,7 +789,7 @@ fun ModernRecurringPaymentsSection(
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-    // Header
+        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -771,92 +801,93 @@ fun ModernRecurringPaymentsSection(
                 Text(
                     text = "⚡ Servicios y Pagos Frecuentes",
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (totalCount > 0) {
                     Spacer(modifier = Modifier.height(3.dp))
                     Surface(
-                        color = if (paidCount == totalCount) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = if (paidCount == totalCount) paper.stickyMint else paper.stickyYellow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, paper.border.copy(alpha = 0.45f))
                     ) {
                         Text(
                             text = "$paidCount de $totalCount pagados este mes",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (paidCount == totalCount) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                            color = if (paidCount == totalCount) FamiEmerald else paper.ink,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
                 }
             }
 
-            Surface(
+            Tactile3DButton(
                 onClick = onAddPaymentClick,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                faceColor = paper.stickyYellow,
+                lipColor = paper.lipPaper,
+                borderColor = paper.border,
+                cornerRadius = 11.dp,
+                lipHeight = 3.dp,
+                contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Nuevo servicio",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Nuevo",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Nuevo servicio",
+                    tint = paper.ink,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Nuevo",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
             }
         }
 
         if (recurringPayments.isEmpty()) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                shape = RoundedCornerShape(18.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+            StickyNoteSheet(
+                noteColor = paper.stickyYellow,
+                borderColor = paper.border,
+                shadowColor = paper.shadow3D,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "🏢 🛡️ ⚡ 🌐",
-                        fontSize = 22.sp
-                    )
+                    Text(text = "🏢 🛡️ ⚡ 🌐", fontSize = 22.sp)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "No has registrado servicios fijos (Condominio, Seguros, Luz, Internet...)",
                         fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = paper.inkMuted,
                         fontWeight = FontWeight.Medium,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Button(
+                    Tactile3DButton(
                         onClick = onSeedDefaultPayments,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        faceColor = FamiCoral,
+                        lipColor = Lip3DCoral,
+                        borderColor = paper.border,
+                        cornerRadius = 12.dp,
+                        lipHeight = 3.5.dp,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = "Cargar Servicios Frecuentes (Condominio, Seguros, Luz, WiFi)",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                            text = "Cargar Servicios Frecuentes",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
                         )
                     }
                 }
@@ -869,19 +900,18 @@ fun ModernRecurringPaymentsSection(
             ) {
                 this@LazyRow.items(recurringPayments) { rec ->
                     val isPaid = rec.paidMonths[monthKey] == true
-                    Surface(
-                        onClick = { onPaymentClick(rec) },
-                        color = if (isPaid) Color(0xFF10B981).copy(alpha = 0.07f) else MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isPaid) Color(0xFF10B981).copy(alpha = 0.45f)
-                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
-                        ),
-                        shadowElevation = 1.dp,
+                    StickyNoteSheet(
+                        noteColor = if (isPaid) paper.stickyMint else paper.stickyPeach,
+                        borderColor = paper.border,
+                        shadowColor = paper.shadow3D,
                         modifier = Modifier.width(185.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPaymentClick(rec) }
+                                .padding(horizontal = 12.dp, vertical = 14.dp)
+                        ) {
                             // Top Row: Emoji & Status Pill
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -890,26 +920,25 @@ fun ModernRecurringPaymentsSection(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(34.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(
-                                            if (isPaid) Color(0xFF10B981).copy(alpha = 0.15f)
-                                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                        ),
+                                        .background(paper.sheet)
+                                        .border(1.2.dp, paper.border, RoundedCornerShape(10.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 18.sp)
+                                    Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 17.sp)
                                 }
 
                                 Surface(
-                                    color = if (isPaid) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.12f),
-                                    shape = RoundedCornerShape(6.dp)
+                                    color = paper.sheet,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, if (isPaid) FamiEmerald else FamiCoral)
                                 ) {
                                     Text(
-                                        text = if (isPaid) "PAGADO 🟢" else "POR PAGAR 🔴",
+                                        text = if (isPaid) "PAGADO ✓" else "POR PAGAR",
                                         fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isPaid) Color(0xFF10B981) else Color(0xFFEF4444),
+                                        fontWeight = FontWeight.Black,
+                                        color = if (isPaid) FamiEmerald else FamiCoral,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -920,8 +949,8 @@ fun ModernRecurringPaymentsSection(
                             Text(
                                 text = rec.name,
                                 fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -931,7 +960,7 @@ fun ModernRecurringPaymentsSection(
                             Text(
                                 text = "📅 Vence el día ${rec.dueDay}",
                                 fontSize = 10.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = paper.inkMuted
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -946,22 +975,22 @@ fun ModernRecurringPaymentsSection(
                                     Text(
                                         text = "$symbol${String.format(Locale.US, "%,.2f", rec.defaultAmount)}",
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isPaid) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
+                                        fontWeight = FontWeight.Black,
+                                        color = if (isPaid) FamiEmerald else FamiCoral
                                     )
                                 } else {
                                     Text(
                                         text = "Monto variable",
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = paper.inkMuted
                                     )
                                 }
 
                                 Text(
                                     text = if (isPaid) "Detalles ✓" else "Pagar ➔",
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isPaid) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isPaid) FamiEmerald else FamiCoral
                                 )
                             }
                         }
@@ -970,14 +999,16 @@ fun ModernRecurringPaymentsSection(
 
                 // Tarjeta final para agregar un nuevo servicio frecuente desde el carrusel
                 item {
-                    Surface(
-                        onClick = onAddPaymentClick,
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f),
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    NotebookPaperSheet(
                         modifier = Modifier
                             .width(145.dp)
-                            .height(128.dp)
+                            .height(142.dp),
+                        sheetColor = paper.sheetCream,
+                        borderColor = paper.border,
+                        shadowColor = paper.shadow3D,
+                        showRuledLines = false,
+                        showMarginLine = false,
+                        onClick = onAddPaymentClick
                     ) {
                         Column(
                             modifier = Modifier
@@ -990,13 +1021,14 @@ fun ModernRecurringPaymentsSection(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                    .background(paper.stickyYellow)
+                                    .border(1.4.dp, paper.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Agregar Servicio",
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = paper.ink,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1004,8 +1036,8 @@ fun ModernRecurringPaymentsSection(
                             Text(
                                 text = "Agregar Servicio",
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
@@ -1044,6 +1076,7 @@ fun ModernRecurringPaymentDialogs(
     onDeleteRecurring: (RecurringPayment) -> Unit,
     localCurrency: String = "VES"
 ) {
+    val paper = FamiTheme.paper
     val currencyChoices = remember(localCurrency) {
         listOf("USD", localCurrency.ifBlank { "VES" }).distinct()
     }
@@ -1052,6 +1085,7 @@ fun ModernRecurringPaymentDialogs(
         val defaultAmt = if (rec.defaultAmount > 0.0) rec.defaultAmount.toString() else ""
         AlertDialog(
             onDismissRequest = onDismissMarkPaid,
+            containerColor = paper.sheet,
             title = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1061,7 +1095,7 @@ fun ModernRecurringPaymentDialogs(
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Registrar Pago 🟢", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Registrar Pago 🟢", fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     }
                     TextButton(
                         onClick = {
@@ -1070,19 +1104,19 @@ fun ModernRecurringPaymentDialogs(
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(14.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                     }
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Servicio: ${rec.name} ($monthKey)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Servicio: ${rec.name} ($monthKey)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     Text(
                         "Ingresa el monto pagado este mes o deja el monto sugerido para registrarlo en tus gastos.",
                         fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = paper.inkMuted
                     )
                     OutlinedTextField(
                         value = recAmountInput,
@@ -1100,16 +1134,21 @@ fun ModernRecurringPaymentDialogs(
                         currencyChoices.forEach { cur ->
                             val isSelected = recCurrencySelected == cur
                             val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(cur)
-                            Button(
+                            Surface(
                                 onClick = { onCurrencyChange(cur) },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                color = if (isSelected) paper.stickyYellow else paper.sheetCream,
+                                border = BorderStroke(if (isSelected) 1.6.dp else 1.dp, if (isSelected) paper.border else paper.border.copy(alpha = 0.4f))
                             ) {
-                                Text("$sym $cur", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "$sym $cur",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                    color = paper.ink,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 9.dp)
+                                )
                             }
                         }
                     }
@@ -1124,14 +1163,15 @@ fun ModernRecurringPaymentDialogs(
                         paidCal.set(java.util.Calendar.DAY_OF_MONTH, dayToUse)
                         onConfirmMarkPaid(rec, amt, recCurrencySelected, paidCal.timeInMillis)
                     },
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiEmerald),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Confirmar Pago", fontWeight = FontWeight.Bold)
+                    Text("Confirmar Pago", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissMarkPaid) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = paper.inkMuted)
                 }
             }
         )
@@ -1141,6 +1181,7 @@ fun ModernRecurringPaymentDialogs(
         val rec = selectedRecurringPayment
         AlertDialog(
             onDismissRequest = onDismissPaidDetails,
+            containerColor = paper.sheet,
             title = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1150,7 +1191,7 @@ fun ModernRecurringPaymentDialogs(
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Servicio al Día 🟢", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Servicio al Día 🟢", fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     }
                     TextButton(
                         onClick = {
@@ -1159,24 +1200,24 @@ fun ModernRecurringPaymentDialogs(
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(14.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                     }
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Servicio: ${rec.name}", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Servicio: ${rec.name}", fontSize = 14.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     Text(
                         "Estado para $monthKey: ¡Pago Registrado con Éxito!",
                         fontSize = 12.sp,
-                        color = Color(0xFF10B981),
-                        fontWeight = FontWeight.SemiBold
+                        color = FamiEmerald,
+                        fontWeight = FontWeight.Bold
                     )
-                    Text("Día de corte mensual: Día ${rec.dueDay}", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Día de corte mensual: Día ${rec.dueDay}", fontSize = 11.5.sp, color = paper.inkMuted)
                     if (rec.defaultAmount > 0.0) {
-                        Text("Monto base sugerido: ${rec.defaultAmount} ${rec.currency}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Monto base sugerido: ${rec.defaultAmount} ${rec.currency}", fontSize = 12.sp, color = paper.inkMuted)
                     }
                 }
             },
@@ -1184,14 +1225,14 @@ fun ModernRecurringPaymentDialogs(
                 Button(
                     onClick = { onConfirmMarkUnpaid(rec) },
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
                 ) {
-                    Text("Desmarcar Pago", fontWeight = FontWeight.Bold)
+                    Text("Desmarcar Pago", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissPaidDetails) {
-                    Text("Cerrar")
+                    Text("Cerrar", color = paper.inkMuted)
                 }
             }
         )
@@ -1211,11 +1252,13 @@ fun ModernRecurringPaymentDialogs(
 
         AlertDialog(
             onDismissRequest = onDismissAddRecurring,
+            containerColor = paper.sheet,
             title = {
                 Text(
-                    text = if (selectedRecurringPayment == null) "Nuevo Servicio o Pago Fijo" else "Editar Servicio Frecuente",
+                    text = if (selectedRecurringPayment == null) "⚡ Nuevo Servicio o Pago Fijo" else "✏️ Editar Servicio Frecuente",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
                 )
             },
             text = {
@@ -1228,7 +1271,7 @@ fun ModernRecurringPaymentDialogs(
                             text = "Sugerencias rápidas (toca para rellenar):",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = paper.inkMuted
                         )
                         androidx.compose.foundation.lazy.LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1242,14 +1285,14 @@ fun ModernRecurringPaymentDialogs(
                                         nameValidationError = false
                                     },
                                     shape = RoundedCornerShape(10.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                                    color = paper.stickyYellow,
+                                    border = BorderStroke(1.dp, paper.border.copy(alpha = 0.55f))
                                 ) {
                                     Text(
                                         text = "$emoji $label",
                                         fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontWeight = FontWeight.Bold,
+                                        color = paper.ink,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
@@ -1322,10 +1365,10 @@ fun ModernRecurringPaymentDialogs(
                             Surface(
                                 onClick = { onEmojiChange(em) },
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                color = if (isSelected) paper.stickyYellow else paper.sheetCream,
                                 border = BorderStroke(
-                                    1.dp,
-                                    if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                    1.2.dp,
+                                    if (isSelected) paper.border else paper.border.copy(alpha = 0.35f)
                                 )
                             ) {
                                 Text(
@@ -1337,21 +1380,26 @@ fun ModernRecurringPaymentDialogs(
                         }
                     }
 
-                    Text("Moneda por defecto:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Moneda por defecto:", fontSize = 11.sp, color = paper.inkMuted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         currencyChoices.forEach { cur ->
                             val isSelected = recCurrencySelected == cur
                             val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(cur)
-                            Button(
+                            Surface(
                                 onClick = { onCurrencyChange(cur) },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                color = if (isSelected) paper.stickyYellow else paper.sheetCream,
+                                border = BorderStroke(if (isSelected) 1.6.dp else 1.dp, if (isSelected) paper.border else paper.border.copy(alpha = 0.4f))
                             ) {
-                                Text("$sym $cur", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "$sym $cur",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                    color = paper.ink,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 9.dp)
+                                )
                             }
                         }
                     }
@@ -1362,8 +1410,8 @@ fun ModernRecurringPaymentDialogs(
                             onClick = { onDeleteRecurring(selectedRecurringPayment) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
-                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = FamiCoral),
+                            border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.5f))
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = "Eliminar", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -1390,14 +1438,15 @@ fun ModernRecurringPaymentDialogs(
                             onSaveRecurring(item)
                         }
                     },
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Guardar", fontWeight = FontWeight.Bold)
+                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissAddRecurring) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = paper.inkMuted)
                 }
             }
         )

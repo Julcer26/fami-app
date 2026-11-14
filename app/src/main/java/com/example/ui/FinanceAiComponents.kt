@@ -228,6 +228,7 @@ fun FinanceAiBottomSheet(
 ) {
     if (!isOpen) return
 
+    val paper = FamiTheme.paper
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -235,7 +236,7 @@ fun FinanceAiBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = paper.sheet,
         tonalElevation = 6.dp
     ) {
         Column(
@@ -261,6 +262,7 @@ fun FinanceAiBottomSheet(
                                     colors = listOf(FamiCoral, FamiCoralLight)
                                 )
                             )
+                            .border(1.4.dp, paper.border, RoundedCornerShape(14.dp))
                             .padding(4.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -276,12 +278,12 @@ fun FinanceAiBottomSheet(
                             text = "Diagnóstico Fami IA",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = paper.ink
                         )
                         Text(
                             text = "Auditoría inteligente de tus finanzas familiares",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = paper.inkMuted
                         )
                     }
                 }
@@ -290,19 +292,20 @@ fun FinanceAiBottomSheet(
                     onClick = onDismiss,
                     modifier = Modifier
                         .size(36.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        .background(paper.sheetCream, CircleShape)
+                        .border(1.dp, paper.border.copy(alpha = 0.45f), CircleShape)
                 ) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Cerrar",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = paper.ink,
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(color = paper.ruleLine)
             Spacer(modifier = Modifier.height(12.dp))
 
             if (isLoading) {
@@ -329,13 +332,13 @@ fun FinanceAiBottomSheet(
                             text = "Fami está auditando tus movimientos...",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = paper.ink
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Calculando categorías dominantes, gastos hormiga y oportunidades de ahorro real.",
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = paper.inkMuted,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 24.dp)
                         )
@@ -364,9 +367,9 @@ fun FinanceAiBottomSheet(
                             colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Reintentar Análisis", fontWeight = FontWeight.Bold)
+                            Text("Reintentar Análisis", fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -501,9 +504,9 @@ fun FinanceAiBottomSheet(
                     // 2. RESUMEN EJECUTIVO
                     item {
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            color = paper.sheetCream,
                             shape = RoundedCornerShape(18.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.45f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -513,15 +516,15 @@ fun FinanceAiBottomSheet(
                                     Text(
                                         text = "Diagnóstico Global de Fami",
                                         fontSize = 13.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = report.summary,
                                     fontSize = 12.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = paper.inkMuted,
                                     lineHeight = 18.sp
                                 )
                             }
@@ -532,9 +535,9 @@ fun FinanceAiBottomSheet(
                     if (report.categoryBreakdown.isNotEmpty()) {
                         item {
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                color = paper.sheetCream,
                                 shape = RoundedCornerShape(18.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                                border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.45f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -544,8 +547,8 @@ fun FinanceAiBottomSheet(
                                         Text(
                                             text = "Distribución por Categorías",
                                             fontSize = 13.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            fontWeight = FontWeight.Black,
+                                            color = paper.ink
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(10.dp))
@@ -556,12 +559,12 @@ fun FinanceAiBottomSheet(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(item.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                                Text(item.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                                                 Text(
                                                     text = "$${String.format(Locale.US, "%,.2f", item.amountUsd)} (${item.percentage}%)",
                                                     fontSize = 11.5.sp,
                                                     color = FamiCoral,
-                                                    fontWeight = FontWeight.Bold
+                                                    fontWeight = FontWeight.Black
                                                 )
                                             }
                                             Spacer(modifier = Modifier.height(4.dp))
@@ -569,18 +572,19 @@ fun FinanceAiBottomSheet(
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(6.dp)
-                                                    .clip(RoundedCornerShape(3.dp))
-                                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                    .height(7.dp)
+                                                    .clip(RoundedCornerShape(3.5.dp))
+                                                    .background(paper.sheet)
+                                                    .border(0.8.dp, paper.border.copy(alpha = 0.4f), RoundedCornerShape(3.5.dp))
                                             ) {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxHeight()
                                                         .fillMaxWidth(frac)
-                                                        .clip(RoundedCornerShape(3.dp))
+                                                        .clip(RoundedCornerShape(3.5.dp))
                                                         .background(
                                                             Brush.horizontalGradient(
-                                                                listOf(FamiCoral, FamiGold)
+                                                                colors = listOf(FamiCoral, FamiGold)
                                                             )
                                                         )
                                                 )
@@ -596,9 +600,9 @@ fun FinanceAiBottomSheet(
                     if (report.moneyLeaks.isNotEmpty()) {
                         item {
                             Surface(
-                                color = FamiAlertRed.copy(alpha = 0.08f),
+                                color = paper.stickyPeach,
                                 shape = RoundedCornerShape(18.dp),
-                                border = BorderStroke(1.dp, FamiAlertRed.copy(alpha = 0.3f)),
+                                border = BorderStroke(1.2.dp, FamiCoral.copy(alpha = 0.6f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -608,8 +612,8 @@ fun FinanceAiBottomSheet(
                                         Text(
                                             text = "Fugas de Dinero / Alertas",
                                             fontSize = 13.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = FamiAlertRed
+                                            fontWeight = FontWeight.Black,
+                                            color = FamiCoral
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -620,7 +624,7 @@ fun FinanceAiBottomSheet(
                                         ) {
                                             Text("🔍", fontSize = 12.sp)
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(leak, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, lineHeight = 17.sp)
+                                            Text(leak, fontSize = 12.sp, color = paper.ink, lineHeight = 17.sp)
                                         }
                                     }
                                 }
@@ -632,9 +636,9 @@ fun FinanceAiBottomSheet(
                     if (report.savingsTips.isNotEmpty()) {
                         item {
                             Surface(
-                                color = FamiEmerald.copy(alpha = 0.08f),
+                                color = paper.stickyMint,
                                 shape = RoundedCornerShape(18.dp),
-                                border = BorderStroke(1.dp, FamiEmerald.copy(alpha = 0.3f)),
+                                border = BorderStroke(1.2.dp, FamiEmerald.copy(alpha = 0.6f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -644,7 +648,7 @@ fun FinanceAiBottomSheet(
                                         Text(
                                             text = "Plan de Ahorro Familiar Fami",
                                             fontSize = 13.5.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = FontWeight.Black,
                                             color = FamiEmerald
                                         )
                                     }
@@ -656,7 +660,8 @@ fun FinanceAiBottomSheet(
                                         ) {
                                             Surface(
                                                 shape = CircleShape,
-                                                color = FamiEmerald.copy(alpha = 0.2f),
+                                                color = paper.sheet,
+                                                border = BorderStroke(1.dp, FamiEmerald),
                                                 modifier = Modifier.size(18.dp)
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
@@ -664,7 +669,7 @@ fun FinanceAiBottomSheet(
                                                 }
                                             }
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(tip, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, lineHeight = 17.sp)
+                                            Text(tip, fontSize = 12.sp, color = paper.ink, lineHeight = 17.sp)
                                         }
                                     }
                                 }
@@ -683,11 +688,12 @@ fun FinanceAiBottomSheet(
                         onClick = onRefresh,
                         modifier = Modifier.weight(1f).height(46.dp),
                         shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f)),
                         contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(15.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Actualizar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Actualizar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     }
 
                     OutlinedButton(
@@ -710,11 +716,12 @@ fun FinanceAiBottomSheet(
                         },
                         modifier = Modifier.weight(1f).height(46.dp),
                         shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f)),
                         contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(15.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Compartir", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Compartir", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     }
 
                     Button(

@@ -876,8 +876,11 @@ private fun CreateFamilyContent(
     onContinueWithGoogle: () -> Unit
 ) {
     val context = LocalContext.current
+    val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
     var familyNameInput by remember(initialFamilyName) { mutableStateOf(initialFamilyName) }
-    var userNameInput by remember { mutableStateOf("") }
+    var userNameInput by remember(pendingAlias) {
+        mutableStateOf(pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }.orEmpty())
+    }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
@@ -951,7 +954,7 @@ private fun CreateFamilyContent(
             OutlinedTextField(
                 value = userNameInput,
                 onValueChange = { userNameInput = it },
-                label = { Text("Tu Nombre o Alias") },
+                label = { Text("Tu Nombre o Alias (obligatorio)") },
                 placeholder = { Text("Ej: Mamá, Carlos, Sofía...") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 singleLine = true,
@@ -1015,7 +1018,10 @@ private fun CreateFamilyContent(
 
             Button(
                 onClick = {
-                    if (!viewModel.isValidEmailFormat(email)) {
+                    val cleanAlias = userNameInput.trim()
+                    if (cleanAlias.isBlank() || cleanAlias.contains("@")) {
+                        Toast.makeText(context, "Escribe tu Alias (sin correo electrónico) para identificarte en la app", Toast.LENGTH_SHORT).show()
+                    } else if (!viewModel.isValidEmailFormat(email)) {
                         Toast.makeText(context, "Ingresa un correo electrónico real y válido", Toast.LENGTH_SHORT).show()
                     } else if (password.length < 6) {
                         Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
@@ -1027,7 +1033,7 @@ private fun CreateFamilyContent(
                             pin = pin,
                             password = password,
                             customFamilyName = familyNameInput.trim(),
-                            customUserName = userNameInput.trim()
+                            customUserName = cleanAlias
                         )
                     }
                 },
@@ -1071,8 +1077,11 @@ private fun JoinFamilyContent(
     onContinueWithGoogle: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
+    var name by remember(pendingAlias) {
+        mutableStateOf(pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }.orEmpty())
+    }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
@@ -1648,6 +1657,14 @@ private fun ChooseUnlockMethodContent(
 ) {
     val paper = FamiTheme.paper
     val context = LocalContext.current as FragmentActivity
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
+    val initialAlias = remember(currentUser, pendingAlias) {
+        pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
+            ?: currentUser.takeIf { it.isNotBlank() && !it.contains("@") }.orEmpty()
+    }
+    var aliasInput by remember(initialAlias) { mutableStateOf(initialAlias) }
+
     val biometricSupported = remember {
         BiometricManager.from(context).canAuthenticate(
             BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -1659,7 +1676,7 @@ private fun ChooseUnlockMethodContent(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = paper.sheet),
         border = BorderStroke(1.5.dp, paper.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
@@ -1672,21 +1689,32 @@ private fun ChooseUnlockMethodContent(
                 text = "🔐 Elige cómo entrar a Fami",
                 fontSize = 21.sp,
                 fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = paper.ink,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "Tu cuenta ya está lista. Elige tu método preferido para abrir la app rápido la próxima vez:",
+                text = "Tu cuenta ya está lista. Confirma tu alias visible y cómo deseas abrir la app:",
                 fontSize = 12.5.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = paper.inkMuted,
                 textAlign = TextAlign.Center
+            )
+
+            OutlinedTextField(
+                value = aliasInput,
+                onValueChange = { aliasInput = it },
+                label = { Text("Tu Alias en el Cuaderno (obligatorio)") },
+                placeholder = { Text("Ej: Mamá, Carlos, Sofía...") },
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
             )
 
             Surface(
                 onClick = { if (biometricSupported) selectedOption = "biometric" },
                 shape = RoundedCornerShape(16.dp),
-                color = if (selectedOption == "biometric") paper.stickyMint else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(if (selectedOption == "biometric") 2.dp else 1.dp, if (selectedOption == "biometric") paper.border else Color.Transparent),
+                color = if (selectedOption == "biometric") paper.stickyMint else paper.sheetCream,
+                border = BorderStroke(if (selectedOption == "biometric") 2.dp else 1.2.dp, if (selectedOption == "biometric") paper.border else paper.border.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -1700,12 +1728,12 @@ private fun ChooseUnlockMethodContent(
                             text = "Huella Digital / Biometría",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (selectedOption == "biometric") paper.ink else MaterialTheme.colorScheme.onSurface
+                            color = paper.ink
                         )
                         Text(
                             text = if (biometricSupported) "Acceso instantáneo al abrir Fami" else "No disponible en este dispositivo",
                             fontSize = 11.sp,
-                            color = if (selectedOption == "biometric") paper.ink.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = paper.inkMuted
                         )
                     }
                     if (selectedOption == "biometric") {
@@ -1717,8 +1745,8 @@ private fun ChooseUnlockMethodContent(
             Surface(
                 onClick = { selectedOption = "pin" },
                 shape = RoundedCornerShape(16.dp),
-                color = if (selectedOption == "pin") paper.stickyYellow else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(if (selectedOption == "pin") 2.dp else 1.dp, if (selectedOption == "pin") paper.border else Color.Transparent),
+                color = if (selectedOption == "pin") paper.stickyYellow else paper.sheetCream,
+                border = BorderStroke(if (selectedOption == "pin") 2.dp else 1.2.dp, if (selectedOption == "pin") paper.border else paper.border.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -1732,12 +1760,12 @@ private fun ChooseUnlockMethodContent(
                             text = "PIN Secreto de 5 dígitos",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (selectedOption == "pin") paper.ink else MaterialTheme.colorScheme.onSurface
+                            color = paper.ink
                         )
                         Text(
                             text = "Ingresa con tu código numérico personal",
                             fontSize = 11.sp,
-                            color = if (selectedOption == "pin") paper.ink.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = paper.inkMuted
                         )
                     }
                     if (selectedOption == "pin") {
@@ -1760,16 +1788,21 @@ private fun ChooseUnlockMethodContent(
 
             Button(
                 onClick = {
+                    val cleanAlias = aliasInput.trim()
+                    if (cleanAlias.isBlank() || cleanAlias.contains("@")) {
+                        Toast.makeText(context, "Escribe un alias (sin correo electrónico) para identificarte", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
                     val cleanPin = pinConfirm.takeIf { it.length == 5 }
                     if (selectedOption == "biometric" && biometricSupported) {
                         showBiometricPrompt(context, onSuccess = {
-                            viewModel.setUnlockMethodAndEnter("biometric", cleanPin)
+                            viewModel.setUnlockMethodAndEnter("biometric", cleanPin, customAlias = cleanAlias)
                         })
                     } else {
                         if (selectedOption == "pin" && pinConfirm.isNotEmpty() && pinConfirm.length != 5) {
                             Toast.makeText(context, "El PIN debe tener 5 dígitos", Toast.LENGTH_SHORT).show()
                         } else {
-                            viewModel.setUnlockMethodAndEnter("pin", cleanPin)
+                            viewModel.setUnlockMethodAndEnter("pin", cleanPin, customAlias = cleanAlias)
                         }
                     }
                 },

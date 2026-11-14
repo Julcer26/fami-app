@@ -43,6 +43,7 @@ class DataStoreManager(private val context: Context) {
         val UNLOCK_METHOD = stringPreferencesKey("unlock_method") // "unset" | "biometric" | "pin"
         val SAVED_EMAIL = stringPreferencesKey("saved_email")
         val AUTH_PROVIDER = stringPreferencesKey("auth_provider") // "email" | "google"
+        val PENDING_USER_ALIAS = stringPreferencesKey("pending_user_alias")
     }
 
     val familyIdFlow: Flow<String?> = context.dataStore.data.map { it[FAMILY_ID] }
@@ -72,6 +73,7 @@ class DataStoreManager(private val context: Context) {
     val unlockMethodFlow: Flow<String> = context.dataStore.data.map { it[UNLOCK_METHOD] ?: "unset" }
     val savedEmailFlow: Flow<String> = context.dataStore.data.map { it[SAVED_EMAIL] ?: "" }
     val authProviderFlow: Flow<String> = context.dataStore.data.map { it[AUTH_PROVIDER] ?: "email" }
+    val pendingUserAliasFlow: Flow<String> = context.dataStore.data.map { it[PENDING_USER_ALIAS] ?: "" }
 
     suspend fun setDarkTheme(isDark: Boolean) {
         context.dataStore.edit { prefs ->
@@ -114,7 +116,8 @@ class DataStoreManager(private val context: Context) {
         avatarId: String = "woman_1",
         monthlyIncomeAmount: Double = 0.0,
         monthlyIncomeCurrency: String = primaryCurr,
-        initialWallets: List<Wallet> = emptyList()
+        initialWallets: List<Wallet> = emptyList(),
+        userAlias: String = ""
     ) {
         val walletsArr = JSONArray()
         initialWallets.forEach { w ->
@@ -137,6 +140,9 @@ class DataStoreManager(private val context: Context) {
             prefs[MANAGEMENT_MODE] = managementMode
             prefs[FAMILY_ACTION] = familyAction
             prefs[PENDING_FAMILY_NAME] = familyName
+            if (userAlias.isNotBlank()) {
+                prefs[PENDING_USER_ALIAS] = userAlias.trim()
+            }
             prefs[USER_AVATAR_ID] = avatarId
             prefs[MONTHLY_INCOME_AMOUNT] = monthlyIncomeAmount
             prefs[MONTHLY_INCOME_CURRENCY] = monthlyIncomeCurrency
@@ -169,6 +175,16 @@ class DataStoreManager(private val context: Context) {
     suspend fun setUserAvatarId(avatarId: String) {
         context.dataStore.edit { prefs ->
             prefs[USER_AVATAR_ID] = avatarId
+        }
+    }
+
+    suspend fun setUserName(alias: String) {
+        context.dataStore.edit { prefs ->
+            val clean = alias.trim()
+            if (clean.isNotBlank()) {
+                prefs[USER_NAME] = clean
+                prefs[PENDING_USER_ALIAS] = clean
+            }
         }
     }
 

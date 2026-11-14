@@ -120,6 +120,9 @@ class FamilyViewModel(
     val authProvider: StateFlow<String> = dataStoreManager.authProviderFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "email")
 
+    val pendingUserAlias: StateFlow<String> = dataStoreManager.pendingUserAliasFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     private val _isAuthLoading = MutableStateFlow(false)
     val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
 
@@ -208,7 +211,8 @@ class FamilyViewModel(
         avatarId: String = "woman_1",
         monthlyIncome: Double = 0.0,
         monthlyIncomeCurr: String = primaryCurr,
-        initialWallets: List<Wallet> = emptyList()
+        initialWallets: List<Wallet> = emptyList(),
+        userAlias: String = ""
     ) {
         viewModelScope.launch {
             dataStoreManager.setInitialConfiguration(
@@ -223,7 +227,8 @@ class FamilyViewModel(
                 avatarId = avatarId,
                 monthlyIncomeAmount = monthlyIncome,
                 monthlyIncomeCurrency = monthlyIncomeCurr,
-                initialWallets = initialWallets
+                initialWallets = initialWallets,
+                userAlias = userAlias.trim()
             )
             syncExchangeRateFor(country.code, primaryCurr, secondaryCurr)
         }
@@ -562,10 +567,14 @@ class FamilyViewModel(
         }
     }
 
-    fun setUnlockMethodAndEnter(method: String, customPin: String? = null) {
+    fun setUnlockMethodAndEnter(method: String, customPin: String? = null, customAlias: String? = null) {
         viewModelScope.launch {
             if (!customPin.isNullOrBlank() && customPin.length == 5) {
                 dataStoreManager.updatePin(customPin)
+            }
+            val cleanAlias = customAlias?.trim()?.takeIf { it.isNotBlank() && !it.contains("@") }
+            if (cleanAlias != null && !cleanAlias.equals(_currentUser.value, ignoreCase = true)) {
+                applyAliasUpdateInternal(cleanAlias)
             }
             dataStoreManager.setUnlockMethod(method)
             _needsUnlockMethodChoice.value = false
@@ -573,6 +582,39 @@ class FamilyViewModel(
             checkDefaultsAndSync()
             val label = if (method == "biometric") "Huella Digital" else "PIN de 5 dígitos"
             notifyUser("Acceso configurado con $label ✅")
+        }
+    }
+
+    fun updateUserAlias(newAlias: String) {
+        val clean = newAlias.trim()
+        if (clean.isBlank() || clean.contains("@")) {
+            notifyUser("Escribe un alias válido (sin correo electrónico).")
+            return
+        }
+        viewModelScope.launch {
+            applyAliasUpdateInternal(clean)
+            notifyUser("Alias actualizado a '$clean' ✨")
+        }
+    }
+
+    private suspend fun applyAliasUpdateInternal(cleanAlias: String) {
+        val oldAlias = _currentUser.value
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val fid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull().orEmpty()
+        dataStoreManager.setUserName(cleanAlias)
+        _currentUser.value = cleanAlias
+        if (uid != null && fid.isNotBlank()) {
+            runCatching { repository.registerUserMapping(uid, fid, cleanAlias) }
+        }
+        val existingProfile = profiles.value.firstOrNull { it.name.equals(oldAlias, ignoreCase = true) }
+        val avatarId = dataStoreManager.userAvatarIdFlow.firstOrNull() ?: existingProfile?.avatarId ?: "woman_1"
+        val role = dataStoreManager.familyRoleFlow.firstOrNull() ?: existingProfile?.role ?: "Administrador"
+        val colorHex = existingProfile?.colorHex?.ifBlank { "#D0BCFF" } ?: "#D0BCFF"
+        if (existingProfile != null && !existingProfile.name.equals(cleanAlias, ignoreCase = true)) {
+            runCatching { repository.deleteProfile(existingProfile, cleanAlias) }
+        }
+        runCatching {
+            repository.insertProfile(UserProfile(name = cleanAlias, colorHex = colorHex, avatarId = avatarId, role = role), cleanAlias)
         }
     }
 
@@ -611,12 +653,16 @@ class FamilyViewModel(
                 val uid = firebaseUser.uid
 
                 val newFamilyId = UUID.randomUUID().toString().substring(0, 8).uppercase()
-                val userName = customUserName.trim().ifBlank { cleanEmail.substringBefore("@") }
+                val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
+                val userName = customUserName.trim().takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: "Usuario Fami"
 
                 repository.registerUserMapping(uid, newFamilyId, userName)
                 repository.registerFamilyMember(newFamilyId, uid)
 
                 dataStoreManager.saveAuthData(newFamilyId, userName, pin, email = cleanEmail, authProvider = "email")
+                dataStoreManager.setUserName(userName)
                 _familyId.value = newFamilyId
                 repository.setFamilyId(newFamilyId)
 
@@ -663,15 +709,21 @@ class FamilyViewModel(
                 val firebaseUser = authResult.user ?: throw Exception("No se pudo obtener el usuario")
                 val uid = firebaseUser.uid
 
-                repository.registerFamilyMember(code, uid)
-                repository.registerUserMapping(uid, code, name.trim())
+                val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
+                val cleanName = name.trim().takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: "Miembro Fami"
 
-                dataStoreManager.saveAuthData(code, name.trim(), pin, email = cleanEmail, authProvider = "email")
+                repository.registerFamilyMember(code, uid)
+                repository.registerUserMapping(uid, code, cleanName)
+
+                dataStoreManager.saveAuthData(code, cleanName, pin, email = cleanEmail, authProvider = "email")
+                dataStoreManager.setUserName(cleanName)
                 _familyId.value = code
                 repository.setFamilyId(code)
 
-                syncPendingNotebookSetup(userName = name.trim(), colorHex = "#EFB8C8")
-                _currentUser.value = name.trim()
+                syncPendingNotebookSetup(userName = cleanName, colorHex = "#EFB8C8")
+                _currentUser.value = cleanName
 
                 if (isNewAccount && !firebaseUser.isEmailVerified) {
                     runCatching { firebaseUser.sendEmailVerification().await() }
@@ -807,7 +859,8 @@ class FamilyViewModel(
         firebaseUser: com.google.firebase.auth.FirebaseUser,
         joinFamilyCode: String = "",
         customFamilyName: String = "",
-        pin: String = "00000"
+        pin: String = "00000",
+        customUserAlias: String = ""
     ) {
         viewModelScope.launch {
             _isAuthLoading.value = true
@@ -815,8 +868,11 @@ class FamilyViewModel(
             try {
                 val uid = firebaseUser.uid
                 val email = firebaseUser.email.orEmpty()
-                val displayName = firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() }
-                    ?: email.substringBefore("@").ifBlank { "Usuario Fami" }
+                val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
+                val preferredAlias = customUserAlias.trim().takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: "Usuario Fami"
 
                 val snapshot = repository.getUserMapping(uid)
                 val existingFid = snapshot.child("familyId").getValue(String::class.java)
@@ -828,12 +884,15 @@ class FamilyViewModel(
 
                 if (existingFid != null && existingName != null) {
                     finalFid = existingFid
-                    finalUserName = existingName
+                    finalUserName = if (existingName.contains("@")) preferredAlias else existingName
+                    if (existingName.contains("@")) {
+                        runCatching { repository.registerUserMapping(uid, finalFid, finalUserName) }
+                    }
                     isNewSetup = false
                 } else if (joinFamilyCode.trim().isNotBlank()) {
                     val code = joinFamilyCode.trim().uppercase()
                     finalFid = code
-                    finalUserName = displayName
+                    finalUserName = preferredAlias
                     repository.registerFamilyMember(code, uid)
                     repository.registerUserMapping(uid, code, finalUserName)
                     _familyId.value = code
@@ -842,7 +901,7 @@ class FamilyViewModel(
                     isNewSetup = true
                 } else {
                     finalFid = UUID.randomUUID().toString().substring(0, 8).uppercase()
-                    finalUserName = displayName
+                    finalUserName = preferredAlias
                     repository.registerUserMapping(uid, finalFid, finalUserName)
                     repository.registerFamilyMember(finalFid, uid)
                     _familyId.value = finalFid
@@ -863,6 +922,7 @@ class FamilyViewModel(
                     email = email,
                     authProvider = "google"
                 )
+                dataStoreManager.setUserName(finalUserName)
                 _familyId.value = finalFid
                 repository.setFamilyId(finalFid)
                 _currentUser.value = finalUserName
@@ -1093,24 +1153,33 @@ class FamilyViewModel(
     }
     fun deleteCategory(category: CategoryDetail) { viewModelScope.launch { repository.deleteCategory(category, _currentUser.value) } }
 
-    fun createProfile(name: String, colorHex: String) {
+    fun createProfile(name: String, colorHex: String, avatarId: String = "woman_1") {
         viewModelScope.launch {
             val cleanName = name.trim()
             if (cleanName.isNotEmpty()) {
-                repository.insertProfile(UserProfile(cleanName, colorHex), _currentUser.value)
+                repository.insertProfile(UserProfile(cleanName, colorHex, avatarId = avatarId), _currentUser.value)
             }
         }
     }
 
-    fun editProfile(oldProfile: UserProfile, newName: String, newColorHex: String) {
+    fun editProfile(oldProfile: UserProfile, newName: String, newColorHex: String, avatarId: String = oldProfile.avatarId) {
         viewModelScope.launch {
             val cleanName = newName.trim()
             if (cleanName.isNotEmpty()) {
                 if (oldProfile.name != cleanName) repository.deleteProfile(oldProfile, _currentUser.value)
-                repository.insertProfile(UserProfile(cleanName, newColorHex), _currentUser.value)
+                repository.insertProfile(
+                    UserProfile(cleanName, newColorHex, avatarId = avatarId, role = oldProfile.role),
+                    _currentUser.value
+                )
                 if (_currentUser.value == oldProfile.name) {
                     _currentUser.value = cleanName
-                    dataStoreManager.saveAuthData(_familyId.value ?: "", cleanName, dataStoreManager.userPinFlow.firstOrNull() ?: "")
+                    dataStoreManager.setUserName(cleanName)
+                    if (avatarId.isNotBlank()) dataStoreManager.setUserAvatarId(avatarId)
+                    dataStoreManager.saveAuthData(
+                        familyId = _familyId.value ?: "",
+                        userName = cleanName,
+                        pin = dataStoreManager.userPinFlow.firstOrNull() ?: ""
+                    )
                 }
             }
         }
@@ -1200,19 +1269,64 @@ class FamilyViewModel(
         }
     }
 
-    fun addGoal(title: String, targetAmount: Double?, isPrivate: Boolean = false) {
+    fun addGoal(
+        title: String,
+        targetAmount: Double?,
+        savedAmount: Double = 0.0,
+        currency: String = primaryCurrency.value,
+        isPrivate: Boolean = false
+    ) {
         viewModelScope.launch {
             val user = _currentUser.value
+            val cleanSaved = savedAmount.coerceAtLeast(0.0)
+            val completedNow = targetAmount != null && targetAmount > 0.0 && cleanSaved >= targetAmount
+            if (completedNow) triggerConfetti()
             val goal = Goal(
                 title = title,
                 targetAmount = targetAmount,
+                savedAmount = cleanSaved,
+                currency = currency.trim().uppercase().ifBlank { primaryCurrency.value },
                 createdBy = user,
                 createdDate = System.currentTimeMillis(),
+                isCompleted = completedNow,
                 isPrivate = isPrivate
             )
             repository.insertGoal(goal, user)
         }
     }
+
+    fun addSavingsToGoal(goal: Goal, depositAmount: Double) {
+        if (depositAmount <= 0.0) return
+        viewModelScope.launch {
+            val user = _currentUser.value
+            val newSaved = (goal.savedAmount + depositAmount).coerceAtLeast(0.0)
+            val reachedTarget = goal.targetAmount != null && goal.targetAmount > 0.0 && newSaved >= goal.targetAmount
+            val updated = goal.copy(
+                savedAmount = newSaved,
+                isCompleted = goal.isCompleted || reachedTarget,
+                currency = goal.currency.ifBlank { primaryCurrency.value }
+            )
+            repository.insertGoal(updated, user)
+            val curr = updated.currency
+            val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(curr)
+            runCatching {
+                repository.insertLog(
+                    ActivityLog(
+                        tag = "METAS",
+                        message = "$user abonó $sym ${String.format(java.util.Locale.US, "%,.2f", depositAmount)} $curr a la meta '${goal.title}'",
+                        user = user
+                    )
+                )
+            }
+            if (reachedTarget && !goal.isCompleted) {
+                triggerConfetti()
+                notifyUser("🎉 ¡Meta '${goal.title}' completada!")
+            } else {
+                notifyUser("💰 Ahorro sumado a '${goal.title}': +$sym ${String.format(java.util.Locale.US, "%,.2f", depositAmount)} $curr")
+            }
+        }
+    }
+
     fun editGoal(goal: Goal) { if (goal.isCompleted) triggerConfetti()
         viewModelScope.launch { repository.insertGoal(goal, _currentUser.value) } }
     fun deleteGoal(goal: Goal) { viewModelScope.launch { repository.deleteGoal(goal, _currentUser.value) } }

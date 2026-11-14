@@ -103,6 +103,7 @@ data class Goal(
     val title: String = "",
     val targetAmount: Double? = null,
     val savedAmount: Double = 0.0,
+    val currency: String = "",
     val createdBy: String = "",
     val createdDate: Long = 0L,
     @get:PropertyName("isCompleted") @set:PropertyName("isCompleted")

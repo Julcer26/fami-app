@@ -35,6 +35,8 @@ import com.example.api.ParsedReceiptItem
 import com.example.currency.CountryCurrencyConfig
 import com.example.database.CategoryDetail
 import com.example.database.Wallet
+import com.example.ui.theme.FamiCoral
+import com.example.ui.theme.FamiEmerald
 import com.example.ui.theme.FamiTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -90,9 +92,9 @@ fun ReceiptScanConfirmDialog(
                 .fillMaxHeight(0.85f)
                 .padding(vertical = 12.dp),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = paper.sheet,
             tonalElevation = 8.dp,
-            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f))
+            border = BorderStroke(1.6.dp, paper.border)
         ) {
             Column(
                 modifier = Modifier
@@ -109,12 +111,7 @@ fun ReceiptScanConfirmDialog(
                         Box(
                             modifier = Modifier
                                 .size(34.dp)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF7C4DFF), Color(0xFF651FFF))
-                                    ),
-                                    CircleShape
-                                ),
+                                .background(FamiCoral, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -129,13 +126,13 @@ fun ReceiptScanConfirmDialog(
                             Text(
                                 text = "Confirmar Recibo ✨",
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink
                             )
                             Text(
                                 text = "Extracción Inteligente por IA",
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = paper.inkMuted
                             )
                         }
                     }
@@ -146,14 +143,14 @@ fun ReceiptScanConfirmDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cerrar",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = paper.inkMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
                 HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    color = paper.ruleLine,
                     thickness = 1.dp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -187,20 +184,20 @@ fun ReceiptScanConfirmDialog(
                             onValueChange = onSetScannedAmount,
                             label = { Text("Monto Total", fontSize = 11.sp) },
                             modifier = Modifier.weight(1.2f),
-                            textStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00C853)),
+                            textStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = FamiEmerald),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
                         )
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Moneda:", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Moneda:", fontSize = 10.sp, color = paper.inkMuted)
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 currencyOptions.forEach { m ->
                                     val isSelected = scannedCurrency.equals(m, ignoreCase = true)
                                     val sym = CountryCurrencyConfig.getCurrencySymbol(m)
-                                    Button(
+                                    Surface(
                                         onClick = {
                                             onSetScannedCurrency(m)
                                             wallets.firstOrNull { it.currency.equals(m, ignoreCase = true) }
@@ -208,13 +205,17 @@ fun ReceiptScanConfirmDialog(
                                         },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                            contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        contentPadding = PaddingValues(0.dp)
+                                        color = if (isSelected) paper.stickyYellow else paper.sheetCream,
+                                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) paper.border else paper.border.copy(alpha = 0.4f))
                                     ) {
-                                        Text(sym.ifBlank { m }, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = sym.ifBlank { m },
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                            color = paper.ink,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier.padding(vertical = 8.dp)
+                                        )
                                     }
                                 }
                             }
@@ -226,7 +227,7 @@ fun ReceiptScanConfirmDialog(
                             "Billetera a descontar:",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = FamiCoral
                         )
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -237,6 +238,12 @@ fun ReceiptScanConfirmDialog(
                                 FilterChip(
                                     selected = isSelected,
                                     onClick = { selectedWalletId = w.id },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = paper.sheetCream,
+                                        selectedContainerColor = paper.stickyYellow,
+                                        labelColor = paper.ink,
+                                        selectedLabelColor = paper.ink
+                                    ),
                                     label = {
                                         Text("🏦 ${w.name} (${w.currency})", fontSize = 10.5.sp)
                                     },
@@ -246,7 +253,7 @@ fun ReceiptScanConfirmDialog(
                         }
                     }
 
-                    Text("Fechas del Registro:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Fechas del Registro:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                     val sdfDate = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
                     Row(
@@ -273,14 +280,14 @@ fun ReceiptScanConfirmDialog(
                                         cal.get(Calendar.DAY_OF_MONTH)
                                     ).show()
                                 },
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            color = paper.sheetCream,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            border = BorderStroke(1.dp, paper.border.copy(alpha = 0.5f))
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
-                                Text("📄 Fecha Factura", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                                Text("📄 Fecha Factura", fontSize = 10.sp, color = paper.inkMuted, fontWeight = FontWeight.Medium)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(sdfDate.format(Date(scannedDate)), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(sdfDate.format(Date(scannedDate)), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                             }
                         }
 
@@ -304,19 +311,19 @@ fun ReceiptScanConfirmDialog(
                                         cal.get(Calendar.DAY_OF_MONTH)
                                     ).show()
                                 },
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            color = paper.stickyYellow,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.7f))
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
-                                Text("⚖️ Fecha Balance", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+                                Text("⚖️ Fecha Balance", fontSize = 10.sp, color = FamiCoral, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(sdfDate.format(Date(scannedBalanceDate)), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(sdfDate.format(Date(scannedBalanceDate)), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                             }
                         }
                     }
 
-                    Text("Categoría Principal:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Categoría Principal:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = paper.inkMuted)
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -326,6 +333,12 @@ fun ReceiptScanConfirmDialog(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { onSetScannedCategory(cat.categoryName) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = paper.sheetCream,
+                                    selectedContainerColor = paper.stickyYellow,
+                                    labelColor = paper.ink,
+                                    selectedLabelColor = paper.ink
+                                ),
                                 label = { Text(cat.categoryName, fontSize = 10.sp) },
                                 shape = RoundedCornerShape(8.dp)
                             )
@@ -343,21 +356,21 @@ fun ReceiptScanConfirmDialog(
                                     text = "🛒 Desglose de Productos (${scannedItems.size} ítems)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = FamiCoral
                                 )
                                 Text(
                                     text = "IVA Incluido",
                                     fontSize = 9.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = paper.inkMuted,
                                     fontStyle = FontStyle.Italic
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                color = paper.sheetCream,
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, paper.border.copy(alpha = 0.45f)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(max = 220.dp)
@@ -371,10 +384,9 @@ fun ReceiptScanConfirmDialog(
                                 ) {
                                     scannedItems.forEach { item ->
                                         Surface(
-                                            color = MaterialTheme.colorScheme.surface,
+                                            color = paper.sheet,
                                             shape = RoundedCornerShape(10.dp),
-                                            tonalElevation = 1.dp,
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                            border = BorderStroke(1.dp, paper.border.copy(alpha = 0.4f))
                                         ) {
                                             Row(
                                                 modifier = Modifier
@@ -388,18 +400,18 @@ fun ReceiptScanConfirmDialog(
                                                         text = item.name,
                                                         fontSize = 12.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onSurface
+                                                        color = paper.ink
                                                     )
                                                     if (item.category.isNotBlank()) {
                                                         Surface(
-                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                                            color = paper.stickyYellow,
                                                             shape = RoundedCornerShape(4.dp),
                                                             modifier = Modifier.padding(top = 2.dp)
                                                         ) {
                                                             Text(
                                                                 text = item.category,
                                                                 fontSize = 9.sp,
-                                                                color = MaterialTheme.colorScheme.primary,
+                                                                color = paper.ink,
                                                                 fontWeight = FontWeight.SemiBold,
                                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                                             )
@@ -410,7 +422,7 @@ fun ReceiptScanConfirmDialog(
                                                     text = "${item.amount} $scannedCurrency",
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF00C853)
+                                                    color = FamiEmerald
                                                 )
                                             }
                                         }
@@ -427,15 +439,15 @@ fun ReceiptScanConfirmDialog(
                         Switch(
                             checked = saveReceiptPhoto,
                             onCheckedChange = onSetSaveReceiptPhoto,
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                            colors = SwitchDefaults.colors(checkedTrackColor = FamiCoral)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Guardar foto como respaldo", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Guardar foto como respaldo", fontSize = 12.sp, color = paper.ink)
                     }
                 }
 
                 HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    color = paper.ruleLine,
                     thickness = 1.dp,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -448,15 +460,16 @@ fun ReceiptScanConfirmDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Descartar", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        Text("Descartar", color = paper.inkMuted, fontSize = 13.sp)
                     }
 
                     Button(
                         onClick = { onConfirm(selectedWalletId) },
                         modifier = Modifier.weight(1.5f),
+                        colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Registrar Gasto", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Registrar Gasto", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }

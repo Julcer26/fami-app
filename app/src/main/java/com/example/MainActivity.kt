@@ -493,6 +493,7 @@ fun MainScreen(viewModel: FamilyViewModel) {
     val pendingFamilyNameState by viewModel.pendingFamilyName.collectAsStateWithLifecycle()
     val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val hasCompletedInAppTour by viewModel.hasCompletedInAppTour.collectAsStateWithLifecycle()
+    val pendingUserAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
 
     LaunchedEffect(appLanguageState) {
         if (appLanguageState.isNotBlank()) {
@@ -510,9 +511,10 @@ fun MainScreen(viewModel: FamilyViewModel) {
             initialManagementMode = managementModeState,
             initialFamilyAction = familyActionState,
             initialFamilyName = pendingFamilyNameState,
+            initialUserAlias = pendingUserAlias,
             initialAvatarId = userAvatarIdState,
             onLoginExisting = { viewModel.openExistingLoginFromOnboarding() },
-            onComplete = { selectedCountry, primaryCurr, secondaryCurr, langCode, role, mgmtMode, famAction, famName, avatarId, incomeAmt, incomeCurr, initWallets ->
+            onComplete = { selectedCountry, primaryCurr, secondaryCurr, langCode, role, mgmtMode, famAction, famName, avatarId, incomeAmt, incomeCurr, initWallets, userAlias ->
                 viewModel.applyInitialConfiguration(
                     country = selectedCountry,
                     primaryCurr = primaryCurr,
@@ -525,7 +527,8 @@ fun MainScreen(viewModel: FamilyViewModel) {
                     avatarId = avatarId,
                     monthlyIncome = incomeAmt,
                     monthlyIncomeCurr = incomeCurr,
-                    initialWallets = initWallets
+                    initialWallets = initWallets,
+                    userAlias = userAlias
                 )
             }
         )
@@ -664,17 +667,26 @@ fun MainScreen(viewModel: FamilyViewModel) {
                 }
                 
                 if (showUpdateDialog) {
+                    val paper = FamiTheme.paper
                     AlertDialog(
                         onDismissRequest = {
                             showUpdateDialog = false
                         },
+                        containerColor = paper.sheet,
                         title = {
                             Text(
-                                if (latestVersionName.isNotBlank()) "Actualización Disponible (v$latestVersionName)"
-                                else "Actualización Disponible"
+                                text = if (latestVersionName.isNotBlank()) "Actualización Disponible (v$latestVersionName)"
+                                else "Actualización Disponible",
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink
                             )
                         },
-                        text = { Text("Hay una nueva versión de Fami disponible. ¿Deseas descargarla e instalarla ahora?") },
+                        text = {
+                            Text(
+                                "Hay una nueva versión de Fami disponible. ¿Deseas descargarla e instalarla ahora?",
+                                color = paper.inkMuted
+                            )
+                        },
                         confirmButton = {
                             TextButton(onClick = {
                                 if (updateUrl.isNotEmpty() && !updateUrl.contains("play.google.com")) {
@@ -696,7 +708,7 @@ fun MainScreen(viewModel: FamilyViewModel) {
                                     }
                                 }
                             }) {
-                                Text("Actualizar")
+                                Text("Actualizar", fontWeight = FontWeight.Bold, color = FamiCoral)
                             }
                         },
                         dismissButton = {
@@ -706,7 +718,7 @@ fun MainScreen(viewModel: FamilyViewModel) {
                                 }
                                 showUpdateDialog = false
                             }) {
-                                Text("Más tarde")
+                                Text("Más tarde", color = paper.inkMuted)
                             }
                         }
                     )
@@ -1084,11 +1096,12 @@ fun DashboardTab(
             if (showCountryPickerModal) {
                 AlertDialog(
                     onDismissRequest = { showCountryPickerModal = false },
+                    containerColor = paper.sheet,
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("🌎", fontSize = 20.sp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("País y Moneda Oficial", fontSize = 17.sp, fontWeight = FontWeight.Black)
+                            Text("País y Moneda Oficial", fontSize = 17.sp, fontWeight = FontWeight.Black, color = paper.ink)
                         }
                     },
                     text = {
@@ -1102,7 +1115,7 @@ fun DashboardTab(
                             Text(
                                 "Selecciona tu país para ajustar tu moneda local y sincronizar la tasa oficial en tu Bóveda Fami:",
                                 fontSize = 11.5.sp,
-                                color = SubtitleText
+                                color = paper.inkMuted
                             )
                             com.example.currency.CountryCurrencyConfig.SUPPORTED_COUNTRIES.forEach { c ->
                                 val isSel = c.code == countryInfo.code
@@ -1112,8 +1125,8 @@ fun DashboardTab(
                                         showCountryPickerModal = false
                                     },
                                     shape = RoundedCornerShape(14.dp),
-                                    color = if (isSel) FamiCoral.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                    border = BorderStroke(1.dp, if (isSel) FamiCoral else Color.Transparent),
+                                    color = if (isSel) FamiCoral.copy(alpha = 0.16f) else paper.sheetCream,
+                                    border = BorderStroke(1.dp, if (isSel) FamiCoral else paper.border.copy(alpha = 0.35f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -1125,8 +1138,8 @@ fun DashboardTab(
                                             Text(c.flag, fontSize = 20.sp)
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column {
-                                                Text(c.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                                Text("${c.localCurrency} (${c.symbol}) • ${c.rateProvider}", fontSize = 10.5.sp, color = SubtitleText)
+                                                Text(c.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
+                                                Text("${c.localCurrency} (${c.symbol}) • ${c.rateProvider}", fontSize = 10.5.sp, color = paper.inkMuted)
                                             }
                                         }
                                         if (isSel) {
@@ -1164,6 +1177,7 @@ fun DashboardTab(
                 ) {
                     val avatarOpt = remember(userAvatarId) { com.example.ui.AvatarCatalog.getById(userAvatarId) }
                     val customFamilyName = settings.find { it.key == "family_name" }?.value.orEmpty()
+                    val cleanHeaderUser = cleanMemberAlias(currentUser, "")
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
@@ -1189,7 +1203,7 @@ fun DashboardTab(
                             Text(
                                 text = when {
                                     customFamilyName.isNotBlank() -> customFamilyName
-                                    currentUser.isNotBlank() -> "Cuaderno de $currentUser"
+                                    cleanHeaderUser.isNotBlank() -> "Cuaderno de $cleanHeaderUser"
                                     else -> "Cuaderno Familiar Fami"
                                 },
                                 fontSize = 12.sp,
@@ -2018,7 +2032,7 @@ fun DashboardTab(
     }
 
     if (showEmailSyncDialog) {
-        var simMailInput by remember { mutableStateOf(savedEmailState.ifBlank { currentUser }) }
+        var simMailInput by remember { mutableStateOf(savedEmailState) }
         val detectedEmailsList = listOf(
             Triple("PedidosYa - Delivery Cena 🍔", 14.50, "USD"),
             Triple("Netflix - Suscripción Familiar 📺", 7.99, "USD"),
@@ -2028,19 +2042,21 @@ fun DashboardTab(
 
         AlertDialog(
             onDismissRequest = { showEmailSyncDialog = false },
+            containerColor = paper.sheet,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Email,
                         contentDescription = "Email Sync",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = FamiCoral,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "Vincular Correo Electrónico ✉️",
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Black,
+                        color = paper.ink
                     )
                 }
             },
@@ -2052,18 +2068,27 @@ fun DashboardTab(
                     if (!isEmailLinked) {
                         Text(
                             "Vincule su correo para que la IA escanee su bandeja en búsqueda de recibos digitales de compras y suscripciones de manera automática.",
-                            fontSize = 11.sp,
-                            color = SubtitleText,
-                            lineHeight = 14.sp
+                            fontSize = 11.5.sp,
+                            color = paper.inkMuted,
+                            lineHeight = 15.sp
                         )
 
-                        OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                             value = simMailInput,
                             onValueChange = { simMailInput = it },
                             label = { Text("Correo Electrónico", fontSize = 11.sp) },
+                            placeholder = { Text("tu.correo@gmail.com", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
-                            singleLine = true
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = paper.ink),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
+                            )
                         )
 
                         if (isLinkingEmail) {
@@ -2072,8 +2097,8 @@ fun DashboardTab(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                Text("Solicitando autorización de lectura segura OAUTH2...", fontSize = 10.sp, color = SubtitleText)
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = FamiCoral)
+                                Text("Solicitando autorización de lectura segura OAUTH2...", fontSize = 10.sp, color = paper.inkMuted)
                             }
                         } else {
                             Button(
@@ -2087,21 +2112,24 @@ fun DashboardTab(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary) ){
-                                Text("Otorgar Permiso de Correo e IA", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                            ) {
+                                Text("Otorgar Permiso de Correo e IA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     } else {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFDCFCE7))
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(paper.stickyMint)
+                                .border(1.dp, FamiEmerald.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp) ){
-                            Icon(Icons.Default.CheckCircle, "Linked", tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
-                            Text("Bandeja vinculada: $simMailInput", fontSize = 10.sp, color = Color(0xFF15803D), fontWeight = FontWeight.SemiBold)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Default.CheckCircle, "Linked", tint = FamiEmerald, modifier = Modifier.size(16.dp))
+                            Text("Bandeja vinculada: ${simMailInput.ifBlank { "Correo conectado" }}", fontSize = 10.5.sp, color = paper.ink, fontWeight = FontWeight.SemiBold)
                         }
 
                         if (isFetchingEmails) {
@@ -2112,9 +2140,9 @@ fun DashboardTab(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = FamiCoral)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Buscando facturas con IA de Gemini...", fontSize = 11.sp, color = SubtitleText)
+                                Text("Buscando facturas con IA de Gemini...", fontSize = 11.sp, color = paper.inkMuted)
                             }
                         } else if (selectedEmailsToSync.isEmpty() && !isFetchingEmails) {
                             Button(
@@ -2128,13 +2156,14 @@ fun DashboardTab(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A) )){
-                                Text("Buscar nuevos recibos en bandeja", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                colors = ButtonDefaults.buttonColors(containerColor = paper.ink)
+                            ) {
+                                Text("Buscar nuevos recibos en bandeja", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = paper.sheet)
                             }
                         }
 
                         if (selectedEmailsToSync.isNotEmpty() ){
-                            Text("Recibos detectados por IA en tus correos:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("Recibos detectados por IA en tus correos:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                             
                             detectedEmailsList.forEachIndexed { index, item ->
                                 val isChecked = selectedEmailsToSync.contains(index)
@@ -2148,7 +2177,7 @@ fun DashboardTab(
                                                 selectedEmailsToSync + index
                                             }
                                         }
-                                        .background(if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent)
+                                        .background(if (isChecked) FamiCoral.copy(alpha = 0.08f) else Color.Transparent)
                                         .padding(6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -2163,8 +2192,8 @@ fun DashboardTab(
                                         }
                                     )
                                     Column(modifier = Modifier.weight(1f) ){
-                                        Text(item.first, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                        Text("Monto detectado: ${item.second} ${item.third}", fontSize = 9.5.sp, color = SubtitleText)
+                                        Text(item.first, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = paper.ink)
+                                        Text("Monto detectado: ${item.second} ${item.third}", fontSize = 9.5.sp, color = paper.inkMuted)
                                     }
                                 }
                             }
@@ -2190,8 +2219,10 @@ fun DashboardTab(
                                     showEmailSyncDialog = false
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp) ){
-                                Text("Sincronizar e importar marcados (${selectedEmailsToSync.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                            ) {
+                                Text("Sincronizar e importar marcados (${selectedEmailsToSync.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
 
@@ -2201,7 +2232,7 @@ fun DashboardTab(
                                 selectedEmailsToSync = emptySet()
                             },
                             modifier = Modifier.fillMaxWidth() ){
-                            Text("Desvincular Correo", color = Color(0xFFEF4444), fontSize = 10.sp)
+                            Text("Desvincular Correo", color = AlertRed, fontSize = 10.sp)
                         }
                     }
                 }
@@ -2209,7 +2240,7 @@ fun DashboardTab(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showEmailSyncDialog = false }) {
-                    Text("Cerrar", color = SubtitleText, fontSize = 11.sp)
+                    Text("Cerrar", color = paper.inkMuted, fontSize = 11.sp)
                 }
             }
         )
@@ -2666,6 +2697,7 @@ fun AccountsTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 @Composable
 fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val chores by viewModel.chores.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -2680,7 +2712,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     var taskCategorySelected by remember { mutableStateOf("General") }
     var taskDesc by remember { mutableStateOf("") }
     var taskAssignee by remember(currentUser, profiles) {
-        mutableStateOf(currentUser.ifBlank { profiles.firstOrNull()?.name ?: "Todos" })
+        mutableStateOf(cleanMemberAlias(currentUser, profiles.firstOrNull()?.name ?: "Todos"))
     }
     var taskPrioritySelected by remember { mutableStateOf("Medio") } // Alto, Medio, Bajo
     var taskIsPrivate by remember { mutableStateOf(false) }
@@ -2727,7 +2759,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     taskTitle = ""
                     taskDesc = ""
                     taskCategorySelected = if (selectedListName == "Todas") "General" else selectedListName
-                    taskAssignee = currentUser.ifBlank { profiles.firstOrNull()?.name ?: "Todos" }
+                    taskAssignee = cleanMemberAlias(currentUser, profiles.firstOrNull()?.name ?: "Todos")
                     taskPrioritySelected = "Medio"
                     taskIsPrivate = false
                     showChoreDialog = true
@@ -2744,34 +2776,46 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             if (showAddListDialog) {
                 AlertDialog(
                     onDismissRequest = { showAddListDialog = false },
-                    title = { Text("Nueva Lista de Tareas", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                    containerColor = paper.sheet,
+                    title = { Text("Nueva Lista de Tareas", fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink) },
                     text = {
-                        OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                             value = newListNameInput,
                             onValueChange = { newListNameInput = it },
-                            placeholder = { Text("Ej: Limpieza, Jardín...") },
+                            placeholder = { Text("Ej: Limpieza, Jardín...", color = paper.inkMuted) },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
+                            )
                         )
                     },
                     confirmButton = {
-                        Button(onClick = {
-                            val cleanList = newListNameInput.trim()
-                            if (cleanList.isNotEmpty() && cleanList != "General") {
-                                val currentSetting = settings.find { it.key == "task_lists" }?.value
-                                val newSettingVal = if (currentSetting.isNullOrBlank()) cleanList else "$currentSetting,$cleanList"
-                                viewModel.updateValueSetting("task_lists", newSettingVal)
-                                selectedListName = cleanList
-                            }
-                            newListNameInput = ""
-                            showAddListDialog = false
-                        }) {
-                            Text("Crear")
+                        Button(
+                            onClick = {
+                                val cleanList = newListNameInput.trim()
+                                if (cleanList.isNotEmpty() && cleanList != "General") {
+                                    val currentSetting = settings.find { it.key == "task_lists" }?.value
+                                    val newSettingVal = if (currentSetting.isNullOrBlank()) cleanList else "$currentSetting,$cleanList"
+                                    viewModel.updateValueSetting("task_lists", newSettingVal)
+                                    selectedListName = cleanList
+                                }
+                                newListNameInput = ""
+                                showAddListDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                        ) {
+                            Text("Crear", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showAddListDialog = false }) {
-                            Text("Cancelar")
+                            Text("Cancelar", color = paper.inkMuted)
                         }
                     }
                 )
@@ -2780,11 +2824,12 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             if (showListManager) {
                 AlertDialog(
                     onDismissRequest = { showListManager = false },
+                    containerColor = paper.sheet,
                     title = {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Mis Listas de Tareas", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("Mis Listas de Tareas", fontSize = 18.sp, fontWeight = FontWeight.Black, color = paper.ink)
                             IconButton(onClick = { showListManager = false }) {
-                                Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.inkMuted)
                             }
                         }
                     },
@@ -2795,20 +2840,28 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) ){
+                                    colors = CardDefaults.cardColors(containerColor = paper.sheetCream),
+                                    border = BorderStroke(1.dp, paper.border.copy(alpha = 0.35f)),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                ){
                                     if (isEditing) {
                                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                                            OutlinedTextField(
+                                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                                                 value = editListNameInput,
                                                 onValueChange = { editListNameInput = it },
                                                 modifier = Modifier.weight(1f),
-                                                singleLine = true
+                                                singleLine = true,
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    focusedBorderColor = FamiCoral,
+                                                    unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                                    focusedTextColor = paper.ink,
+                                                    unfocusedTextColor = paper.ink
+                                                )
                                             )
                                             IconButton(onClick = {
                                                 val cleanList = editListNameInput.trim()
                                                 if (cleanList.isNotEmpty() && cleanList != listName && cleanList != "General") {
-                                                    // No renameChoreList method yet, so we just add it to settings for now
                                                     val currentSetting = settings.find { it.key == "task_lists" }?.value
                                                     val dbLists = currentSetting?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.toMutableList() ?: mutableListOf()
                                                     if (dbLists.contains(listName) ){
@@ -2821,7 +2874,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                                 }
                                                 listNameToEdit = null
                                             }) {
-                                                Icon(Icons.Default.Check, contentDescription = "Guardar", tint = MaterialTheme.colorScheme.primary)
+                                                Icon(Icons.Default.Check, contentDescription = "Guardar", tint = FamiCoral)
                                             }
                                         }
                                     } else {
@@ -2833,19 +2886,19 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            Text(listName, fontSize = 16.sp, fontWeight = if (selectedListName == listName) FontWeight.Bold else FontWeight.Normal)
+                                            Text(listName, fontSize = 16.sp, fontWeight = if (selectedListName == listName) FontWeight.Bold else FontWeight.Normal, color = paper.ink)
                                             if (listName != "General") {
                                                 Row {
                                                     IconButton(onClick = {
                                                         listNameToEdit = listName
                                                         editListNameInput = listName
                                                     }, modifier = Modifier.size(32.dp) ){
-                                                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(20.dp))
+                                                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = paper.ink, modifier = Modifier.size(20.dp))
                                                     }
                                                     DeleteIconButton(
                                                         modifier = Modifier.size(32.dp),
                                                         iconSize = 20.dp,
-                                                        tint = MaterialTheme.colorScheme.error,
+                                                        tint = AlertRed,
                                                         onDeleteConfirm = {
                                                             val currentSetting = settings.find { it.key == "task_lists" }?.value
                                                             val dbLists = currentSetting?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.toMutableList() ?: mutableListOf()
@@ -2865,10 +2918,14 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         }
                     },
                     confirmButton = {
-                        Button(onClick = { showAddListDialog = true }, modifier = Modifier.fillMaxWidth() ){
-                            Icon(Icons.Default.Add, contentDescription = null)
+                        Button(
+                            onClick = { showAddListDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                        ){
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
                             Spacer(Modifier.width(8.dp))
-                            Text("Crear Nueva Lista")
+                            Text("Crear Nueva Lista", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -2920,10 +2977,10 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     }
 
                     val badgeColor = when (priority) {
-                        "Alto" -> Color(0xFFEF5350)  // Soft red
-                        "Medio" -> Color(0xFFFFB74D) // Soft orange
-                        "Bajo" -> Color(0xFF81C784)  // Soft green
-                        else -> MaterialTheme.colorScheme.primary
+                        "Alto" -> Color(0xFFEF5350)
+                        "Medio" -> Color(0xFFFFB74D)
+                        "Bajo" -> Color(0xFF81C784)
+                        else -> FamiCoral
                     }
 
                     Box(
@@ -2932,11 +2989,11 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             .clip(CircleShape)
                             .background(
                                 if (isSelected) badgeColor.copy(alpha = 0.20f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f)
+                                else paper.sheetCream
                             )
                             .border(
                                 width = 1.dp,
-                                color = if (isSelected) badgeColor else Color.Transparent,
+                                color = if (isSelected) badgeColor else paper.border.copy(alpha = 0.35f),
                                 shape = CircleShape
                             )
                             .clickable { selectedPriorityFilter = priority }
@@ -2958,7 +3015,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 text = "$priority ($count)",
                                 fontSize = 9.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.80f),
+                                color = if (isSelected) paper.ink else paper.inkMuted,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -3110,24 +3167,16 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        val initialChar = chore.assignedTo.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .clip(CircleShape)
-                                                .background(paper.stickyPeach)
-                                                .border(1.dp, paper.border, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = initialChar,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = paper.ink
-                                            )
-                                        }
+                                        val cleanAssignee = cleanMemberAlias(chore.assignedTo, "Todos")
+                                        com.example.ui.MemberAvatarBadge(
+                                            memberName = cleanAssignee,
+                                            profiles = profiles,
+                                            currentUser = currentUser,
+                                            currentUserAvatarId = userAvatarIdState,
+                                            size = 22.dp
+                                        )
                                         Text(
-                                            text = "Asignado a ${chore.assignedTo}",
+                                            text = "Asignado a $cleanAssignee",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = paper.inkMuted
@@ -3145,7 +3194,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                                 taskTitle = chore.title
                                                 taskDesc = chore.description
                                                 taskCategorySelected = chore.category
-                                                taskAssignee = chore.assignedTo
+                                                taskAssignee = cleanAssignee
                                                 taskPrioritySelected = chore.priority
                                                 taskIsPrivate = chore.isPrivate
                                                 showChoreDialog = true
@@ -3181,35 +3230,42 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             title = {
                 Text(
                     text = if (isEditingChore) "Editar Tarea" else "Programar Nueva Tarea",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                    color = paper.ink
                 )
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp) ){
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = taskTitle,
                         onValueChange = { taskTitle = it },
                         label = { Text("Título de la tarea") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         )
                     )
 
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = taskDesc,
                         onValueChange = { taskDesc = it },
                         label = { Text("Descripción (opcional)") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         ),
                         maxLines = 3
                     )
@@ -3225,11 +3281,14 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             modifier = Modifier.fillMaxWidth().clickable { expandedListDropdown = true },
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = OutlineGrey
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
                             ),
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, contentDescription = "Seleccionar lista",
+                                    tint = paper.inkMuted,
                                     modifier = Modifier.clickable { expandedListDropdown = !expandedListDropdown })
                             }
                         )
@@ -3251,7 +3310,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
                     // Priority segments layout
                     Column {
-                        Text("Prioridad de Ejecución:", fontSize = 11.sp, color = SubtitleText, fontWeight = FontWeight.Bold)
+                        Text("Prioridad de Ejecución:", fontSize = 11.sp, color = paper.inkMuted, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -3274,7 +3333,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         )
                                         .border(
                                             width = if (isChosen) 2.dp else 1.dp,
-                                            color = if (isChosen) optionColor else OutlineGrey,
+                                            color = if (isChosen) optionColor else paper.border.copy(alpha = 0.4f),
                                             shape = CircleShape
                                         )
                                         .clickable { taskPrioritySelected = pOption }
@@ -3296,44 +3355,54 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         androidx.compose.material3.Switch(
                             checked = taskIsPrivate,
                             onCheckedChange = { taskIsPrivate = it },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solo para mí (Privado)", fontSize = 14.sp)
+                        Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
                     }
 
                     // Assignee dropdown picker list (Represented by profiles capsules)
                     Column {
-                        Text("Asignar esta tarea a:", fontSize = 11.sp, color = SubtitleText, fontWeight = FontWeight.Bold)
+                        Text("Asignar esta tarea a:", fontSize = 11.sp, color = paper.inkMuted, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp) ){
-                            val activeProfiles = (profiles.map { it.name }.ifEmpty { listOf(currentUser.ifBlank { "Miembro" }) } + "Todos").distinct()
+                            val activeProfiles = (profiles.map { cleanMemberAlias(it.name) }.ifEmpty { listOf(cleanMemberAlias(currentUser)) } + "Todos").distinct()
 
                             activeProfiles.forEach { name ->
                                 val isSelected = taskAssignee == name
-                                Box(
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                                     modifier = Modifier
                                         .clip(CircleShape)
                                         .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.surfaceVariant
+                                            if (isSelected) FamiCoral
+                                            else paper.sheetCream
                                         )
                                         .clickable { taskAssignee = name }
                                         .border(
                                             width = 1.dp,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else OutlineGrey,
+                                            color = if (isSelected) FamiCoral else paper.border.copy(alpha = 0.45f),
                                             shape = CircleShape
                                         )
-                                        .padding(horizontal = 14.dp, vertical = 6.dp) ){
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ){
+                                    com.example.ui.MemberAvatarBadge(
+                                        memberName = name,
+                                        profiles = profiles,
+                                        currentUser = currentUser,
+                                        currentUserAvatarId = userAvatarIdState,
+                                        size = 18.dp
+                                    )
                                     Text(
                                         text = name,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (isSelected) Color.White else paper.ink
                                     )
                                 }
                             }
@@ -3345,20 +3414,21 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 Button(
                     onClick = {
                         if (taskTitle.isNotBlank() ){
+                            val safeUser = cleanMemberAlias(currentUser)
                             if (isEditingChore && editingChore != null) {
                                 val updated = editingChore!!.copy(
                                         title = taskTitle.trim(),
                                         description = taskDesc.trim(),
                                         priority = taskPrioritySelected,
                                         category = taskCategorySelected,
-                                        assignedTo = if (taskIsPrivate) currentUser else taskAssignee,
+                                        assignedTo = if (taskIsPrivate) safeUser else taskAssignee,
                                         isPrivate = taskIsPrivate
                                 )
                                 viewModel.editChore(updated)
                             } else {
                                 viewModel.addChore(
                                     title = taskTitle.trim(),
-                                    assignedTo = if (taskIsPrivate) currentUser else taskAssignee,
+                                    assignedTo = if (taskIsPrivate) safeUser else taskAssignee,
                                     description = taskDesc.trim(),
                                     priority = taskPrioritySelected,
                                     category = taskCategorySelected,
@@ -3368,18 +3438,18 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             showChoreDialog = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                     shape = CircleShape
                 ) {
-                    Text("Guardar", fontWeight = FontWeight.Bold)
+                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showChoreDialog = false }) {
-                    Text("Cancelar", color = SubtitleText)
+                    Text("Cancelar", color = paper.inkMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = paper.sheet,
             shape = RoundedCornerShape(28.dp)
         )
     }
@@ -3390,6 +3460,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 @Composable
 fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
@@ -3455,34 +3526,46 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             if (showAddListDialog) {
                 AlertDialog(
                     onDismissRequest = { showAddListDialog = false },
-                    title = { Text("Nueva Lista de Compras", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                    containerColor = paper.sheet,
+                    title = { Text("Nueva Lista de Compras", fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink) },
                     text = {
-                        OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                        OutlinedTextField(
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                             value = newListNameInput,
                             onValueChange = { newListNameInput = it },
-                            placeholder = { Text("Ej: Supermercado, Farmacia...") },
+                            placeholder = { Text("Ej: Supermercado, Farmacia...", color = paper.inkMuted) },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
+                            )
                         )
                     },
                     confirmButton = {
-                        Button(onClick = {
-                            val cleanList = newListNameInput.trim()
-                            if (cleanList.isNotEmpty() && cleanList != "General") {
-                                val currentSetting = settings.find { it.key == "shopping_lists" }?.value
-                                val newSettingVal = if (currentSetting.isNullOrBlank()) cleanList else "$currentSetting,$cleanList"
-                                viewModel.updateValueSetting("shopping_lists", newSettingVal)
-                                selectedListName = cleanList
-                            }
-                            newListNameInput = ""
-                            showAddListDialog = false
-                        }) {
-                            Text("Crear")
+                        Button(
+                            onClick = {
+                                val cleanList = newListNameInput.trim()
+                                if (cleanList.isNotEmpty() && cleanList != "General") {
+                                    val currentSetting = settings.find { it.key == "shopping_lists" }?.value
+                                    val newSettingVal = if (currentSetting.isNullOrBlank()) cleanList else "$currentSetting,$cleanList"
+                                    viewModel.updateValueSetting("shopping_lists", newSettingVal)
+                                    selectedListName = cleanList
+                                }
+                                newListNameInput = ""
+                                showAddListDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                        ) {
+                            Text("Crear", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showAddListDialog = false }) {
-                            Text("Cancelar")
+                            Text("Cancelar", color = paper.inkMuted)
                         }
                     }
                 )
@@ -3491,11 +3574,12 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             if (showListManager) {
                 AlertDialog(
                     onDismissRequest = { showListManager = false },
+                    containerColor = paper.sheet,
                     title = {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Mis Listas de Compras", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("Mis Listas de Compras", fontSize = 18.sp, fontWeight = FontWeight.Black, color = paper.ink)
                             IconButton(onClick = { showListManager = false }) {
-                                Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.inkMuted)
                             }
                         }
                     },
@@ -3506,15 +3590,24 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) ){
+                                    colors = CardDefaults.cardColors(containerColor = paper.sheetCream),
+                                    border = BorderStroke(1.dp, paper.border.copy(alpha = 0.35f)),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                ){
                                     if (isEditing) {
                                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                                            OutlinedTextField(
+                                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                                                 value = editListNameInput,
                                                 onValueChange = { editListNameInput = it },
                                                 modifier = Modifier.weight(1f),
-                                                singleLine = true
+                                                singleLine = true,
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    focusedBorderColor = FamiCoral,
+                                                    unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                                    focusedTextColor = paper.ink,
+                                                    unfocusedTextColor = paper.ink
+                                                )
                                             )
                                             IconButton(onClick = {
                                                 val cleanList = editListNameInput.trim()
@@ -3526,7 +3619,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                                 }
                                                 listNameToEdit = null
                                             }) {
-                                                Icon(Icons.Default.Check, contentDescription = "Guardar", tint = MaterialTheme.colorScheme.primary)
+                                                Icon(Icons.Default.Check, contentDescription = "Guardar", tint = FamiCoral)
                                             }
                                         }
                                     } else {
@@ -3538,19 +3631,19 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            Text(listName, fontSize = 16.sp, fontWeight = if (selectedListName == listName) FontWeight.Bold else FontWeight.Normal)
+                                            Text(listName, fontSize = 16.sp, fontWeight = if (selectedListName == listName) FontWeight.Bold else FontWeight.Normal, color = paper.ink)
                                             if (listName != "General") {
                                                 Row {
                                                     IconButton(onClick = {
                                                         listNameToEdit = listName
                                                         editListNameInput = listName
                                                     }, modifier = Modifier.size(32.dp) ){
-                                                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(20.dp))
+                                                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = paper.ink, modifier = Modifier.size(20.dp))
                                                     }
                                                     DeleteIconButton(
                                                         modifier = Modifier.size(32.dp),
                                                         iconSize = 20.dp,
-                                                        tint = MaterialTheme.colorScheme.error,
+                                                        tint = AlertRed,
                                                         onDeleteConfirm = {
                                                             viewModel.deleteShoppingList(listName)
                                                             if (selectedListName == listName) {
@@ -3567,10 +3660,14 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         }
                     },
                     confirmButton = {
-                        Button(onClick = { showAddListDialog = true }, modifier = Modifier.fillMaxWidth() ){
-                            Icon(Icons.Default.Add, contentDescription = null)
+                        Button(
+                            onClick = { showAddListDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                        ){
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
                             Spacer(Modifier.width(8.dp))
-                            Text("Crear Nueva Lista")
+                            Text("Crear Nueva Lista", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -3628,6 +3725,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             editingItem = item
                             editName = item.name
                             editQty = item.quantity
+                            editSelectedList = item.listName
                             itemIsPrivate = item.isPrivate
                             showEditDialog = true
                         }
@@ -3678,24 +3776,16 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    val initialChar = item.addedBy.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(CircleShape)
-                                            .background(paper.stickyMint)
-                                            .border(1.dp, paper.border, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = initialChar,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = paper.ink
-                                        )
-                                    }
+                                    val cleanAdder = cleanMemberAlias(item.addedBy)
+                                    com.example.ui.MemberAvatarBadge(
+                                        memberName = cleanAdder,
+                                        profiles = profiles,
+                                        currentUser = currentUser,
+                                        currentUserAvatarId = userAvatarIdState,
+                                        size = 22.dp
+                                    )
                                     Text(
-                                        text = "Por ${item.addedBy}",
+                                        text = "Por $cleanAdder",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = paper.inkMuted
@@ -3764,6 +3854,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         editingItem = item
                                         editName = item.name
                                         editQty = item.quantity
+                                        editSelectedList = item.listName
                                         itemIsPrivate = item.isPrivate
                                         showEditDialog = true
                                     },
@@ -3793,32 +3884,38 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     if (showEditDialog) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
-            title = { Text("Editar Artículo", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            title = { Text("Editar Artículo", fontWeight = FontWeight.Black, fontSize = 16.sp, color = paper.ink) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp) ){
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = editName,
                         onValueChange = { editName = it },
                         label = { Text("Nombre del artículo") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         )
                     )
 
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = editQty,
                         onValueChange = { editQty = it },
                         label = { Text("Cantidad") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         )
                     )
 
@@ -3826,10 +3923,10 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         androidx.compose.material3.Switch(
                             checked = itemIsPrivate,
                             onCheckedChange = { itemIsPrivate = it },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solo para mí (Privado)", fontSize = 14.sp)
+                        Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     // Lista dropdown selector
@@ -3843,11 +3940,14 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             modifier = Modifier.fillMaxWidth().clickable { expandedShopListDropdown = true },
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = OutlineGrey
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
                             ),
                             trailingIcon = {
                                 Icon(Icons.Default.ArrowDropDown, contentDescription = "Seleccionar lista",
+                                    tint = paper.inkMuted,
                                     modifier = Modifier.clickable { expandedShopListDropdown = !expandedShopListDropdown })
                             }
                         )
@@ -3884,10 +3984,10 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             editingItem = null
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                     shape = CircleShape
                 ) {
-                    Text("Actualizar", fontWeight = FontWeight.Bold)
+                    Text("Actualizar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
@@ -3895,10 +3995,10 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     showEditDialog = false
                     editingItem = null
                 }) {
-                    Text("Cancelar", color = SubtitleText)
+                    Text("Cancelar", color = paper.inkMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = paper.sheet,
             shape = RoundedCornerShape(28.dp)
         )
     }
@@ -3906,31 +4006,37 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     if (showAddItemDialog) {
         AlertDialog(
             onDismissRequest = { showAddItemDialog = false },
-            title = { Text("Nuevo Artículo", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            title = { Text("Nuevo Artículo", fontWeight = FontWeight.Black, fontSize = 16.sp, color = paper.ink) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp) ){
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = itemNameInput,
                         onValueChange = { itemNameInput = it },
                         label = { Text("Nombre del artículo") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         )
                     )
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = itemQtyInput,
                         onValueChange = { itemQtyInput = it },
                         label = { Text("Cantidad") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = OutlineGrey
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         )
                     )
                     Row(
@@ -3939,26 +4045,28 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         androidx.compose.material3.Switch(
                             checked = itemIsPrivate,
                             onCheckedChange = { itemIsPrivate = it },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solo para mí (Privado)", fontSize = 14.sp)
+                        Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Lista de destino:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Lista de destino:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp) ){
                         items(listNames) { list ->
                             val isSelected = itemSelectedList == list
                             Box(
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    .background(if (isSelected) FamiCoral else paper.sheetCream)
+                                    .border(1.dp, if (isSelected) FamiCoral else paper.border.copy(alpha = 0.4f), CircleShape)
                                     .clickable { itemSelectedList = list }
                                     .padding(horizontal = 12.dp, vertical = 6.dp) ){
                                 Text(
                                     text = list,
                                     fontSize = 12.sp,
-                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else paper.ink
                                 )
                             }
                         }
@@ -3981,10 +4089,10 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             showAddItemDialog = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                     shape = CircleShape
                 ) {
-                    Text("Guardar", fontWeight = FontWeight.Bold)
+                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
@@ -3993,10 +4101,10 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     itemNameInput = ""
                     itemQtyInput = ""
                 }) {
-                    Text("Cancelar", color = SubtitleText)
+                    Text("Cancelar", color = paper.inkMuted)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = paper.sheet,
             shape = RoundedCornerShape(28.dp)
         )
     }
@@ -4020,6 +4128,10 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val appPrimaryCurrency by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+    val secondaryCurrency by viewModel.secondaryCurrency.collectAsStateWithLifecycle()
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
 
     var activeSubTab by remember { mutableStateOf("deseos") } // "deseos" or "notas"
@@ -4028,13 +4140,30 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var goalTitleInput by remember { mutableStateOf("") }
     var goalAmountInput by remember { mutableStateOf("") }
-    var goalIsPrivateInput by remember { mutableStateOf(false) }    
+    var goalSavedInput by remember { mutableStateOf("") }
+    var goalCurrencyInput by remember(appPrimaryCurrency) { mutableStateOf(appPrimaryCurrency) }
+    var goalIsPrivateInput by remember { mutableStateOf(false) }
+    var showGoalCurrencyPicker by remember { mutableStateOf(false) }
+
+    var goalToDeposit by remember { mutableStateOf<Goal?>(null) }
+    var depositAmountInput by remember { mutableStateOf("") }
+
     var showAddNoteDialog by remember { mutableStateOf(false) }
     var noteTitleInput by remember { mutableStateOf("") }
     var noteContentInput by remember { mutableStateOf("") }
     
     var editingNote by remember { mutableStateOf<Note?>(null) }
     var editingGoal by remember { mutableStateOf<Goal?>(null) }
+
+    val openNewGoalDialog = {
+        editingGoal = null
+        goalTitleInput = ""
+        goalAmountInput = ""
+        goalSavedInput = ""
+        goalCurrencyInput = appPrimaryCurrency
+        goalIsPrivateInput = false
+        showAddGoalDialog = true
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -4046,14 +4175,10 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             ModernTabHeader(
                 title = "Alcancía y Metas Fami",
                 subtitle = "Ahorros compartidos, proyectos y libreta familiar",
-                actionText = "Nueva Meta",
+                actionText = if (activeSubTab == "deseos") "Nueva Meta" else "Nueva Nota",
                 onActionClick = { 
                     if (activeSubTab == "deseos") {
-                        editingGoal = null
-                        goalTitleInput = ""
-                        goalAmountInput = ""
-                        goalIsPrivateInput = false
-                        showAddGoalDialog = true 
+                        openNewGoalDialog()
                     } else {
                         editingNote = null
                         noteTitleInput = ""
@@ -4064,24 +4189,47 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Nota Adhesiva de Papel Plano: Alcancía Familiar Fami con Sticker Completo
-            val totalSavedGoals = goals.filter { it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
-            val totalPendingGoals = goals.filter { !it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
-            val currSym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)
+            // Nota Adhesiva de Papel Plano: Alcancía Familiar Fami (agrupación segura por moneda)
+            val savedByCurr = goals.mapNotNull { g ->
+                val curr = g.currency.ifBlank { appPrimaryCurrency }.uppercase()
+                val effSaved = if (g.isCompleted && g.savedAmount <= 0.0 && (g.targetAmount ?: 0.0) > 0.0) {
+                    g.targetAmount!!
+                } else {
+                    g.savedAmount
+                }
+                if (effSaved > 0.0) curr to effSaved else null
+            }.groupBy({ it.first }, { it.second }).mapValues { (_, list) -> list.sum() }
+
+            val pendingByCurr = goals.filter { !it.isCompleted && (it.targetAmount ?: 0.0) > 0.0 }
+                .groupBy { it.currency.ifBlank { appPrimaryCurrency }.uppercase() }
+                .mapValues { (_, list) -> list.sumOf { it.targetAmount ?: 0.0 } }
+
+            val piggySummaryText = when {
+                savedByCurr.isNotEmpty() -> "Ahorrado: " + savedByCurr.entries.joinToString(" • ") { (curr, total) ->
+                    "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(curr)}${String.format(Locale.US, "%,.0f", total)} $curr"
+                }
+                pendingByCurr.isNotEmpty() -> "Por alcanzar: " + pendingByCurr.entries.joinToString(" • ") { (curr, total) ->
+                    "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(curr)}${String.format(Locale.US, "%,.0f", total)} $curr"
+                }
+                else -> "Crea una meta con monto y abona a tu alcancía"
+            }
+
             StickyNoteSheet(
                 modifier = Modifier.fillMaxWidth(),
                 noteColor = paper.stickyPeach,
                 tapeColor = FamiCoral.copy(alpha = 0.65f)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Box(
                             modifier = Modifier
-                                .size(66.dp)
+                                .size(64.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(paper.sheet)
                                 .border(1.8.dp, paper.border, RoundedCornerShape(14.dp))
@@ -4113,10 +4261,12 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 color = paper.ink
                             )
                             Text(
-                                text = "Meta activa: $currSym${String.format(Locale.US, "%,.0f", totalPendingGoals)} $appPrimaryCurrency • Logrado: $currSym${String.format(Locale.US, "%,.0f", totalSavedGoals)}",
+                                text = piggySummaryText,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = paper.inkMuted
+                                color = paper.inkMuted,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -4162,84 +4312,199 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         title = if (activeGoalFilter == "pendientes") "No tienes metas pendientes" else "Aún no has cumplido metas",
                         subtitle = if (activeGoalFilter == "pendientes") "Crea metas de ahorro o deseos para tu hogar." else "Las metas alcanzadas se listarán aquí.",
                         actionText = if (activeGoalFilter == "pendientes") "+ Crear Meta" else null,
-                        onActionClick = {
-                            editingGoal = null
-                            goalTitleInput = ""
-                            goalAmountInput = ""
-                            goalIsPrivateInput = false
-                            showAddGoalDialog = true
-                        }
+                        onActionClick = { openNewGoalDialog() }
                     )
                 }
             } else {
-                items(shownGoals) { goal ->
-                    val cardBgColor = if (goal.isCompleted) paper.sheetCream else paper.sheet
-                    PremiumCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = cardBgColor),
-                        onClick = {
-                            editingGoal = goal
-                            goalTitleInput = goal.title
-                            goalAmountInput = goal.targetAmount?.toString() ?: ""
-                            goalIsPrivateInput = goal.isPrivate
-                            showAddGoalDialog = true
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val checkboxBg = if (goal.isCompleted) FamiEmerald else Color.Transparent
-                            val checkboxBorderColor = if (goal.isCompleted) FamiEmerald else FamiCoral
+                items(shownGoals, key = { it.id.ifEmpty { "${it.title}_${it.createdDate}" } }) { goal ->
+                    val goalCurr = goal.currency.ifBlank { appPrimaryCurrency }.uppercase()
+                    val goalSym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(goalCurr)
+                    val cleanCreator = cleanMemberAlias(goal.createdBy)
+                    val target = goal.targetAmount ?: 0.0
+                    val hasTarget = target > 0.0
+                    val effectiveSaved = if (goal.isCompleted && goal.savedAmount <= 0.0 && hasTarget) target else goal.savedAmount
+                    val pct = if (hasTarget) ((effectiveSaved / target) * 100.0).roundToInt().coerceIn(0, 100) else 0
+                    val remaining = (target - effectiveSaved).coerceAtLeast(0.0)
 
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .background(checkboxBg)
-                                    .border(2.dp, checkboxBorderColor, CircleShape)
-                                    .clickable { viewModel.editGoal(goal.copy(isCompleted = !goal.isCompleted)) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (goal.isCompleted) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Desmarcar",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                        com.example.ui.NotebookPaperSheet(
+                            modifier = Modifier.fillMaxWidth(),
+                            sheetColor = if (goal.isCompleted) paper.stickyMint else paper.sheet,
+                            showRuledLines = false,
+                            showMarginLine = true,
+                            showSpiralTop = false,
+                            onClick = {
+                                editingGoal = goal
+                                goalTitleInput = goal.title
+                                goalAmountInput = goal.targetAmount?.let { if (it > 0.0) it.toString() else "" } ?: ""
+                                goalSavedInput = if (goal.savedAmount > 0.0) goal.savedAmount.toString() else ""
+                                goalCurrencyInput = goalCurr
+                                goalIsPrivateInput = goal.isPrivate
+                                showAddGoalDialog = true
                             }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val checkboxBg = if (goal.isCompleted) FamiEmerald else Color.Transparent
+                                    val checkboxBorderColor = if (goal.isCompleted) FamiEmerald else FamiCoral
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .clip(CircleShape)
+                                            .background(checkboxBg)
+                                            .border(2.dp, checkboxBorderColor, CircleShape)
+                                            .clickable { viewModel.editGoal(goal.copy(isCompleted = !goal.isCompleted)) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (goal.isCompleted) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Desmarcar",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
 
-                            Column(modifier = Modifier.weight(1f) ){
-                                Text(
-                                    text = goal.title, 
-                                    fontWeight = FontWeight.ExtraBold, 
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    textDecoration = if (goal.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                                    color = if (goal.isCompleted) paper.inkMuted.copy(alpha = 0.65f) else paper.ink
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Por ${goal.createdBy}", fontSize = 11.sp, color = paper.inkMuted)
-                                    if (goal.targetAmount != null && goal.targetAmount > 0) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("•", fontSize = 11.sp, color = paper.inkMuted)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Meta: ${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)}${goal.targetAmount}",
-                                            fontSize = 11.sp,
-                                            color = FamiCoral,
-                                            fontWeight = FontWeight.Bold
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            com.example.ui.RuledNotebookText(
+                                                text = goal.title,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 14.5.sp,
+                                                maxLines = 2,
+                                                lineHeight = 22.sp,
+                                                textDecoration = if (goal.isCompleted) TextDecoration.LineThrough else null,
+                                                color = if (goal.isCompleted) paper.inkMuted else paper.ink,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (goal.isPrivate) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Lock,
+                                                    contentDescription = "Privado",
+                                                    tint = paper.inkMuted,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                            if (hasTarget) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(if (goal.isCompleted) FamiEmerald.copy(alpha = 0.16f) else paper.stickyYellow)
+                                                        .border(1.dp, paper.border.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "$pct% • $goalCurr",
+                                                        fontSize = 9.5.sp,
+                                                        fontWeight = FontWeight.Black,
+                                                        color = if (goal.isCompleted) FamiEmerald else paper.ink
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            com.example.ui.MemberAvatarBadge(
+                                                memberName = cleanCreator,
+                                                profiles = profiles,
+                                                currentUser = currentUser,
+                                                currentUserAvatarId = userAvatarIdState,
+                                                size = 18.dp
+                                            )
+                                            Text(
+                                                text = "Por $cleanCreator",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = paper.inkMuted
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (hasTarget) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Barra de progreso estilo papel
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(9.dp)
+                                            .clip(CircleShape)
+                                            .background(paper.sheetCream)
+                                            .border(1.dp, paper.border.copy(alpha = 0.35f), CircleShape)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(fraction = (pct / 100f).coerceIn(0f, 1f))
+                                                .clip(CircleShape)
+                                                .background(if (goal.isCompleted || pct >= 100) FamiEmerald else FamiCoral)
                                         )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Ahorrado: $goalSym${String.format(Locale.US, "%,.2f", effectiveSaved)} / $goalSym${String.format(Locale.US, "%,.2f", target)}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = paper.ink
+                                            )
+                                            if (!goal.isCompleted && remaining > 0.0) {
+                                                Text(
+                                                    text = "Faltan $goalSym${String.format(Locale.US, "%,.2f", remaining)} $goalCurr",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = paper.inkMuted
+                                                )
+                                            }
+                                        }
+                                        if (!goal.isCompleted) {
+                                            com.example.ui.Tactile3DButton(
+                                                onClick = {
+                                                    goalToDeposit = goal
+                                                    depositAmountInput = ""
+                                                },
+                                                faceColor = paper.stickyYellow,
+                                                lipColor = Lip3DGold,
+                                                borderColor = paper.border,
+                                                cornerRadius = 10.dp,
+                                                lipHeight = 2.5.dp,
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                                            ) {
+                                                Text(
+                                                    text = "+ Ahorrar",
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = paper.ink
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -4266,6 +4531,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 }
             } else {
                 items(notes) { note ->
+                    val cleanAuthor = cleanMemberAlias(note.createdBy)
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                         com.example.ui.NotebookPaperSheet(
                             modifier = Modifier.fillMaxWidth(),
@@ -4332,7 +4598,24 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text("Por ${note.createdBy}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = paper.inkMuted)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        com.example.ui.MemberAvatarBadge(
+                                            memberName = cleanAuthor,
+                                            profiles = profiles,
+                                            currentUser = currentUser,
+                                            currentUserAvatarId = userAvatarIdState,
+                                            size = 18.dp
+                                        )
+                                        Text(
+                                            text = "Por $cleanAuthor",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = paper.inkMuted
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -4343,35 +4626,156 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     }
 
     if (showAddGoalDialog) {
+        val quickCurrencies = remember(appPrimaryCurrency, secondaryCurrency) {
+            listOf("USD", appPrimaryCurrency, secondaryCurrency, "EUR")
+                .map { it.trim().uppercase() }
+                .filter { it.isNotBlank() }
+                .distinct()
+        }
         AlertDialog(
             onDismissRequest = { 
                 showAddGoalDialog = false
                 editingGoal = null
                 goalTitleInput = ""
                 goalAmountInput = ""
+                goalSavedInput = ""
                 goalIsPrivateInput = false
             },
-            title = { Text(if (editingGoal != null) "Editar Deseo" else "Nuevo Deseo") },
+            containerColor = paper.sheet,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = if (editingGoal != null) "Editar Meta o Deseo" else "Nueva Meta Familiar",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 17.sp,
+                    color = paper.ink
+                )
+            },
             text = {
-                Column {
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                Column(
+                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = goalTitleInput,
                         onValueChange = { goalTitleInput = it },
-                        label = { Text("¿Qué deseas?") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = goalAmountInput,
-                        onValueChange = { goalAmountInput = it },
-                        label = { Text("Monto (Opcional)") },
+                        label = { Text("¿Qué deseas ahorrar o lograr?") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = goalAmountInput,
+                            onValueChange = { goalAmountInput = it },
+                            label = { Text("Monto meta") },
+                            placeholder = { Text("Opcional") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
+                            )
+                        )
+                        OutlinedTextField(
+                            value = goalSavedInput,
+                            onValueChange = { goalSavedInput = it },
+                            label = { Text("Ahorrado") },
+                            placeholder = { Text("0") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FamiCoral,
+                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                focusedTextColor = paper.ink,
+                                unfocusedTextColor = paper.ink
+                            )
+                        )
+                    }
+
+                    Text(
+                        text = "Moneda de la meta",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = paper.inkMuted
                     )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        quickCurrencies.forEach { code ->
+                            val isSel = goalCurrencyInput.equals(code, ignoreCase = true)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSel) FamiCoral else paper.sheetCream)
+                                    .border(1.dp, if (isSel) FamiCoral else paper.border.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                                    .clickable { goalCurrencyInput = code }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(code)} $code",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isSel) Color.White else paper.ink
+                                )
+                            }
+                        }
+                        if (!quickCurrencies.any { it.equals(goalCurrencyInput, ignoreCase = true) } && goalCurrencyInput.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(FamiCoral)
+                                    .border(1.dp, FamiCoral, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(goalCurrencyInput)} $goalCurrencyInput",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(paper.stickyYellow)
+                                .border(1.dp, paper.border.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .clickable { showGoalCurrencyPicker = true }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "🌍 Otra",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
                             .clickable { goalIsPrivateInput = !goalIsPrivateInput },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -4379,7 +4783,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             checked = goalIsPrivateInput,
                             onCheckedChange = { goalIsPrivateInput = it }
                         )
-                        Text("Privado (Solo yo puedo verlo)", fontSize = 14.sp)
+                        Text("Privado (Solo yo puedo verlo)", fontSize = 13.5.sp, color = paper.ink)
                     }
                 }
             },
@@ -4387,34 +4791,192 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 if (editingGoal != null) {
                     TextButton(onClick = { 
                         viewModel.deleteGoal(editingGoal!!)
+                        editingGoal = null
                         showAddGoalDialog = false
                     }) {
-                        Text("Eliminar", color = AlertRed)
+                        Text("Eliminar", color = AlertRed, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     TextButton(onClick = { showAddGoalDialog = false }) {
-                        Text("Cancelar")
+                        Text("Cancelar", color = paper.inkMuted)
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    val amountVal = goalAmountInput.toDoubleOrNull()
-                    if (goalTitleInput.isNotBlank() ){
-                        if (editingGoal != null) {
-                            val updated = editingGoal!!.copy(title = goalTitleInput, targetAmount = amountVal, isPrivate = goalIsPrivateInput)
-                            viewModel.editGoal(updated) // we need to implement editGoal in viewmodel
-                        } else {
-                            viewModel.addGoal(goalTitleInput, amountVal, goalIsPrivateInput)
+                Button(
+                    onClick = {
+                        val amountVal = goalAmountInput.replace(",", ".").toDoubleOrNull()
+                        val savedVal = (goalSavedInput.replace(",", ".").toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+                        if (goalTitleInput.isNotBlank()) {
+                            if (editingGoal != null) {
+                                val reached = amountVal != null && amountVal > 0.0 && savedVal >= amountVal
+                                val updated = editingGoal!!.copy(
+                                    title = goalTitleInput.trim(),
+                                    targetAmount = amountVal,
+                                    savedAmount = savedVal,
+                                    currency = goalCurrencyInput.ifBlank { appPrimaryCurrency },
+                                    isPrivate = goalIsPrivateInput,
+                                    isCompleted = reached || editingGoal!!.isCompleted
+                                )
+                                viewModel.editGoal(updated)
+                            } else {
+                                viewModel.addGoal(
+                                    title = goalTitleInput.trim(),
+                                    targetAmount = amountVal,
+                                    savedAmount = savedVal,
+                                    currency = goalCurrencyInput.ifBlank { appPrimaryCurrency },
+                                    isPrivate = goalIsPrivateInput
+                                )
+                            }
+                            showAddGoalDialog = false
+                            editingGoal = null
+                            goalTitleInput = ""
+                            goalAmountInput = ""
+                            goalSavedInput = ""
+                            goalIsPrivateInput = false
                         }
-                        showAddGoalDialog = false
-                        editingGoal = null
-                        goalTitleInput = ""
-                        goalAmountInput = ""
-                        goalIsPrivateInput = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
+                    shape = CircleShape
+                ) {
+                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showGoalCurrencyPicker) {
+        com.example.ui.CurrencyPickerDialog(
+            title = "Moneda para tu meta",
+            selectedCurrencyCode = goalCurrencyInput,
+            allowNone = false,
+            onDismiss = { showGoalCurrencyPicker = false },
+            onSelectCurrency = { code ->
+                if (!code.isNullOrBlank()) {
+                    goalCurrencyInput = code
+                }
+                showGoalCurrencyPicker = false
+            }
+        )
+    }
+
+    if (goalToDeposit != null) {
+        val targetGoal = goalToDeposit!!
+        val depCurr = targetGoal.currency.ifBlank { appPrimaryCurrency }.uppercase()
+        val depSym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(depCurr)
+        val goalTarget = targetGoal.targetAmount ?: 0.0
+        val remaining = (goalTarget - targetGoal.savedAmount).coerceAtLeast(0.0)
+
+        AlertDialog(
+            onDismissRequest = {
+                goalToDeposit = null
+                depositAmountInput = ""
+            },
+            containerColor = paper.sheet,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "🐷 Abonar a '${targetGoal.title}'",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                    color = paper.ink
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = if (goalTarget > 0.0) {
+                            "Ahorrado actual: $depSym${String.format(Locale.US, "%,.2f", targetGoal.savedAmount)} de $depSym${String.format(Locale.US, "%,.2f", goalTarget)} $depCurr"
+                        } else {
+                            "Suma fondos a tu meta en $depCurr"
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = paper.inkMuted
+                    )
+
+                    OutlinedTextField(
+                        value = depositAmountInput,
+                        onValueChange = { depositAmountInput = it },
+                        label = { Text("Monto a abonar ($depCurr)") },
+                        prefix = { Text("$depSym ", fontWeight = FontWeight.Bold, color = paper.ink) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(10.0, 25.0, 50.0, 100.0).forEach { preset ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(paper.stickyYellow)
+                                    .border(1.dp, paper.border.copy(alpha = 0.45f), CircleShape)
+                                    .clickable { depositAmountInput = preset.toInt().toString() }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "+$depSym${preset.toInt()}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                            }
+                        }
+                        if (remaining > 0.0) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(paper.stickyMint)
+                                    .border(1.dp, FamiEmerald.copy(alpha = 0.6f), CircleShape)
+                                    .clickable { depositAmountInput = String.format(Locale.US, "%.2f", remaining) }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "Completar ($depSym${String.format(Locale.US, "%,.0f", remaining)})",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiEmerald
+                                )
+                            }
+                        }
                     }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    goalToDeposit = null
+                    depositAmountInput = ""
                 }) {
-                    Text("Guardar")
+                    Text("Cancelar", color = paper.inkMuted)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val depVal = depositAmountInput.replace(",", ".").toDoubleOrNull() ?: 0.0
+                        if (depVal > 0.0) {
+                            viewModel.addSavingsToGoal(targetGoal, depVal)
+                            goalToDeposit = null
+                            depositAmountInput = ""
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiEmerald),
+                    shape = CircleShape
+                ) {
+                    Text("Abonar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         )
@@ -4428,21 +4990,46 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 noteTitleInput = ""
                 noteContentInput = ""
             },
-            title = { Text(if (editingNote != null) "Editar Nota" else "Nueva Nota") },
+            containerColor = paper.sheet,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = if (editingNote != null) "Editar Nota" else "Nueva Nota",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                    color = paper.ink
+                )
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp) ){
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = noteTitleInput,
                         onValueChange = { noteTitleInput = it },
                         label = { Text("Título") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
+                        )
                     )
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
+                    OutlinedTextField(
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
                         value = noteContentInput,
                         onValueChange = { noteContentInput = it },
                         label = { Text("Contenido") },
                         modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
+                        minLines = 3,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FamiCoral,
+                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
+                        )
                     )
                 }
             },
@@ -4450,32 +5037,37 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 if (editingNote != null) {
                     TextButton(onClick = { 
                         viewModel.deleteNote(editingNote!!)
+                        editingNote = null
                         showAddNoteDialog = false
                     }) {
-                        Text("Eliminar", color = AlertRed)
+                        Text("Eliminar", color = AlertRed, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     TextButton(onClick = { showAddNoteDialog = false }) {
-                        Text("Cancelar")
+                        Text("Cancelar", color = paper.inkMuted)
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    if (noteTitleInput.isNotBlank() ){
-                        if (editingNote != null) {
-                            val updated = editingNote!!.copy(title = noteTitleInput, content = noteContentInput)
-                            viewModel.editNote(updated) // we need to implement editNote in viewmodel
-                        } else {
-                            viewModel.addNote(noteTitleInput, noteContentInput)
+                Button(
+                    onClick = {
+                        if (noteTitleInput.isNotBlank() ){
+                            if (editingNote != null) {
+                                val updated = editingNote!!.copy(title = noteTitleInput.trim(), content = noteContentInput.trim())
+                                viewModel.editNote(updated)
+                            } else {
+                                viewModel.addNote(noteTitleInput.trim(), noteContentInput.trim())
+                            }
+                            showAddNoteDialog = false
+                            editingNote = null
+                            noteTitleInput = ""
+                            noteContentInput = ""
                         }
-                        showAddNoteDialog = false
-                        editingNote = null
-                        noteTitleInput = ""
-                        noteContentInput = ""
-                    }
-                }) {
-                    Text("Guardar")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
+                    shape = CircleShape
+                ) {
+                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         )
@@ -4492,6 +5084,7 @@ fun DeleteIconButton(
     onDeleteConfirm: () -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val paper = FamiTheme.paper
     
     IconButton(onClick = { showDialog = true }, modifier = modifier) {
         Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = tint, modifier = Modifier.size(iconSize))
@@ -4500,21 +5093,42 @@ fun DeleteIconButton(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Confirmar eliminación") },
-            text = { Text("¿Estás seguro de que deseas eliminar este elemento?") },
+            containerColor = paper.sheet,
+            shape = RoundedCornerShape(24.dp),
+            title = { Text("Confirmar eliminación", fontWeight = FontWeight.Black, color = paper.ink) },
+            text = { Text("¿Estás seguro de que deseas eliminar este elemento?", color = paper.inkMuted) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteConfirm()
                     showDialog = false
                 }) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text("Eliminar", color = AlertRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = paper.inkMuted)
                 }
             }
         )
     }
+}
+
+private fun cleanMemberAlias(raw: String, fallback: String = "Miembro"): String {
+    val trimmed = raw.trim()
+    if (trimmed.isBlank()) return fallback
+    if (trimmed.contains("@")) {
+        val local = trimmed.substringBefore("@")
+            .replace(".", " ")
+            .replace("_", " ")
+            .replace("-", " ")
+            .trim()
+        return local.split(" ")
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { part ->
+                part.replaceFirstChar { ch -> if (ch.isLowerCase()) ch.titlecase(Locale.getDefault()) else ch.toString() }
+            }
+            .ifBlank { fallback }
+    }
+    return trimmed
 }
