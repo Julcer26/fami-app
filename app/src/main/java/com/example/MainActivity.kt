@@ -4268,7 +4268,7 @@ fun FamiLogo(modifier: Modifier = Modifier) {
 fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val appPrimaryCurrency by viewModel.appPrimaryCurrency.collectAsStateWithLifecycle()
+    val appPrimaryCurrency by viewModel.primaryCurrency.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
 
     var activeSubTab by remember { mutableStateOf("deseos") } // "deseos" or "notas"
@@ -4316,7 +4316,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             // Nota Adhesiva de Papel Plano: Alcancía Familiar Fami con Sticker Completo
             val totalSavedGoals = goals.filter { it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
             val totalPendingGoals = goals.filter { !it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
-            val currSym = CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)
+            val currSym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)
             StickyNoteSheet(
                 modifier = Modifier.fillMaxWidth(),
                 noteColor = paper.stickyPeach,
@@ -4484,7 +4484,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         Text("•", fontSize = 11.sp, color = paper.inkMuted)
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Meta: ${CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)}${goal.targetAmount}",
+                                            text = "Meta: ${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)}${goal.targetAmount}",
                                             fontSize = 11.sp,
                                             color = FamiCoral,
                                             fontWeight = FontWeight.Bold
