@@ -171,7 +171,7 @@ fun PhysicalPaperCalendar(
                             color = FamiMidnight,
                             topLeft = Offset(cx - 2.3.dp.toPx(), 1.dp.toPx()),
                             size = Size(4.6.dp.toPx(), size.height - 4.dp.toPx()),
-                            cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.toPx()),
+                            cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx()),
                             style = Stroke(width = 0.9.dp.toPx())
                         )
                     }
