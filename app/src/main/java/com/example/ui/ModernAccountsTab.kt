@@ -49,10 +49,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.api.BcvExchangeRateService
 import com.example.api.FinanceAiAnalyzer
 import com.example.api.FinanceAiReport
+import com.example.currency.CountryCurrencyConfig
 import com.example.database.CategoryDetail
 import com.example.database.RecurringPayment
 import com.example.database.Transaction
 import com.example.database.TransactionItem
+import com.example.database.Wallet
 import com.example.ui.theme.*
 import com.example.util.FinanceExportHelper
 import com.example.viewmodel.FamilyViewModel
@@ -78,6 +80,17 @@ fun ModernAccountsTab(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
     val recurringPayments by viewModel.recurringPayments.collectAsStateWithLifecycle()
+    val wallets by viewModel.wallets.collectAsStateWithLifecycle()
+    val isAdminRole by viewModel.isAdminRole.collectAsStateWithLifecycle()
+    val monthlyIncomeAmount by viewModel.monthlyIncomeAmount.collectAsStateWithLifecycle()
+    val monthlyIncomeCurrency by viewModel.monthlyIncomeCurrency.collectAsStateWithLifecycle()
+    val primaryCurrency by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+    val countryCode by viewModel.countryCode.collectAsStateWithLifecycle()
+    val liveExchangeRate by viewModel.liveExchangeRate.collectAsStateWithLifecycle()
+
+    val localCurrency = remember(primaryCurrency, countryCode) {
+        primaryCurrency.ifBlank { CountryCurrencyConfig.getCountryByCode(countryCode).localCurrency }
+    }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -107,6 +120,10 @@ fun ModernAccountsTab(
     var categoryToDelete by remember { mutableStateOf<CategoryDetail?>(null) }
     var photoUrlToShow by remember { mutableStateOf<String?>(null) }
 
+    // Estados de Ingreso Mensual y Transferencia entre Billeteras
+    var showEditIncomeDialog by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
+
     // Estados de Pagos Recurrentes
     var showAddRecurringDialog by remember { mutableStateOf(false) }
     var showMarkPaidDialog by remember { mutableStateOf(false) }
@@ -118,9 +135,11 @@ fun ModernAccountsTab(
     var recDueDayInput by remember { mutableStateOf("5") }
     var recEmojiInput by remember { mutableStateOf("⚡") }
 
-    // Configuración Global (Tasa BCV y Presupuesto Total)
-    val bcvRate = remember(settings) {
-        settings.find { it.key == "bcv_rate" }?.value?.toDoubleOrNull() ?: 36.85
+    // Configuración Global (Tasa interna y Presupuesto Total)
+    val bcvRate = remember(settings, liveExchangeRate) {
+        settings.find { it.key == "bcv_rate" }?.value?.toDoubleOrNull()
+            ?: liveExchangeRate.takeIf { it > 0.0 }
+            ?: 36.85
     }
     val totalMonthlyBudgetUsd = remember(settings) {
         settings.find { it.key == "total_limit_usd" }?.value?.toDoubleOrNull() ?: 1800.0
@@ -158,15 +177,15 @@ fun ModernAccountsTab(
         }
     }
 
-    // Métricas Financieras
+    // Métricas Financieras (Excluyendo transferencias internas entre billeteras)
     val totalSpentUsd = remember(monthTransactions) {
-        monthTransactions.filter { !it.isIncome }.sumOf { it.amount }
+        monthTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
     }
     val totalIncomeUsd = remember(monthTransactions) {
-        monthTransactions.filter { it.isIncome }.sumOf { it.amount }
+        monthTransactions.filter { it.isIncome && !it.isTransfer }.sumOf { it.amount }
     }
     val filteredSpentUsd = remember(filteredTransactions) {
-        filteredTransactions.filter { !it.isIncome }.sumOf { it.amount }
+        filteredTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
     }
 
     // Análisis con IA
@@ -179,7 +198,7 @@ fun ModernAccountsTab(
             val monthLabel = monthFormat.format(selectedMonth.time).replaceFirstChar { it.uppercase() }
             val customKey = settings.find { it.key == "gemini_api_key" }?.value
             val result = FinanceAiAnalyzer.analyze(
-                transactions = monthTransactions,
+                transactions = monthTransactions.filter { !it.isTransfer },
                 categories = categories,
                 monthName = monthLabel,
                 customUserKey = customKey
@@ -228,6 +247,30 @@ fun ModernAccountsTab(
                 )
             }
 
+            // 1B. Tarjeta de Ingreso Mensual Base (Configurable en Cuentas)
+            item {
+                MonthlyIncomeAccountCard(
+                    monthlyIncomeAmount = monthlyIncomeAmount,
+                    monthlyIncomeCurrency = monthlyIncomeCurrency,
+                    totalMonthlyBudgetUsd = totalMonthlyBudgetUsd,
+                    localCurrency = localCurrency,
+                    bcvRate = bcvRate,
+                    canEdit = isAdminRole,
+                    onEditClick = { showEditIncomeDialog = true }
+                )
+            }
+
+            // 1C. Resumen de Billeteras Multi-Moneda y Transferencias
+            if (wallets.isNotEmpty()) {
+                item {
+                    WalletsAccountsStripCard(
+                        wallets = wallets,
+                        canTransfer = wallets.size >= 2,
+                        onTransferClick = { showTransferDialog = true }
+                    )
+                }
+            }
+
             // 2. Tarjeta Hero de Asistente IA
             item {
                 FinanceAiHeroCard(
@@ -246,8 +289,8 @@ fun ModernAccountsTab(
                     spentUsd = totalSpentUsd,
                     incomeUsd = totalIncomeUsd,
                     monthlyBudgetUsd = totalMonthlyBudgetUsd,
+                    localCurrency = localCurrency,
                     bcvRate = bcvRate,
-                    onSyncBcv = { viewModel.syncLiveBcvRate() },
                     onExportCsv = {
                         FinanceExportHelper.exportToGoogleSheetsCsv(
                             context = context,
@@ -437,7 +480,7 @@ fun ModernAccountsTab(
                     }
                 } else {
                     groupedTransactions.forEach { (dayLabel, dayTxList) ->
-                        val dayNetSpent = dayTxList.filter { !it.isIncome }.sumOf { it.amount }
+                        val dayNetSpent = dayTxList.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
                         item(key = "header_$dayLabel") {
                             Row(
                                 modifier = Modifier
@@ -468,19 +511,26 @@ fun ModernAccountsTab(
                             val matchedCategory = categories.find {
                                 it.categoryName.equals(tx.category, ignoreCase = true)
                             }
+                            val walletName = wallets.find { it.id == tx.walletId }?.name
+                            val canDeleteThisTx = viewModel.canDeleteTransaction(tx)
                             ModernTransactionCardItem(
                                 tx = tx,
                                 category = matchedCategory,
+                                walletName = walletName,
                                 onClick = {
-                                    editingTransaction = tx
-                                    showTxSheet = true
+                                    if (!tx.isTransfer) {
+                                        editingTransaction = tx
+                                        showTxSheet = true
+                                    }
                                 },
                                 onViewReceipt = {
                                     if (tx.receiptUrl.isNotEmpty()) {
                                         photoUrlToShow = tx.receiptUrl
                                     }
                                 },
-                                onDeleteRequest = { txToDelete = tx }
+                                onDeleteRequest = {
+                                    if (canDeleteThisTx) txToDelete = tx
+                                }
                             )
                         }
                     }
@@ -498,7 +548,7 @@ fun ModernAccountsTab(
                 } else {
                     items(categories, key = { it.categoryName }) { category ->
                         val catSpent = monthTransactions
-                            .filter { !it.isIncome && (it.category.equals(category.categoryName, ignoreCase = true) || it.items.any { item -> item.category.equals(category.categoryName, ignoreCase = true) }) }
+                            .filter { !it.isIncome && !it.isTransfer && (it.category.equals(category.categoryName, ignoreCase = true) || it.items.any { item -> item.category.equals(category.categoryName, ignoreCase = true) }) }
                             .sumOf { tx ->
                                 if (tx.items.isNotEmpty()) {
                                     tx.items.filter { it.category.equals(category.categoryName, ignoreCase = true) }.sumOf { it.amount }
@@ -513,9 +563,12 @@ fun ModernAccountsTab(
                             spentUsd = catSpent,
                             limitUsd = currentLimit,
                             bcvRate = bcvRate,
+                            canEdit = isAdminRole,
                             onEdit = {
-                                editingCategory = category
-                                showCategorySheet = true
+                                if (isAdminRole) {
+                                    editingCategory = category
+                                    showCategorySheet = true
+                                }
                             },
                             onFilterClick = {
                                 selectedCategoryFilter = category.categoryName
@@ -528,47 +581,53 @@ fun ModernAccountsTab(
         }
 
         // Botón flotante posicionado por encima de la barra de navegación inferior sin solaparse
-        ExtendedFloatingActionButton(
-            onClick = {
-                if (activeSection == "gastos") {
-                    editingTransaction = null
-                    showTxSheet = true
-                } else {
-                    editingCategory = null
-                    showCategorySheet = true
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            shape = RoundedCornerShape(20.dp),
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 18.dp, bottom = 88.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (activeSection == "gastos") "Nuevo Registro" else "Nueva Categoría",
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
+        if (activeSection == "gastos" || isAdminRole) {
+            ExtendedFloatingActionButton(
+                onClick = {
+                    if (activeSection == "gastos") {
+                        editingTransaction = null
+                        showTxSheet = true
+                    } else if (isAdminRole) {
+                        editingCategory = null
+                        showCategorySheet = true
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(20.dp),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 18.dp, bottom = 88.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (activeSection == "gastos") "Nuevo Registro" else "Nueva Categoría",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
         }
     }
 
     // --- BOTTOM SHEET: CREAR / EDITAR TRANSACCIÓN ---
     if (showTxSheet) {
+        val canDeleteEditingTx = editingTransaction?.let { viewModel.canDeleteTransaction(it) } ?: false
         TransactionFormBottomSheet(
             initialTransaction = editingTransaction,
             categories = categories,
+            wallets = wallets,
+            primaryCurrency = localCurrency,
             defaultBcvRate = bcvRate,
             defaultDateMillis = selectedMonth.timeInMillis,
+            canDelete = canDeleteEditingTx,
             onDismiss = {
                 showTxSheet = false
                 editingTransaction = null
             },
-            onSaveNew = { amount, category, desc, currency, isIncome, date, balanceDate ->
+            onSaveNew = { amount, category, desc, currency, isIncome, date, balanceDate, walletId ->
                 viewModel.addTransaction(
                     originalAmount = amount,
                     category = category,
@@ -576,7 +635,8 @@ fun ModernAccountsTab(
                     currency = currency,
                     isIncome = isIncome,
                     date = date,
-                    balanceDate = balanceDate
+                    balanceDate = balanceDate,
+                    walletId = walletId
                 )
                 showTxSheet = false
             },
@@ -588,7 +648,9 @@ fun ModernAccountsTab(
             onDelete = { tx ->
                 showTxSheet = false
                 editingTransaction = null
-                txToDelete = tx
+                if (viewModel.canDeleteTransaction(tx)) {
+                    txToDelete = tx
+                }
             },
             onViewReceipt = { receiptUrl ->
                 photoUrlToShow = receiptUrl
@@ -597,7 +659,7 @@ fun ModernAccountsTab(
     }
 
     // --- BOTTOM SHEET: CREAR / EDITAR CATEGORÍA ---
-    if (showCategorySheet) {
+    if (showCategorySheet && isAdminRole) {
         CategoryFormBottomSheet(
             initialCategory = editingCategory,
             monthKey = monthKey,
@@ -614,6 +676,34 @@ fun ModernAccountsTab(
                 showCategorySheet = false
                 editingCategory = null
                 categoryToDelete = category
+            }
+        )
+    }
+
+    // --- DIÁLOGO: EDITAR INGRESO MENSUAL BASE ---
+    if (showEditIncomeDialog) {
+        MonthlyIncomeEditDialog(
+            initialAmount = monthlyIncomeAmount,
+            initialCurrency = monthlyIncomeCurrency.ifBlank { localCurrency },
+            localCurrency = localCurrency,
+            onDismiss = { showEditIncomeDialog = false },
+            onSave = { amt, curr ->
+                viewModel.updateMonthlyIncome(amt, curr)
+                showEditIncomeDialog = false
+            }
+        )
+    }
+
+    // --- DIÁLOGO: TRANSFERIR ENTRE BILLETERAS ---
+    if (showTransferDialog && wallets.size >= 2) {
+        WalletTransferDialog(
+            wallets = wallets,
+            bcvRate = bcvRate,
+            localCurrency = localCurrency,
+            onDismiss = { showTransferDialog = false },
+            onConfirmTransfer = { fromW, toW, fromAmt, toAmt, note ->
+                viewModel.transferBetweenWallets(fromW, toW, fromAmt, toAmt, note)
+                showTransferDialog = false
             }
         )
     }
@@ -649,7 +739,8 @@ fun ModernAccountsTab(
             showAddRecurringDialog = true
         },
         onConfirmMarkPaid = { rec, amt, cur, dateMillis ->
-            viewModel.markRecurringPaymentPaid(rec, monthKey, amt, cur, dateMillis)
+            val matchedWalletId = wallets.firstOrNull { it.currency.equals(cur, ignoreCase = true) }?.id.orEmpty()
+            viewModel.markRecurringPaymentPaid(rec, monthKey, amt, cur, dateMillis, matchedWalletId)
             showMarkPaidDialog = false
         },
         onConfirmMarkUnpaid = { rec ->
@@ -663,7 +754,8 @@ fun ModernAccountsTab(
         onDeleteRecurring = { rec ->
             viewModel.deleteRecurringPayment(rec)
             showAddRecurringDialog = false
-        }
+        },
+        localCurrency = localCurrency
     )
 
     // --- DIÁLOGOS DE CONFIRMACIÓN DE BORRADO SEGURO ---
@@ -741,15 +833,218 @@ fun ModernAccountsTab(
 // ============================================================================
 
 @Composable
+private fun MonthlyIncomeAccountCard(
+    monthlyIncomeAmount: Double,
+    monthlyIncomeCurrency: String,
+    totalMonthlyBudgetUsd: Double,
+    localCurrency: String,
+    bcvRate: Double,
+    canEdit: Boolean,
+    onEditClick: () -> Unit
+) {
+    val paper = FamiTheme.paper
+    val effectiveCurr = monthlyIncomeCurrency.ifBlank { localCurrency }
+    val symbol = CountryCurrencyConfig.getCurrencySymbol(effectiveCurr)
+    val approxUsd = when {
+        monthlyIncomeAmount <= 0.0 -> totalMonthlyBudgetUsd
+        effectiveCurr.equals("USD", ignoreCase = true) -> monthlyIncomeAmount
+        bcvRate > 0.0 && effectiveCurr.equals(localCurrency, ignoreCase = true) -> monthlyIncomeAmount / bcvRate
+        else -> monthlyIncomeAmount
+    }
+
+    NotebookPaperSheet(
+        modifier = Modifier.fillMaxWidth(),
+        sheetColor = paper.stickyMint,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D,
+        ruleLineColor = paper.ruleLine,
+        marginLineColor = paper.marginLine,
+        showRuledLines = false,
+        showMarginLine = false,
+        showSpiralTop = false
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "💵 INGRESO MENSUAL BASE",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    color = FamiEmerald,
+                    letterSpacing = 0.6.sp
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                val formattedAmount = if (monthlyIncomeAmount > 0.0) {
+                    "$symbol ${String.format(Locale.US, "%,.2f", monthlyIncomeAmount)} $effectiveCurr"
+                } else {
+                    "$${String.format(Locale.US, "%,.2f", totalMonthlyBudgetUsd)} USD"
+                }
+                Text(
+                    text = formattedAmount,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
+                if (monthlyIncomeAmount > 0.0 && !effectiveCurr.equals("USD", ignoreCase = true)) {
+                    Text(
+                        text = "≈ $${String.format(Locale.US, "%,.2f", approxUsd)} USD presupuesto mensual",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = paper.inkMuted
+                    )
+                } else {
+                    Text(
+                        text = "Presupuesto base del hogar para este mes",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = paper.inkMuted
+                    )
+                }
+            }
+
+            if (canEdit) {
+                Tactile3DButton(
+                    onClick = onEditClick,
+                    faceColor = paper.sheet,
+                    lipColor = paper.lipPaper,
+                    borderColor = paper.border,
+                    cornerRadius = 12.dp,
+                    lipHeight = 3.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Editar Ingreso",
+                        modifier = Modifier.size(14.dp),
+                        tint = paper.ink
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "Editar",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Black,
+                        color = paper.ink
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletsAccountsStripCard(
+    wallets: List<Wallet>,
+    canTransfer: Boolean,
+    onTransferClick: () -> Unit
+) {
+    val paper = FamiTheme.paper
+    NotebookPaperSheet(
+        modifier = Modifier.fillMaxWidth(),
+        sheetColor = paper.sheet,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D,
+        ruleLineColor = paper.ruleLine,
+        marginLineColor = paper.marginLine,
+        showRuledLines = false,
+        showMarginLine = false,
+        showSpiralTop = false
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🏦 MIS BILLETERAS (${wallets.size})",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink,
+                    letterSpacing = 0.5.sp
+                )
+                if (canTransfer) {
+                    Tactile3DButton(
+                        onClick = onTransferClick,
+                        faceColor = paper.stickyYellow,
+                        lipColor = Lip3DGold,
+                        borderColor = paper.border,
+                        cornerRadius = 10.dp,
+                        lipHeight = 2.5.dp,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SwapHoriz,
+                            contentDescription = "Transferir",
+                            modifier = Modifier.size(14.dp),
+                            tint = paper.ink
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Transferir",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                    }
+                }
+            }
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(wallets, key = { it.id.ifBlank { it.name } }) { wallet ->
+                    val sym = CountryCurrencyConfig.getCurrencySymbol(wallet.currency)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = paper.sheetCream,
+                        border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = wallet.name,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = paper.inkMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "$sym ${String.format(Locale.US, "%,.2f", wallet.balance)} ${wallet.currency}",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (wallet.balance >= 0) paper.ink else CoralRed
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun MasterFinancialHeroCard(
     spentUsd: Double,
     incomeUsd: Double,
     monthlyBudgetUsd: Double,
+    localCurrency: String,
     bcvRate: Double,
-    onSyncBcv: () -> Unit,
     onExportCsv: () -> Unit,
     onQuickAdd: () -> Unit
 ) {
+    val paper = FamiTheme.paper
     val netBalance = incomeUsd - spentUsd
     val budgetRatio = if (monthlyBudgetUsd > 0) (spentUsd / monthlyBudgetUsd).toFloat() else 0f
     val animatedProgress by animateFloatAsState(
@@ -765,10 +1060,15 @@ private fun MasterFinancialHeroCard(
         },
         label = "statusColor"
     )
+    val localSymbol = CountryCurrencyConfig.getCurrencySymbol(localCurrency)
 
     NotebookPaperSheet(
         modifier = Modifier.fillMaxWidth(),
-        sheetColor = PaperSheetWhite,
+        sheetColor = paper.sheet,
+        borderColor = paper.border,
+        shadowColor = paper.shadow3D,
+        ruleLineColor = paper.ruleLine,
+        marginLineColor = paper.marginLine,
         showRuledLines = true,
         showMarginLine = true,
         showSpiralTop = true
@@ -778,53 +1078,46 @@ private fun MasterFinancialHeroCard(
                 .fillMaxWidth()
                 .padding(start = 28.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)
         ) {
-            // Fila Superior: Sello de Libro Mayor + Botón 3D de Tasa
+            // Fila Superior: Sello de Libro Mayor + Referencia de moneda interna (no editable)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = PaperStickyPeach,
+                    color = paper.stickyPeach,
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.2.dp, FamiMidnight)
+                    border = BorderStroke(1.2.dp, paper.border)
                 ) {
                     Text(
                         text = "🧮 LIBRO MAYOR FAMI",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiMidnight,
+                        color = paper.ink,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
 
-                Tactile3DButton(
-                    onClick = onSyncBcv,
-                    faceColor = PaperStickyYellow,
-                    lipColor = Lip3DGold,
-                    cornerRadius = 10.dp,
-                    lipHeight = 2.5.dp,
-                    contentPadding = PaddingValues(horizontal = 9.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Tasa: ${String.format(Locale.US, "%.2f", bcvRate)}",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        color = FamiMidnight
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Sincronizar Tasa",
-                        modifier = Modifier.size(11.dp),
-                        tint = FamiMidnight
-                    )
+                if (!localCurrency.equals("USD", ignoreCase = true) && bcvRate > 0.0) {
+                    Surface(
+                        color = paper.stickyYellow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, paper.border.copy(alpha = 0.45f))
+                    ) {
+                        Text(
+                            text = "1 USD ≈ ${String.format(Locale.US, "%.2f", bcvRate)} $localCurrency",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = paper.ink,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Monto Principal en Tinta #101535 + Sello Contable
+            // Monto Principal en Tinta + Sello Contable
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Bottom,
@@ -842,22 +1135,24 @@ private fun MasterFinancialHeroCard(
                         text = "$${String.format(Locale.US, "%,.2f", spentUsd)} USD",
                         fontSize = 27.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiMidnight,
+                        color = paper.ink,
                         letterSpacing = (-0.5).sp
                     )
-                    Text(
-                        text = "≈ ${String.format(Locale.US, "%,.2f", spentUsd * bcvRate)} Moneda Local",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = FamiMidnight.copy(alpha = 0.72f)
-                    )
+                    if (!localCurrency.equals("USD", ignoreCase = true)) {
+                        Text(
+                            text = "≈ $localSymbol ${String.format(Locale.US, "%,.2f", spentUsd * bcvRate)} $localCurrency",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = paper.inkMuted
+                        )
+                    }
                 }
 
                 val isPositive = netBalance >= 0
                 Surface(
-                    color = if (isPositive) PaperStickyMint else FamiAlertRedBg,
+                    color = if (isPositive) paper.stickyMint else paper.alertBg,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, FamiMidnight)
+                    border = BorderStroke(1.5.dp, paper.border)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.End,
@@ -874,7 +1169,7 @@ private fun MasterFinancialHeroCard(
                             text = "$sign$${String.format(Locale.US, "%,.2f", netBalance)}",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiMidnight
+                            color = paper.ink
                         )
                     }
                 }
@@ -895,13 +1190,13 @@ private fun MasterFinancialHeroCard(
                             "Excedido por $${String.format(Locale.US, "%,.2f", spentUsd - monthlyBudgetUsd)}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = FamiMidnight
+                        color = paper.ink
                     )
                     Text(
                         text = "${(budgetRatio * 100).roundToInt()}%",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiMidnight
+                        color = paper.ink
                     )
                 }
                 Spacer(modifier = Modifier.height(5.dp))
@@ -910,8 +1205,8 @@ private fun MasterFinancialHeroCard(
                         .fillMaxWidth()
                         .height(10.dp)
                         .clip(RoundedCornerShape(5.dp))
-                        .background(PaperSheetCream)
-                        .border(1.2.dp, FamiMidnight, RoundedCornerShape(5.dp))
+                        .background(paper.sheetCream)
+                        .border(1.2.dp, paper.border, RoundedCornerShape(5.dp))
                 ) {
                     Box(
                         modifier = Modifier
@@ -931,8 +1226,8 @@ private fun MasterFinancialHeroCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = PaperStickyMint,
-                    border = BorderStroke(1.5.dp, FamiMidnight),
+                    color = paper.stickyMint,
+                    border = BorderStroke(1.5.dp, paper.border),
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
@@ -942,12 +1237,12 @@ private fun MasterFinancialHeroCard(
                         Text("📈", fontSize = 13.sp)
                         Spacer(modifier = Modifier.width(5.dp))
                         Column {
-                            Text("Ingresos", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = FamiMidnight.copy(alpha = 0.7f))
+                            Text("Ingresos", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = paper.inkMuted)
                             Text(
                                 text = "+$${String.format(Locale.US, "%,.2f", incomeUsd)}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight
+                                color = paper.ink
                             )
                         }
                     }
@@ -955,21 +1250,23 @@ private fun MasterFinancialHeroCard(
 
                 Tactile3DButton(
                     onClick = onExportCsv,
-                    faceColor = PaperSheetCream,
-                    lipColor = Lip3DPaper,
+                    faceColor = paper.sheetCream,
+                    lipColor = paper.lipPaper,
+                    borderColor = paper.border,
                     cornerRadius = 12.dp,
                     lipHeight = 3.5.dp,
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
                 ) {
                     Text("📊", fontSize = 12.sp)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("HOJA CSV", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                    Text("HOJA CSV", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
                 }
 
                 Tactile3DButton(
                     onClick = onQuickAdd,
                     faceColor = FamiCoral,
                     lipColor = Lip3DCoral,
+                    borderColor = paper.border,
                     cornerRadius = 12.dp,
                     lipHeight = 4.dp,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
@@ -987,6 +1284,7 @@ private fun MasterFinancialHeroCard(
 private fun ModernTransactionCardItem(
     tx: Transaction,
     category: CategoryDetail?,
+    walletName: String?,
     onClick: () -> Unit,
     onViewReceipt: () -> Unit,
     onDeleteRequest: () -> Unit
@@ -994,6 +1292,7 @@ private fun ModernTransactionCardItem(
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val displayTime = timeFormat.format(Date(if (tx.balanceDate > 0) tx.balanceDate else tx.date))
     val iconEmoji = when {
+        tx.isTransfer -> "🔄"
         tx.isIncome -> "💵"
         !category?.iconEmoji.isNullOrBlank() -> category!!.iconEmoji
         else -> "💳"
@@ -1004,7 +1303,7 @@ private fun ModernTransactionCardItem(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1024,8 +1323,11 @@ private fun ModernTransactionCardItem(
                         .size(42.dp)
                         .clip(RoundedCornerShape(13.dp))
                         .background(
-                            if (tx.isIncome) EmeraldGreen.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                            when {
+                                tx.isTransfer -> FamiTheme.paper.stickyYellow
+                                tx.isIncome -> EmeraldGreen.copy(alpha = 0.15f)
+                                else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                            }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1036,7 +1338,7 @@ private fun ModernTransactionCardItem(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = tx.description.ifBlank { "Gasto sin concepto" },
+                        text = tx.description.ifBlank { if (tx.isTransfer) "Transferencia entre billeteras" else "Gasto sin concepto" },
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -1049,13 +1351,29 @@ private fun ModernTransactionCardItem(
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Text(
-                            text = tx.category.ifBlank { "General" },
+                            text = if (tx.isTransfer) "Transferencia" else tx.category.ifBlank { "General" },
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        if (!walletName.isNullOrBlank()) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = "🏦 $walletName",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                         if (tx.items.isNotEmpty()) {
                             Surface(
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -1119,31 +1437,55 @@ private fun ModernTransactionCardItem(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Derecha: Monto en USD protagonista + Conversión BCV debajo
-            Column(horizontalAlignment = Alignment.End) {
-                val sign = if (tx.isIncome) "+" else "-"
-                val amountColor = if (tx.isIncome) EmeraldGreen else MaterialTheme.colorScheme.onSurface
+            // Derecha: Monto en USD protagonista + Moneda original debajo
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.End) {
+                    val sign = when {
+                        tx.isTransfer -> "⇄ "
+                        tx.isIncome -> "+"
+                        else -> "-"
+                    }
+                    val amountColor = when {
+                        tx.isTransfer -> MaterialTheme.colorScheme.primary
+                        tx.isIncome -> EmeraldGreen
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
 
-                Text(
-                    text = "$sign$${String.format(Locale.US, "%.2f", tx.amount)}",
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = amountColor
-                )
+                    Text(
+                        text = "$sign$${String.format(Locale.US, "%.2f", tx.amount)}",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = amountColor
+                    )
 
-                if (tx.currency == "VES") {
-                    Text(
-                        text = "${String.format(Locale.US, "%,.2f", tx.originalAmount)} Bs",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Text(
-                        text = "USD",
-                        fontSize = 9.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
+                    if (!tx.currency.equals("USD", ignoreCase = true)) {
+                        val origSym = CountryCurrencyConfig.getCurrencySymbol(tx.currency)
+                        Text(
+                            text = "${String.format(Locale.US, "%,.2f", tx.originalAmount)} $origSym (${tx.currency})",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "USD",
+                            fontSize = 9.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+                if (tx.isTransfer) {
+                    IconButton(
+                        onClick = onDeleteRequest,
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = "Eliminar transferencia",
+                            tint = CoralRed.copy(alpha = 0.8f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1156,6 +1498,7 @@ private fun ModernCategoryBudgetCardItem(
     spentUsd: Double,
     limitUsd: Double,
     bcvRate: Double,
+    canEdit: Boolean,
     onEdit: () -> Unit,
     onFilterClick: () -> Unit
 ) {
@@ -1180,7 +1523,7 @@ private fun ModernCategoryBudgetCardItem(
         border = BorderStroke(
             1.dp,
             if (ratio > 1f) CoralRed.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1237,13 +1580,15 @@ private fun ModernCategoryBudgetCardItem(
                             color = barColor
                         )
                     }
-                    IconButton(onClick = onEdit) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Editar Presupuesto",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(17.dp)
-                        )
+                    if (canEdit) {
+                        IconButton(onClick = onEdit) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Editar Presupuesto",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1272,10 +1617,13 @@ private fun ModernCategoryBudgetCardItem(
 private fun TransactionFormBottomSheet(
     initialTransaction: Transaction?,
     categories: List<CategoryDetail>,
+    wallets: List<Wallet>,
+    primaryCurrency: String,
     defaultBcvRate: Double,
     defaultDateMillis: Long,
+    canDelete: Boolean,
     onDismiss: () -> Unit,
-    onSaveNew: (Double, String, String, String, Boolean, Long, Long) -> Unit,
+    onSaveNew: (Double, String, String, String, Boolean, Long, Long, String) -> Unit,
     onSaveEdit: (Transaction) -> Unit,
     onDelete: (Transaction) -> Unit,
     onViewReceipt: (String) -> Unit
@@ -1295,6 +1643,13 @@ private fun TransactionFormBottomSheet(
                 ?: "General"
         )
     }
+    var selectedWalletId by remember {
+        mutableStateOf(
+            initialTransaction?.walletId?.takeIf { it.isNotBlank() }
+                ?: wallets.firstOrNull { it.currency.equals(initialTransaction?.currency ?: "USD", ignoreCase = true) }?.id
+                ?: wallets.firstOrNull()?.id.orEmpty()
+        )
+    }
     var txDate by remember { mutableStateOf(initialTransaction?.date ?: System.currentTimeMillis()) }
     var balanceDate by remember {
         mutableStateOf(
@@ -1305,10 +1660,22 @@ private fun TransactionFormBottomSheet(
         mutableStateOf(initialTransaction?.bcvRateUsed?.takeIf { it > 0.0 } ?: defaultBcvRate)
     }
 
+    val currencyOptions = remember(primaryCurrency) {
+        listOf("USD", primaryCurrency.uppercase(), "EUR")
+            .filter { it.isNotBlank() && it != "NONE" }
+            .distinct()
+            .take(3)
+    }
+
     LaunchedEffect(txDate, currency) {
-        if (currency == "VES") {
+        if (currency.equals("VES", ignoreCase = true)) {
             val fetched = BcvExchangeRateService.fetchRateForDate(txDate)
             if (fetched > 0.0) activeBcvRate = fetched
+        } else if (!currency.equals("USD", ignoreCase = true)) {
+            val fetched = BcvExchangeRateService.fetchUsdToCurrencyRate(currency)
+            if (fetched > 0.0) activeBcvRate = fetched
+        } else {
+            activeBcvRate = 1.0
         }
     }
 
@@ -1339,7 +1706,7 @@ private fun TransactionFormBottomSheet(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black
                 )
-                if (isEditing) {
+                if (isEditing && canDelete) {
                     IconButton(onClick = { onDelete(initialTransaction!!) }) {
                         Icon(
                             Icons.Default.DeleteOutline,
@@ -1350,81 +1717,83 @@ private fun TransactionFormBottomSheet(
                 }
             }
 
-            // Selector Gasto vs Ingreso y Moneda
+            // Tipo: Gasto / Ingreso
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(3.dp)
             ) {
-                // Tipo: Gasto / Ingreso
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(3.dp)
-                ) {
-                    listOf(false to "Gasto (-)", true to "Ingreso (+)").forEach { (inc, label) ->
-                        val selected = isIncome == inc
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (selected) (if (inc) EmeraldGreen else MaterialTheme.colorScheme.primary)
-                                    else Color.Transparent
-                                )
-                                .clickable { isIncome = inc }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                listOf(false to "Gasto (-)", true to "Ingreso (+)").forEach { (inc, label) ->
+                    val selected = isIncome == inc
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (selected) (if (inc) EmeraldGreen else MaterialTheme.colorScheme.primary)
+                                else Color.Transparent
                             )
-                        }
-                    }
-                }
-
-                // Moneda: USD / VES
-                Row(
-                    modifier = Modifier
-                        .weight(0.85f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(3.dp)
-                ) {
-                    listOf("USD" to "$ USD", "VES" to "Bs VES").forEach { (cur, label) ->
-                        val selected = currency == cur
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (selected) IndigoAccent else Color.Transparent)
-                                .clickable { currency = cur }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                            .clickable { isIncome = inc }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
 
-            // Input de Monto Protagonista + Conversión BCV en Vivo
+            // Moneda Multi-divisa
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(3.dp)
+            ) {
+                currencyOptions.forEach { cur ->
+                    val selected = currency.equals(cur, ignoreCase = true)
+                    val sym = CountryCurrencyConfig.getCurrencySymbol(cur)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) IndigoAccent else Color.Transparent)
+                            .clickable {
+                                currency = cur
+                                if (!isEditing) {
+                                    wallets.firstOrNull { it.currency.equals(cur, ignoreCase = true) }
+                                        ?.let { selectedWalletId = it.id }
+                                }
+                            }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$sym $cur",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Input de Monto Protagonista + Conversión Interna en Vivo
+            val currSym = CountryCurrencyConfig.getCurrencySymbol(currency)
             OutlinedTextField(
                 value = amountInput,
                 onValueChange = { amountInput = it },
-                label = { Text(if (currency == "USD") "Monto en Dólares ($)" else "Monto en Bolívares (Bs)") },
+                label = { Text("Monto en $currency ($currSym)") },
                 prefix = {
                     Text(
-                        text = if (currency == "USD") "$ " else "Bs. ",
+                        text = "$currSym ",
                         fontWeight = FontWeight.ExtraBold
                     )
                 },
@@ -1434,7 +1803,7 @@ private fun TransactionFormBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (currency == "VES") {
+            if (!currency.equals("USD", ignoreCase = true)) {
                 val parsed = amountInput.toDoubleOrNull() ?: 0.0
                 val usdEquiv = if (activeBcvRate > 0) parsed / activeBcvRate else 0.0
                 Surface(
@@ -1448,7 +1817,7 @@ private fun TransactionFormBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Conversión BCV (${String.format(Locale.US, "%.2f", activeBcvRate)} Bs/$):",
+                            text = "Equivalente en Libro (${String.format(Locale.US, "%.2f", activeBcvRate)} $currency/$):",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -1472,6 +1841,34 @@ private fun TransactionFormBottomSheet(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Selector de Billetera (Conecta el movimiento con el saldo real de la billetera)
+            if (wallets.isNotEmpty()) {
+                Text(
+                    text = "Billetera / Cuenta asociada",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(wallets, key = { it.id.ifBlank { it.name } }) { w ->
+                        val isSelected = selectedWalletId == w.id
+                        val sym = CountryCurrencyConfig.getCurrencySymbol(w.currency)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedWalletId = w.id },
+                            label = {
+                                Text(
+                                    text = "🏦 ${w.name} ($sym${String.format(Locale.US, "%.0f", w.balance)})",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
+            }
 
             // Selectores de Fecha (Registro y Balance)
             Row(
@@ -1657,10 +2054,10 @@ private fun TransactionFormBottomSheet(
                     if (amountVal != null && amountVal > 0.0 && descriptionInput.isNotBlank()) {
                         val finalCat = if (isIncome) "Ingreso" else selectedCategory
                         if (isEditing) {
-                            val effectiveRate = if (currency == "VES") {
+                            val effectiveRate = if (!currency.equals("USD", ignoreCase = true)) {
                                 if (activeBcvRate > 0.0) activeBcvRate else defaultBcvRate.coerceAtLeast(1.0)
                             } else 1.0
-                            val updatedUsdAmount = if (currency == "VES") amountVal / effectiveRate else amountVal
+                            val updatedUsdAmount = if (currency.equals("USD", ignoreCase = true)) amountVal else amountVal / effectiveRate
                             onSaveEdit(
                                 initialTransaction!!.copy(
                                     amount = updatedUsdAmount,
@@ -1671,7 +2068,8 @@ private fun TransactionFormBottomSheet(
                                     currency = currency,
                                     isIncome = isIncome,
                                     date = txDate,
-                                    balanceDate = balanceDate
+                                    balanceDate = balanceDate,
+                                    walletId = selectedWalletId
                                 )
                             )
                         } else {
@@ -1682,7 +2080,8 @@ private fun TransactionFormBottomSheet(
                                 currency,
                                 isIncome,
                                 txDate,
-                                balanceDate
+                                balanceDate,
+                                selectedWalletId
                             )
                         }
                     }
@@ -2029,3 +2428,250 @@ private fun formatDayHeader(timestampMillis: Long): String {
             .replaceFirstChar { it.uppercase() }
     }
 }
+
+@Composable
+private fun MonthlyIncomeEditDialog(
+    initialAmount: Double,
+    initialCurrency: String,
+    localCurrency: String,
+    onDismiss: () -> Unit,
+    onSave: (Double, String) -> Unit
+) {
+    val paper = FamiTheme.paper
+    var amountInput by remember { mutableStateOf(if (initialAmount > 0.0) initialAmount.toString() else "") }
+    var selectedCurrency by remember { mutableStateOf(initialCurrency.ifBlank { "USD" }) }
+    val currencyOptions = remember(localCurrency) {
+        listOf("USD", localCurrency.uppercase(), "EUR")
+            .filter { it.isNotBlank() && it != "NONE" }
+            .distinct()
+            .take(3)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = paper.sheet,
+        title = {
+            Text(
+                text = "💵 Ingreso Mensual Base",
+                fontWeight = FontWeight.Black,
+                color = paper.ink
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Define tu ingreso mensual para calcular automáticamente el presupuesto disponible de tu hoja.",
+                    fontSize = 12.sp,
+                    color = paper.inkMuted
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(paper.sheetCream)
+                        .padding(3.dp)
+                ) {
+                    currencyOptions.forEach { cur ->
+                        val selected = selectedCurrency.equals(cur, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selected) FamiCoral else Color.Transparent)
+                                .clickable { selectedCurrency = cur }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = cur,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selected) Color.White else paper.inkMuted
+                            )
+                        }
+                    }
+                }
+
+                val sym = CountryCurrencyConfig.getCurrencySymbol(selectedCurrency)
+                OutlinedTextField(
+                    value = amountInput,
+                    onValueChange = { amountInput = it },
+                    label = { Text("Monto mensual ($selectedCurrency)") },
+                    prefix = { Text("$sym ", fontWeight = FontWeight.Bold) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amt = amountInput.toDoubleOrNull()
+                    if (amt != null && amt > 0.0) {
+                        onSave(amt, selectedCurrency)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+            ) {
+                Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = paper.inkMuted)
+            }
+        }
+    )
+}
+
+@Composable
+fun WalletTransferDialog(
+    wallets: List<Wallet>,
+    bcvRate: Double,
+    localCurrency: String,
+    onDismiss: () -> Unit,
+    onConfirmTransfer: (Wallet, Wallet, Double, Double, String) -> Unit
+) {
+    val paper = FamiTheme.paper
+    var fromWallet by remember(wallets) { mutableStateOf(wallets.firstOrNull()) }
+    var toWallet by remember(wallets) {
+        mutableStateOf(wallets.firstOrNull { it.id != wallets.firstOrNull()?.id } ?: wallets.lastOrNull())
+    }
+    var fromAmountText by remember { mutableStateOf("") }
+    var noteText by remember { mutableStateOf("") }
+
+    val fromCurr = fromWallet?.currency ?: "USD"
+    val toCurr = toWallet?.currency ?: "USD"
+    val fromAmountVal = fromAmountText.toDoubleOrNull() ?: 0.0
+
+    var liveConvertedAmount by remember { mutableStateOf(0.0) }
+    LaunchedEffect(fromAmountVal, fromCurr, toCurr, bcvRate) {
+        if (fromAmountVal <= 0.0) {
+            liveConvertedAmount = 0.0
+        } else if (fromCurr.equals(toCurr, ignoreCase = true)) {
+            liveConvertedAmount = fromAmountVal
+        } else {
+            val fromRateToUsd = when {
+                fromCurr.equals("USD", ignoreCase = true) -> 1.0
+                fromCurr.equals(localCurrency, ignoreCase = true) && bcvRate > 0.0 -> bcvRate
+                else -> BcvExchangeRateService.fetchUsdToCurrencyRate(fromCurr).takeIf { it > 0.0 } ?: bcvRate.coerceAtLeast(1.0)
+            }
+            val toRateToUsd = when {
+                toCurr.equals("USD", ignoreCase = true) -> 1.0
+                toCurr.equals(localCurrency, ignoreCase = true) && bcvRate > 0.0 -> bcvRate
+                else -> BcvExchangeRateService.fetchUsdToCurrencyRate(toCurr).takeIf { it > 0.0 } ?: bcvRate.coerceAtLeast(1.0)
+            }
+            val usdEquiv = if (fromCurr.equals("USD", ignoreCase = true)) fromAmountVal else fromAmountVal / fromRateToUsd
+            liveConvertedAmount = if (toCurr.equals("USD", ignoreCase = true)) usdEquiv else usdEquiv * toRateToUsd
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = paper.sheet,
+        title = {
+            Text(
+                text = "🔄 Transferir entre Billeteras",
+                fontWeight = FontWeight.Black,
+                color = paper.ink
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Desde:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.inkMuted)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(wallets, key = { "from_${it.id.ifBlank { it.name }}" }) { w ->
+                        val isSelected = fromWallet?.id == w.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                fromWallet = w
+                                if (toWallet?.id == w.id) {
+                                    toWallet = wallets.firstOrNull { it.id != w.id }
+                                }
+                            },
+                            label = { Text("${w.name} (${w.currency})", fontSize = 11.5.sp) }
+                        )
+                    }
+                }
+
+                Text("Hacia:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.inkMuted)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(wallets.filter { it.id != fromWallet?.id }, key = { "to_${it.id.ifBlank { it.name }}" }) { w ->
+                        val isSelected = toWallet?.id == w.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { toWallet = w },
+                            label = { Text("${w.name} (${w.currency})", fontSize = 11.5.sp) }
+                        )
+                    }
+                }
+
+                val fromSym = CountryCurrencyConfig.getCurrencySymbol(fromCurr)
+                OutlinedTextField(
+                    value = fromAmountText,
+                    onValueChange = { fromAmountText = it },
+                    label = { Text("Monto a transferir ($fromCurr)") },
+                    prefix = { Text("$fromSym ", fontWeight = FontWeight.Bold) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (fromAmountVal > 0.0 && toWallet != null && !fromCurr.equals(toCurr, ignoreCase = true)) {
+                    val toSym = CountryCurrencyConfig.getCurrencySymbol(toCurr)
+                    Surface(
+                        color = paper.stickyMint,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, paper.border.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Recibe aprox.: $toSym ${String.format(Locale.US, "%,.2f", liveConvertedAmount)} $toCurr",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = FamiEmerald,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text("Nota opcional (ej. Cambio de divisas)") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = fromWallet != null && toWallet != null && fromWallet?.id != toWallet?.id && fromAmountVal > 0.0,
+                onClick = {
+                    val fw = fromWallet ?: return@Button
+                    val tw = toWallet ?: return@Button
+                    val finalTo = if (liveConvertedAmount > 0.0) liveConvertedAmount else fromAmountVal
+                    onConfirmTransfer(fw, tw, fromAmountVal, finalTo, noteText.trim())
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+            ) {
+                Text("Transferir", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = paper.inkMuted)
+            }
+        }
+    )
+}
+

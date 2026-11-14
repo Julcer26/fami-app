@@ -686,7 +686,7 @@ fun ModernTransactionCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
             ) {
-                val symbol = if (tx.currency == "USD") "$" else "Bs."
+                val symbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(tx.currency)
                 val prefix = if (tx.isIncome) "+" else "-"
                 val amountColor = if (tx.isIncome) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface
 
@@ -942,7 +942,7 @@ fun ModernRecurringPaymentsSection(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (rec.defaultAmount > 0.0) {
-                                    val symbol = if (rec.currency == "USD") "$" else "Bs."
+                                    val symbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(rec.currency)
                                     Text(
                                         text = "$symbol${String.format(Locale.US, "%,.2f", rec.defaultAmount)}",
                                         fontSize = 12.sp,
@@ -1041,8 +1041,12 @@ fun ModernRecurringPaymentDialogs(
     onConfirmMarkPaid: (RecurringPayment, Double, String, Long) -> Unit,
     onConfirmMarkUnpaid: (RecurringPayment) -> Unit,
     onSaveRecurring: (RecurringPayment) -> Unit,
-    onDeleteRecurring: (RecurringPayment) -> Unit
+    onDeleteRecurring: (RecurringPayment) -> Unit,
+    localCurrency: String = "VES"
 ) {
+    val currencyChoices = remember(localCurrency) {
+        listOf("USD", localCurrency.ifBlank { "VES" }).distinct()
+    }
     if (showMarkPaidDialog && selectedRecurringPayment != null) {
         val rec = selectedRecurringPayment
         val defaultAmt = if (rec.defaultAmount > 0.0) rec.defaultAmount.toString() else ""
@@ -1093,8 +1097,9 @@ fun ModernRecurringPaymentDialogs(
                         placeholder = { Text(defaultAmt.ifEmpty { "0.00" }) }
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("USD", "VES").forEach { cur ->
+                        currencyChoices.forEach { cur ->
                             val isSelected = recCurrencySelected == cur
+                            val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(cur)
                             Button(
                                 onClick = { onCurrencyChange(cur) },
                                 modifier = Modifier.weight(1f),
@@ -1104,7 +1109,7 @@ fun ModernRecurringPaymentDialogs(
                                     contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             ) {
-                                Text(if (cur == "USD") "$ USD" else "Bs. VES", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("$sym $cur", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1334,8 +1339,9 @@ fun ModernRecurringPaymentDialogs(
 
                     Text("Moneda por defecto:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("USD", "VES").forEach { cur ->
+                        currencyChoices.forEach { cur ->
                             val isSelected = recCurrencySelected == cur
+                            val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(cur)
                             Button(
                                 onClick = { onCurrencyChange(cur) },
                                 modifier = Modifier.weight(1f),
@@ -1345,7 +1351,7 @@ fun ModernRecurringPaymentDialogs(
                                     contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             ) {
-                                Text(if (cur == "USD") "$ USD" else "Bs. VES", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("$sym $cur", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

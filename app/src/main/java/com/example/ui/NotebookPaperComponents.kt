@@ -44,7 +44,7 @@ fun Tactile3DButton(
     modifier: Modifier = Modifier,
     faceColor: Color = FamiCoral,
     lipColor: Color = Lip3DCoral,
-    borderColor: Color = FamiMidnight,
+    borderColor: Color = FamiTheme.paper.border,
     contentColor: Color = Color.Unspecified,
     cornerRadius: Dp = 14.dp,
     lipHeight: Dp = 4.dp,
@@ -106,7 +106,9 @@ fun Tactile3DButton(
 fun NotebookSpiralStrip(
     modifier: Modifier = Modifier,
     ringCount: Int = 9,
-    ringColor: Color = FamiCoralDeep
+    ringColor: Color = FamiCoralDeep,
+    borderColor: Color = FamiTheme.paper.border,
+    holeShadowColor: Color = FamiTheme.paper.ruleLine
 ) {
     Canvas(
         modifier = modifier
@@ -118,13 +120,13 @@ fun NotebookSpiralStrip(
             val cx = spacing * i
             // Sombra del hueco perforado
             drawCircle(
-                color = Color(0xFFD5CBB8),
+                color = holeShadowColor,
                 radius = 4.6.dp.toPx(),
                 center = Offset(cx, size.height * 0.68f)
             )
             // Hueco perforado
             drawCircle(
-                color = FamiMidnight,
+                color = borderColor,
                 radius = 3.8.dp.toPx(),
                 center = Offset(cx, size.height * 0.68f)
             )
@@ -136,7 +138,7 @@ fun NotebookSpiralStrip(
                 cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
             )
             drawRoundRect(
-                color = FamiMidnight,
+                color = borderColor,
                 topLeft = Offset(cx - 2.3.dp.toPx(), 0f),
                 size = Size(4.6.dp.toPx(), size.height * 0.72f),
                 cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
@@ -155,14 +157,15 @@ fun NotebookSpiralStrip(
 fun RuledNotebookText(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = FamiMidnight,
+    color: Color = FamiTheme.paper.ink,
     fontSize: TextUnit = 14.sp,
     fontWeight: FontWeight = FontWeight.Medium,
-    lineHeight: TextUnit = 26.sp,
+    lineHeight: TextUnit = 24.sp,
     maxLines: Int = Int.MAX_VALUE,
     minRuledLines: Int = 1,
     textDecoration: TextDecoration? = null,
-    ruleColor: Color = PaperRuleLine.copy(alpha = 0.75f)
+    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = 0.78f),
+    drawLines: Boolean = true
 ) {
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
 
@@ -179,6 +182,7 @@ fun RuledNotebookText(
         modifier = modifier
             .fillMaxWidth()
             .drawBehind {
+                if (!drawLines) return@drawBehind
                 val layout = textLayout
                 val strokePx = 1.dp.toPx()
                 val baselinePad = 3.dp.toPx()
@@ -230,16 +234,18 @@ fun RuledNotebookText(
 @Composable
 fun NotebookPaperSheet(
     modifier: Modifier = Modifier,
-    sheetColor: Color = PaperSheetWhite,
+    sheetColor: Color = FamiTheme.paper.sheet,
     paperColor: Color = sheetColor,
-    borderColor: Color = FamiMidnight,
-    shadowColor: Color = FamiMidnight,
+    borderColor: Color = FamiTheme.paper.border,
+    shadowColor: Color = FamiTheme.paper.shadow3D,
+    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = 0.58f),
+    marginColor: Color = FamiTheme.paper.marginLine.copy(alpha = 0.42f),
     cornerRadius: Dp = 18.dp,
     showRuledLines: Boolean = true,
     showMarginLine: Boolean = true,
     showSpiralTop: Boolean = false,
-    lineSpacing: Dp = 28.dp,
-    firstLineOffset: Dp = 44.dp,
+    lineSpacing: Dp = 24.dp,
+    firstLineOffset: Dp = 28.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -278,10 +284,11 @@ fun NotebookPaperSheet(
             .drawBehind {
                 if (showRuledLines) {
                     val step = lineSpacing.toPx()
-                    var y = firstLineOffset.toPx()
-                    while (y < size.height - 10.dp.toPx()) {
+                    val spiralExtra = if (showSpiralTop) 18.dp.toPx() else 0f
+                    var y = spiralExtra + firstLineOffset.toPx()
+                    while (y < size.height - 8.dp.toPx()) {
                         drawLine(
-                            color = PaperRuleLine.copy(alpha = 0.55f),
+                            color = ruleColor,
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             strokeWidth = 1.dp.toPx()
@@ -292,7 +299,7 @@ fun NotebookPaperSheet(
                 if (showMarginLine) {
                     val marginX = 22.dp.toPx()
                     drawLine(
-                        color = PaperMarginRed.copy(alpha = 0.38f),
+                        color = marginColor,
                         start = Offset(marginX, 0f),
                         end = Offset(marginX, size.height),
                         strokeWidth = 1.4.dp.toPx()
@@ -315,8 +322,10 @@ fun NotebookPaperSheet(
 @Composable
 fun StickyNoteSheet(
     modifier: Modifier = Modifier,
-    noteColor: Color = PaperStickyYellow,
+    noteColor: Color = FamiTheme.paper.stickyYellow,
     tapeColor: Color = FamiCoralSoft.copy(alpha = 0.65f),
+    borderColor: Color = FamiTheme.paper.border,
+    shadowColor: Color = FamiTheme.paper.shadow3D,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(
@@ -325,7 +334,7 @@ fun StickyNoteSheet(
             .drawBehind {
                 val r = 16.dp.toPx()
                 drawRoundRect(
-                    color = FamiMidnight,
+                    color = shadowColor,
                     topLeft = Offset(3.dp.toPx(), 4.dp.toPx()),
                     size = Size(size.width, size.height),
                     cornerRadius = CornerRadius(r, r)
@@ -333,7 +342,7 @@ fun StickyNoteSheet(
             }
             .clip(RoundedCornerShape(16.dp))
             .background(noteColor)
-            .border(1.8.dp, FamiMidnight, RoundedCornerShape(16.dp))
+            .border(1.8.dp, borderColor, RoundedCornerShape(16.dp))
     ) {
         Box(
             modifier = Modifier
@@ -341,7 +350,7 @@ fun StickyNoteSheet(
                 .width(76.dp)
                 .height(12.dp)
                 .background(tapeColor)
-                .border(0.8.dp, FamiMidnight.copy(alpha = 0.35f))
+                .border(0.8.dp, borderColor.copy(alpha = 0.4f))
         )
         Column(
             modifier = Modifier

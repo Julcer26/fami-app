@@ -143,7 +143,8 @@ class FamilyRepository {
         amount: Double,
         currency: String,
         date: Long,
-        user: String
+        user: String,
+        walletId: String = ""
     ): String? {
         val newPaidMonths = payment.paidMonths.toMutableMap()
         newPaidMonths[monthKey] = true
@@ -160,9 +161,10 @@ class FamilyRepository {
             isRecurring = true,
             date = date,
             balanceDate = date,
-            registeredBy = user
+            registeredBy = user,
+            walletId = walletId
         )
-        val alert = insertTransaction(tx, user)
+        val alert = insertTransaction(tx, user, isNewEntry = true)
 
         val newPaidTxIds = payment.paidTransactionIds.toMutableMap()
         if (generatedTxId.isNotEmpty()) {
@@ -200,46 +202,118 @@ class FamilyRepository {
         insertRecurringPayment(updatedPayment, user)
     }
 
-    suspend fun insertTransaction(transaction: Transaction, user: String): String? {
-        val transactionsRef = getFamilyRef("transactions") ?: return "No hay familia activa"
-        val rateToUse = if (transaction.currency.equals("VES", ignoreCase = true) || transaction.currency.equals("bs", ignoreCase = true)) {
-            val historicRate = BcvExchangeRateService.fetchRateForDate(transaction.date)
-            if (historicRate > 0.0) {
-                historicRate
-            } else {
-                val savedRateStr = getSettingValueByKey("bcv_rate") ?: "36.50"
-                savedRateStr.toDoubleOrNull() ?: 36.50
+    private suspend fun resolveUsdRate(currency: String, date: Long): Double {
+        val clean = currency.trim().uppercase()
+        if (clean == "USD" || clean.isBlank()) return 1.0
+        if (clean == "VES" || clean == "BS" || clean == "BS.") {
+            val historicRate = BcvExchangeRateService.fetchRateForDate(date)
+            if (historicRate > 0.0) return historicRate
+            val savedRate = getSettingValueByKey("bcv_rate")?.toDoubleOrNull() ?: 0.0
+            if (savedRate > 0.0) return savedRate
+            return 36.85
+        }
+        val fetched = BcvExchangeRateService.fetchUsdToCurrencyRate(clean)
+        return if (fetched > 0.0) fetched else 1.0
+    }
+
+    private suspend fun applyWalletBalanceDelta(
+        walletId: String,
+        txAmountUsd: Double,
+        txOriginalAmount: Double,
+        txCurrency: String,
+        sign: Double
+    ) {
+        if (walletId.isBlank()) return
+        val walletsRef = getFamilyRef("wallets") ?: return
+        val snapshot = walletsRef.child(walletId).get().await()
+        val wallet = snapshot.getValue(Wallet::class.java)?.copy(id = walletId) ?: return
+        val delta = when {
+            wallet.currency.equals(txCurrency, ignoreCase = true) -> txOriginalAmount * sign
+            wallet.currency.equals("USD", ignoreCase = true) -> txAmountUsd * sign
+            else -> {
+                val targetRate = resolveUsdRate(wallet.currency, System.currentTimeMillis())
+                (txAmountUsd * targetRate) * sign
             }
-        } else {
-            1.0
+        }
+        val newBalance = ((wallet.balance + delta) * 100.0).roundToInt() / 100.0
+        walletsRef.child(walletId).child("balance").setValue(newBalance).await()
+    }
+
+    suspend fun insertTransaction(
+        transaction: Transaction,
+        user: String,
+        isNewEntry: Boolean = transaction.id.isEmpty()
+    ): String? {
+        val transactionsRef = getFamilyRef("transactions") ?: return "No hay familia activa"
+        val normalizedCurrency = when (transaction.currency.trim().uppercase()) {
+            "BS", "BS." -> "VES"
+            "" -> "USD"
+            else -> transaction.currency.trim().uppercase()
         }
 
-        val parsedAmountInUsd = if (transaction.currency.equals("VES", ignoreCase = true) || transaction.currency.equals("bs", ignoreCase = true)) {
-            transaction.originalAmount / rateToUse
-        } else {
+        val rateToUse = resolveUsdRate(normalizedCurrency, transaction.date)
+        val parsedAmountInUsd = if (normalizedCurrency == "USD") {
             transaction.originalAmount
+        } else {
+            transaction.originalAmount / rateToUse
+        }
+
+        val previousTx: Transaction? = if (!isNewEntry && transaction.id.isNotEmpty()) {
+            transactionsRef.child(transaction.id).get().await().getValue(Transaction::class.java)
+        } else {
+            null
         }
 
         val pushRef = if (transaction.id.isEmpty()) transactionsRef.push() else transactionsRef.child(transaction.id)
         val finalizedTx = transaction.copy(
             id = pushRef.key ?: "",
+            currency = normalizedCurrency,
             amount = parsedAmountInUsd,
             bcvRateUsed = rateToUse
         )
 
         pushRef.setValue(finalizedTx).await()
 
-        val actionType = if (finalizedTx.isIncome) "ingreso" else "gasto"
-        val categorySuffix = if (finalizedTx.isIncome) "" else " [${finalizedTx.category}]"
+        // Revert old wallet balance impact if editing, then apply new wallet balance impact
+        if (!finalizedTx.isTransfer) {
+            if (previousTx != null && previousTx.walletId.isNotBlank() && !previousTx.isTransfer) {
+                val revertSign = if (previousTx.isIncome) -1.0 else 1.0
+                applyWalletBalanceDelta(
+                    walletId = previousTx.walletId,
+                    txAmountUsd = previousTx.amount,
+                    txOriginalAmount = previousTx.originalAmount,
+                    txCurrency = previousTx.currency,
+                    sign = revertSign
+                )
+            }
+            if (finalizedTx.walletId.isNotBlank()) {
+                val applySign = if (finalizedTx.isIncome) 1.0 else -1.0
+                applyWalletBalanceDelta(
+                    walletId = finalizedTx.walletId,
+                    txAmountUsd = finalizedTx.amount,
+                    txOriginalAmount = finalizedTx.originalAmount,
+                    txCurrency = finalizedTx.currency,
+                    sign = applySign
+                )
+            }
+        }
+
+        val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(finalizedTx.currency)
+        val actionType = when {
+            finalizedTx.isTransfer -> "transferencia"
+            finalizedTx.isIncome -> "ingreso"
+            else -> "gasto"
+        }
+        val categorySuffix = if (finalizedTx.isIncome || finalizedTx.isTransfer) "" else " [${finalizedTx.category}]"
         val logDetail = if (finalizedTx.currency != "USD") {
-            "${user} registró un $actionType de ${finalizedTx.originalAmount}bs. ($${String.format("%.2f", finalizedTx.amount)} USD converted at ${finalizedTx.bcvRateUsed} BCV) en '${finalizedTx.description}'$categorySuffix"
+            "$user registró $actionType de $sym ${finalizedTx.originalAmount} ${finalizedTx.currency} ($${String.format("%.2f", finalizedTx.amount)} USD) en '${finalizedTx.description}'$categorySuffix"
         } else {
-            "${user} registró un $actionType de $${finalizedTx.amount} USD en '${finalizedTx.description}'$categorySuffix"
+            "$user registró $actionType de $${String.format("%.2f", finalizedTx.amount)} USD en '${finalizedTx.description}'$categorySuffix"
         }
 
         insertLog(ActivityLog(tag = "FINANZAS", message = logDetail, user = user))
 
-        if (finalizedTx.isIncome) {
+        if (finalizedTx.isIncome || finalizedTx.isTransfer) {
             return null
         }
         return checkBudgetAlert(finalizedTx.category, user)
@@ -260,10 +334,25 @@ class FamilyRepository {
             foundId
         }
         if (targetId.isNotEmpty()) {
+            val storedTx = transactionsRef.child(targetId).get().await().getValue(Transaction::class.java) ?: transaction
+            if (storedTx.walletId.isNotBlank() && !storedTx.isTransfer) {
+                val revertSign = if (storedTx.isIncome) -1.0 else 1.0
+                applyWalletBalanceDelta(
+                    walletId = storedTx.walletId,
+                    txAmountUsd = storedTx.amount,
+                    txOriginalAmount = storedTx.originalAmount,
+                    txCurrency = storedTx.currency,
+                    sign = revertSign
+                )
+            }
             transactionsRef.child(targetId).removeValue().await()
-            val typeStr = if (transaction.isIncome) "el ingreso" else "el gasto"
-            val currencySymbol = if (transaction.currency == "USD") "$" else "bs."
-            insertLog(ActivityLog(tag = "FINANZAS", message = "${user} eliminó $typeStr de ${transaction.originalAmount}$currencySymbol ('${transaction.description}')", user = user))
+            val typeStr = when {
+                storedTx.isTransfer -> "la transferencia"
+                storedTx.isIncome -> "el ingreso"
+                else -> "el gasto"
+            }
+            val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(storedTx.currency)
+            insertLog(ActivityLog(tag = "FINANZAS", message = "$user eliminó $typeStr de $sym ${storedTx.originalAmount} ${storedTx.currency} ('${storedTx.description}')", user = user))
         }
     }
 
@@ -466,6 +555,77 @@ class FamilyRepository {
         insertLog(ActivityLog(tag = "FINANZAS", message = "$user eliminó la billetera '${wallet.name}'", user = user))
     }
 
+    suspend fun adjustWalletBalance(walletId: String, delta: Double, user: String) {
+        val walletsRef = getFamilyRef("wallets") ?: return
+        val snapshot = walletsRef.child(walletId).get().await()
+        val wallet = snapshot.getValue(Wallet::class.java)?.copy(id = walletId) ?: return
+        val updated = ((wallet.balance + delta) * 100.0).roundToInt() / 100.0
+        walletsRef.child(walletId).child("balance").setValue(updated).await()
+        val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(wallet.currency)
+        insertLog(
+            ActivityLog(
+                tag = "FINANZAS",
+                message = "$user ajustó saldo de '${wallet.name}' a $sym ${String.format("%.2f", updated)} ${wallet.currency}",
+                user = user
+            )
+        )
+    }
+
+    suspend fun transferBetweenWallets(
+        fromWallet: Wallet,
+        toWallet: Wallet,
+        fromAmount: Double,
+        toAmount: Double,
+        note: String,
+        user: String
+    ) {
+        val walletsRef = getFamilyRef("wallets") ?: return
+        if (fromWallet.id.isEmpty() || toWallet.id.isEmpty() || fromAmount <= 0.0 || toAmount <= 0.0) return
+
+        val freshFrom = walletsRef.child(fromWallet.id).get().await().getValue(Wallet::class.java)?.copy(id = fromWallet.id) ?: fromWallet
+        val freshTo = walletsRef.child(toWallet.id).get().await().getValue(Wallet::class.java)?.copy(id = toWallet.id) ?: toWallet
+
+        val newFromBal = ((freshFrom.balance - fromAmount) * 100.0).roundToInt() / 100.0
+        val newToBal = ((freshTo.balance + toAmount) * 100.0).roundToInt() / 100.0
+
+        walletsRef.child(freshFrom.id).child("balance").setValue(newFromBal).await()
+        walletsRef.child(freshTo.id).child("balance").setValue(newToBal).await()
+
+        val rateUsed = resolveUsdRate(freshFrom.currency, System.currentTimeMillis())
+        val usdEquiv = if (freshFrom.currency.equals("USD", ignoreCase = true)) fromAmount else fromAmount / rateUsed
+        val desc = note.trim().ifBlank { "Transferencia: ${freshFrom.name} → ${freshTo.name}" }
+        val transferTx = Transaction(
+            amount = usdEquiv,
+            category = "Transferencia",
+            description = desc,
+            date = System.currentTimeMillis(),
+            balanceDate = System.currentTimeMillis(),
+            registeredBy = user,
+            currency = freshFrom.currency,
+            originalAmount = fromAmount,
+            bcvRateUsed = rateUsed,
+            isIncome = false,
+            walletId = freshFrom.id,
+            targetWalletId = freshTo.id,
+            isTransfer = true
+        )
+        val transactionsRef = getFamilyRef("transactions")
+        if (transactionsRef != null) {
+            val pushRef = transactionsRef.push()
+            pushRef.setValue(transferTx.copy(id = pushRef.key ?: "")).await()
+        }
+
+        val symFrom = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(freshFrom.currency)
+        val symTo = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(freshTo.currency)
+        insertLog(
+            ActivityLog(
+                tag = "FINANZAS",
+                message = "$user transfirió $symFrom ${String.format("%.2f", fromAmount)} ${freshFrom.currency} de '${freshFrom.name}' a '${freshTo.name}' ($symTo ${String.format("%.2f", toAmount)} ${freshTo.currency})",
+                user = user
+            )
+        )
+    }
+
     private suspend fun insertLog(log: ActivityLog) {
         val logsRef = getFamilyRef("activity_logs") ?: return
         val pushRef = if (log.id.isEmpty()) logsRef.push() else logsRef.child(log.id)
@@ -489,7 +649,9 @@ class FamilyRepository {
         val transactionsSnapshot = transactionsRef.get().await()
         val transactions = mutableListOf<Transaction>()
         for (child in transactionsSnapshot.children) {
-            child.getValue(Transaction::class.java)?.let { transactions.add(it) }
+            child.getValue(Transaction::class.java)?.let {
+                if (!it.isIncome && !it.isTransfer) transactions.add(it)
+            }
         }
 
         val catDetail = getCategoryByName(category)
@@ -498,11 +660,11 @@ class FamilyRepository {
             val catSpent = transactions.filter { it.category.equals(category, ignoreCase = true) }.sumOf { it.amount }
             val percentage = (catSpent / catDetail.limitAmount) * 100
             if (percentage >= 100) {
-                val msg = "⚠️ ¡LÍMITE EXCEDIDO! Gasto en '$category' ($$catSpent USD) superó el límite de $${catDetail.limitAmount} USD"
+                val msg = "⚠️ ¡LÍMITE EXCEDIDO! Gasto en '$category' ($${String.format("%.2f", catSpent)} USD) superó el límite de $${catDetail.limitAmount} USD"
                 insertLog(ActivityLog(tag = "ALERTA", message = msg, user = "Sistema"))
                 return msg
             } else if (percentage >= 85) {
-                val msg = "🚨 ALERTA GASTO: El gasto en '$category' ha alcanzado el ${percentage.roundToInt()}% ($$catSpent / $${catDetail.limitAmount} USD)"
+                val msg = "🚨 ALERTA GASTO: El gasto en '$category' ha alcanzado el ${percentage.roundToInt()}% ($${String.format("%.2f", catSpent)} / $${catDetail.limitAmount} USD)"
                 insertLog(ActivityLog(tag = "ALERTA", message = msg, user = "Sistema"))
                 return msg
             }
@@ -511,14 +673,14 @@ class FamilyRepository {
         val totalLimitObj = getSettingValueByKey("total_limit_usd")
         val totalLimit = totalLimitObj?.toDoubleOrNull() ?: 1800.0
         val totalSpent = transactions.sumOf { it.amount }
-        val totalPercentage = (totalSpent / totalLimit) * 100
+        val totalPercentage = if (totalLimit > 0.0) (totalSpent / totalLimit) * 100 else 0.0
 
         if (totalPercentage >= 100) {
             val msg = "⚠️ ¡PRESUPUESTO GLOBAL AGOTADO! Se han gastado $${totalSpent.roundToInt()} USD de un límite total de $${totalLimit.roundToInt()} USD"
             insertLog(ActivityLog(tag = "ALERTA", message = msg, user = "Sistema"))
             return msg
         } else if (totalPercentage >= 85) {
-            val msg = "🚨 ADVERTENCIA GLOBAL: Hemos gastado el ${totalPercentage.roundToInt()}% del presupuesto total ($$totalSpent / $${totalLimit} USD)"
+            val msg = "🚨 ADVERTENCIA GLOBAL: Hemos gastado el ${totalPercentage.roundToInt()}% del presupuesto total ($${String.format("%.2f", totalSpent)} / $${totalLimit} USD)"
             insertLog(ActivityLog(tag = "ALERTA", message = msg, user = "Sistema"))
             return msg
         }

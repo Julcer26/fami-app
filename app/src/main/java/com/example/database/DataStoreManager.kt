@@ -40,6 +40,9 @@ class DataStoreManager(private val context: Context) {
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
         val HAS_COMPLETED_IN_APP_TOUR = booleanPreferencesKey("has_completed_in_app_tour")
         val VIEW_IN_SECONDARY = booleanPreferencesKey("view_in_secondary")
+        val UNLOCK_METHOD = stringPreferencesKey("unlock_method") // "unset" | "biometric" | "pin"
+        val SAVED_EMAIL = stringPreferencesKey("saved_email")
+        val AUTH_PROVIDER = stringPreferencesKey("auth_provider") // "email" | "google"
     }
 
     val familyIdFlow: Flow<String?> = context.dataStore.data.map { it[FAMILY_ID] }
@@ -66,6 +69,9 @@ class DataStoreManager(private val context: Context) {
     val hasCompletedOnboardingFlow: Flow<Boolean> = context.dataStore.data.map { it[HAS_COMPLETED_ONBOARDING] ?: false }
     val hasCompletedInAppTourFlow: Flow<Boolean> = context.dataStore.data.map { it[HAS_COMPLETED_IN_APP_TOUR] ?: false }
     val viewInSecondaryFlow: Flow<Boolean> = context.dataStore.data.map { it[VIEW_IN_SECONDARY] ?: false }
+    val unlockMethodFlow: Flow<String> = context.dataStore.data.map { it[UNLOCK_METHOD] ?: "unset" }
+    val savedEmailFlow: Flow<String> = context.dataStore.data.map { it[SAVED_EMAIL] ?: "" }
+    val authProviderFlow: Flow<String> = context.dataStore.data.map { it[AUTH_PROVIDER] ?: "email" }
 
     suspend fun setDarkTheme(isDark: Boolean) {
         context.dataStore.edit { prefs ->
@@ -166,6 +172,13 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
+    suspend fun setMonthlyIncome(amount: Double, currency: String) {
+        context.dataStore.edit { prefs ->
+            prefs[MONTHLY_INCOME_AMOUNT] = amount
+            prefs[MONTHLY_INCOME_CURRENCY] = currency
+        }
+    }
+
     suspend fun setLiveExchangeRate(rate: Double) {
         context.dataStore.edit { prefs ->
             prefs[LIVE_EXCHANGE_RATE] = rate
@@ -184,11 +197,31 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    suspend fun saveAuthData(familyId: String, userName: String, pin: String) {
+    suspend fun setUnlockMethod(method: String) {
+        context.dataStore.edit { prefs ->
+            prefs[UNLOCK_METHOD] = method
+        }
+    }
+
+    suspend fun updatePin(pin: String) {
+        context.dataStore.edit { prefs ->
+            prefs[USER_PIN] = pin
+        }
+    }
+
+    suspend fun saveAuthData(
+        familyId: String,
+        userName: String,
+        pin: String,
+        email: String = "",
+        authProvider: String = "email"
+    ) {
         context.dataStore.edit { prefs ->
             prefs[FAMILY_ID] = familyId
             prefs[USER_NAME] = userName
             prefs[USER_PIN] = pin
+            if (email.isNotBlank()) prefs[SAVED_EMAIL] = email
+            prefs[AUTH_PROVIDER] = authProvider
         }
     }
 
@@ -197,6 +230,9 @@ class DataStoreManager(private val context: Context) {
             prefs.remove(FAMILY_ID)
             prefs.remove(USER_NAME)
             prefs.remove(USER_PIN)
+            prefs.remove(UNLOCK_METHOD)
+            prefs.remove(SAVED_EMAIL)
+            prefs.remove(AUTH_PROVIDER)
         }
     }
 

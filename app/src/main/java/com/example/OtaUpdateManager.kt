@@ -108,10 +108,37 @@ object OtaUpdateManager {
         }
     }
 
-    fun downloadAndInstallUpdate(context: Context, url: String, versionCode: Int = 0) {
-        if (versionCode > 0) {
-            dismissUpdateForVersion(context, versionCode)
+    fun canInstallPackages(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
         }
+    }
+
+    fun openInstallPermissionSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val intent = Intent(
+                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:${context.packageName}")
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    fun downloadAndInstallUpdate(context: Context, url: String, versionCode: Int = 0) {
+        if (!canInstallPackages(context)) {
+            android.widget.Toast.makeText(
+                context,
+                "Activa 'Instalar aplicaciones desconocidas' para Fami y vuelve a intentar.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            openInstallPermissionSettings(context)
+            return
+        }
+
         val request = DownloadManager.Request(Uri.parse(url)).apply {
             setTitle("Actualización de Fami")
             setDescription("Descargando la nueva versión de Fami...")
@@ -132,7 +159,10 @@ object OtaUpdateManager {
             override fun onReceive(ctxt: Context, intent: Intent) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
                 if (id == downloadId) {
-                    installApk(context)
+                    val launched = installApk(context)
+                    if (launched && versionCode > 0) {
+                        dismissUpdateForVersion(context, versionCode)
+                    }
                     try {
                         context.unregisterReceiver(this)
                     } catch (_: Exception) {}
@@ -147,9 +177,9 @@ object OtaUpdateManager {
         }
     }
 
-    private fun installApk(context: Context) {
+    private fun installApk(context: Context): Boolean {
         val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "fami-update.apk")
-        if (!file.exists()) return
+        if (!file.exists()) return false
 
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
 
@@ -159,10 +189,12 @@ object OtaUpdateManager {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
-        try {
+        return try {
             context.startActivity(intent)
+            true
         } catch (e: Exception) {
             e.printStackTrace()
+            false
         }
     }
 }

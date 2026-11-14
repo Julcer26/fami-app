@@ -24,7 +24,11 @@ data class Transaction(
     var isIncome: Boolean = false,
     val receiptUrl: String = "",
     val balanceDate: Long = 0L,
-    val items: List<TransactionItem> = emptyList()
+    val items: List<TransactionItem> = emptyList(),
+    val walletId: String = "",
+    val targetWalletId: String = "",
+    @get:PropertyName("isTransfer") @set:PropertyName("isTransfer")
+    var isTransfer: Boolean = false
 )
 
 data class CategoryDetail(

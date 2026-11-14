@@ -108,6 +108,69 @@ class FamilyViewModel(
     val viewInSecondary: StateFlow<Boolean> = dataStoreManager.viewInSecondaryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val unlockMethod: StateFlow<String> = dataStoreManager.unlockMethodFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "unset")
+
+    val savedEmail: StateFlow<String> = dataStoreManager.savedEmailFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val authProvider: StateFlow<String> = dataStoreManager.authProviderFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "email")
+
+    private val _isAuthLoading = MutableStateFlow(false)
+    val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
+
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError: StateFlow<String?> = _authError.asStateFlow()
+
+    private val _pendingEmailVerification = MutableStateFlow(false)
+    val pendingEmailVerification: StateFlow<Boolean> = _pendingEmailVerification.asStateFlow()
+
+    private val _pendingVerificationEmail = MutableStateFlow("")
+    val pendingVerificationEmail: StateFlow<String> = _pendingVerificationEmail.asStateFlow()
+
+    private val _needsUnlockMethodChoice = MutableStateFlow(false)
+    val needsUnlockMethodChoice: StateFlow<Boolean> = _needsUnlockMethodChoice.asStateFlow()
+
+    private val _startInExistingLogin = MutableStateFlow(false)
+    val startInExistingLogin: StateFlow<Boolean> = _startInExistingLogin.asStateFlow()
+
+    fun openExistingLoginFromOnboarding() {
+        _startInExistingLogin.value = true
+        viewModelScope.launch {
+            dataStoreManager.setOnboardingCompleted(true)
+        }
+    }
+
+    fun consumeStartInExistingLogin() {
+        _startInExistingLogin.value = false
+    }
+
+    val isAdminRole: StateFlow<Boolean> = familyRole
+        .map { role -> isPrivilegedRole(role) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun isPrivilegedRole(role: String): Boolean {
+        val clean = role.trim().lowercase()
+        return clean in setOf(
+            "admin", "administrador", "administrator",
+            "mamá", "mama", "mom", "mãe", "mae",
+            "papá", "papa", "dad", "pai"
+        )
+    }
+
+    fun canEditBudgets(): Boolean = isPrivilegedRole(familyRole.value)
+
+    fun canManageMembers(): Boolean = isPrivilegedRole(familyRole.value)
+
+    fun canDeleteTransaction(tx: Transaction): Boolean {
+        return isPrivilegedRole(familyRole.value) || tx.registeredBy.equals(_currentUser.value, ignoreCase = true)
+    }
+
+    fun clearAuthError() {
+        _authError.value = null
+    }
+
     private val _detectedIpCountry = MutableStateFlow<String?>(null)
     val detectedIpCountry: StateFlow<String?> = _detectedIpCountry.asStateFlow()
 
@@ -179,6 +242,24 @@ class FamilyViewModel(
         }
     }
 
+    fun updateMonthlyIncome(amount: Double, currency: String) {
+        viewModelScope.launch {
+            val cleanCurr = currency.trim().uppercase().ifBlank { "USD" }
+            dataStoreManager.setMonthlyIncome(amount, cleanCurr)
+            val user = _currentUser.value.ifBlank { "Usuario" }
+            val rate = if (cleanCurr == "USD" || cleanCurr == "EUR") 1.0 else {
+                val live = liveExchangeRate.value
+                if (live > 0.0 && cleanCurr.equals(primaryCurrency.value, ignoreCase = true)) live
+                else com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(cleanCurr).takeIf { it > 0.0 } ?: 1.0
+            }
+            val amountUsd = if (cleanCurr == "USD") amount else amount / rate
+            repository.insertSetting("monthly_income_amount", String.format(java.util.Locale.US, "%.2f", amount), user)
+            repository.insertSetting("monthly_income_currency", cleanCurr, user)
+            repository.insertSetting("total_limit_usd", String.format(java.util.Locale.US, "%.2f", amountUsd), user)
+            notifyUser("Ingreso mensual actualizado: ${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(cleanCurr)} ${String.format(java.util.Locale.US, "%,.2f", amount)} $cleanCurr")
+        }
+    }
+
     fun updateUserAvatar(avatarId: String) {
         viewModelScope.launch {
             dataStoreManager.setUserAvatarId(avatarId)
@@ -214,6 +295,30 @@ class FamilyViewModel(
     fun deleteWallet(wallet: Wallet) {
         viewModelScope.launch {
             repository.deleteWallet(wallet, _currentUser.value)
+        }
+    }
+
+    fun adjustWalletBalance(walletId: String, delta: Double) {
+        viewModelScope.launch {
+            repository.adjustWalletBalance(walletId, delta, _currentUser.value)
+            notifyUser("Saldo de billetera actualizado")
+        }
+    }
+
+    fun transferBetweenWallets(
+        fromWallet: Wallet,
+        toWallet: Wallet,
+        fromAmount: Double,
+        toAmount: Double,
+        note: String = ""
+    ) {
+        viewModelScope.launch {
+            try {
+                repository.transferBetweenWallets(fromWallet, toWallet, fromAmount, toAmount, note, _currentUser.value)
+                notifyUser("Transferencia completada: ${fromWallet.name} → ${toWallet.name}")
+            } catch (e: Exception) {
+                notifyUser("Error en transferencia: ${e.localizedMessage}")
+            }
         }
     }
 
@@ -299,10 +404,17 @@ class FamilyViewModel(
         }
     }
 
-    fun markRecurringPaymentPaid(payment: com.example.database.RecurringPayment, monthKey: String, amount: Double, currency: String, date: Long) {
+    fun markRecurringPaymentPaid(
+        payment: com.example.database.RecurringPayment,
+        monthKey: String,
+        amount: Double,
+        currency: String,
+        date: Long,
+        walletId: String = ""
+    ) {
         viewModelScope.launch {
             try {
-                val alert = repository.markRecurringPaymentPaid(payment, monthKey, amount, currency, date, _currentUser.value)
+                val alert = repository.markRecurringPaymentPaid(payment, monthKey, amount, currency, date, _currentUser.value, walletId)
                 if (alert != null) notifyUser(alert)
                 else notifyUser("Pago registrado: '${payment.name}' para $monthKey")
             } catch (e: Exception) {
@@ -349,6 +461,11 @@ class FamilyViewModel(
                     _familyId.value = fid
                     _currentUser.value = name
                     repository.setFamilyId(fid)
+                    val isEmailProvider = firebaseUser.providerData.any { it.providerId == "password" }
+                    if (isEmailProvider && !firebaseUser.isEmailVerified) {
+                        _pendingVerificationEmail.value = firebaseUser.email ?: ""
+                        _pendingEmailVerification.value = true
+                    }
                 } else {
                     com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
                     dataStoreManager.clearAuthData()
@@ -357,33 +474,46 @@ class FamilyViewModel(
         }
     }
 
+    fun isValidEmailFormat(email: String): Boolean {
+        val trimmed = email.trim()
+        if (trimmed.isBlank()) return false
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmed).matches()) return false
+        val domain = trimmed.substringAfter("@", "").lowercase()
+        val invalidDomains = setOf("test.com", "example.com", "mailinator.com", "tempmail.com", "fake.com", "yopmail.com")
+        return domain.contains(".") && !invalidDomains.contains(domain)
+    }
+
     // --- Authentication ---
-    fun loginWithPin(inputPin: String): Boolean {
-        var success = false
+    fun loginWithPin(inputPin: String, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
             val savedPin = dataStoreManager.userPinFlow.firstOrNull()
-            if (savedPin == inputPin) {
+            if (!savedPin.isNullOrEmpty() && savedPin == inputPin) {
                 if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
                     _isAuthenticated.value = true
-                    success = true
+                    onResult(true)
                     checkDefaultsAndSync()
                 } else {
-                    notifyUser("Sesión de Firebase expirada. Inicie sesión de nuevo.")
+                    _authError.value = "Sesión de Firebase expirada. Inicia sesión nuevamente."
+                    notifyUser("Sesión expirada. Inicia sesión de nuevo.")
                     dataStoreManager.clearAuthData()
                     _familyId.value = null
+                    onResult(false)
                 }
             } else {
+                _authError.value = "PIN incorrecto. Verifica los 5 dígitos."
                 notifyUser("PIN incorrecto")
+                onResult(false)
             }
         }
-        return success
     }
 
     fun loginBiometric() {
         if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
+            _authError.value = null
             _isAuthenticated.value = true
             checkDefaultsAndSync()
         } else {
+            _authError.value = "Sesión expirada. Inicia sesión de nuevo."
             notifyUser("Sesión expirada. Inicie sesión de nuevo.")
             viewModelScope.launch {
                 dataStoreManager.clearAuthData()
@@ -392,33 +522,80 @@ class FamilyViewModel(
         }
     }
 
+    fun setUnlockMethodAndEnter(method: String, customPin: String? = null) {
+        viewModelScope.launch {
+            if (!customPin.isNullOrBlank() && customPin.length == 5) {
+                dataStoreManager.updatePin(customPin)
+            }
+            dataStoreManager.setUnlockMethod(method)
+            _needsUnlockMethodChoice.value = false
+            _isAuthenticated.value = true
+            checkDefaultsAndSync()
+            val label = if (method == "biometric") "Huella Digital" else "PIN de 5 dígitos"
+            notifyUser("Acceso configurado con $label ✅")
+        }
+    }
+
+    fun updateUnlockPreference(method: String) {
+        viewModelScope.launch {
+            dataStoreManager.setUnlockMethod(method)
+            val label = if (method == "biometric") "Huella Digital" else "PIN de 5 dígitos"
+            notifyUser("Método de desbloqueo actualizado: $label")
+        }
+    }
+
+    fun updateUserPin(newPin: String) {
+        if (newPin.length != 5 || !newPin.all { it.isDigit() }) {
+            notifyUser("El PIN debe tener exactamente 5 dígitos.")
+            return
+        }
+        viewModelScope.launch {
+            dataStoreManager.updatePin(newPin)
+            notifyUser("PIN de 5 dígitos actualizado ✅")
+        }
+    }
+
     fun createFamily(email: String, pin: String, password: String, customFamilyName: String = "", customUserName: String = "") {
         viewModelScope.launch {
+            val cleanEmail = email.trim()
+            if (!isValidEmailFormat(cleanEmail)) {
+                _authError.value = "Ingresa un correo electrónico real y válido."
+                return@launch
+            }
+            _isAuthLoading.value = true
+            _authError.value = null
             try {
-                val authResult = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    .createUserWithEmailAndPassword(email.trim(), password).await()
-                val uid = authResult.user?.uid ?: throw Exception("No se pudo obtener el UID de Firebase")
-                
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                val authResult = auth.createUserWithEmailAndPassword(cleanEmail, password).await()
+                val firebaseUser = authResult.user ?: throw Exception("No se pudo crear el usuario")
+                val uid = firebaseUser.uid
+
                 val newFamilyId = UUID.randomUUID().toString().substring(0, 8).uppercase()
-                val userName = customUserName.trim().ifBlank { email.substringBefore("@") }
-                
+                val userName = customUserName.trim().ifBlank { cleanEmail.substringBefore("@") }
+
                 repository.registerUserMapping(uid, newFamilyId, userName)
                 repository.registerFamilyMember(newFamilyId, uid)
-                
-                dataStoreManager.saveAuthData(newFamilyId, userName, pin)
+
+                dataStoreManager.saveAuthData(newFamilyId, userName, pin, email = cleanEmail, authProvider = "email")
                 _familyId.value = newFamilyId
                 repository.setFamilyId(newFamilyId)
-                
+
                 repository.populateDefaultsIfNeeded()
                 syncPendingNotebookSetup(userName = userName, colorHex = "#D0BCFF", familyNameOverride = customFamilyName)
-                
+
                 _currentUser.value = userName
-                _isAuthenticated.value = true
-                checkDefaultsAndSync()
-                val displayFam = customFamilyName.trim().ifBlank { pendingFamilyName.value.ifBlank { newFamilyId } }
-                notifyUser("Cuaderno '$displayFam' creado. Código: $newFamilyId")
+
+                // Enviar verificación real al correo electrónico
+                runCatching { firebaseUser.sendEmailVerification().await() }
+                _pendingVerificationEmail.value = cleanEmail
+                _pendingEmailVerification.value = true
+                notifyUser("Te enviamos un correo de verificación a $cleanEmail")
             } catch (e: Exception) {
-                notifyUser("Error al crear familia: ${e.localizedMessage}")
+                val msg = mapFirebaseAuthError(e)
+                _authError.value = msg
+                notifyUser(msg)
+            } finally {
+                _isAuthLoading.value = false
             }
         }
     }
@@ -426,31 +603,260 @@ class FamilyViewModel(
     fun joinFamily(familyCode: String, name: String, pin: String, email: String, password: String) {
         viewModelScope.launch {
             val code = familyCode.trim().uppercase()
+            val cleanEmail = email.trim()
+            if (!isValidEmailFormat(cleanEmail)) {
+                _authError.value = "Ingresa un correo electrónico real y válido."
+                return@launch
+            }
+            _isAuthLoading.value = true
+            _authError.value = null
             try {
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                var isNewAccount = false
                 val authResult = try {
-                    com.google.firebase.auth.FirebaseAuth.getInstance()
-                        .createUserWithEmailAndPassword(email.trim(), password).await()
+                    isNewAccount = true
+                    auth.createUserWithEmailAndPassword(cleanEmail, password).await()
                 } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
-                    com.google.firebase.auth.FirebaseAuth.getInstance()
-                        .signInWithEmailAndPassword(email.trim(), password).await()
+                    isNewAccount = false
+                    auth.signInWithEmailAndPassword(cleanEmail, password).await()
                 }
-                val uid = authResult.user?.uid ?: throw Exception("No se pudo obtener el UID")
+                val firebaseUser = authResult.user ?: throw Exception("No se pudo obtener el usuario")
+                val uid = firebaseUser.uid
 
                 repository.registerFamilyMember(code, uid)
                 repository.registerUserMapping(uid, code, name.trim())
 
-                dataStoreManager.saveAuthData(code, name.trim(), pin)
+                dataStoreManager.saveAuthData(code, name.trim(), pin, email = cleanEmail, authProvider = "email")
                 _familyId.value = code
                 repository.setFamilyId(code)
 
                 syncPendingNotebookSetup(userName = name.trim(), colorHex = "#EFB8C8")
                 _currentUser.value = name.trim()
-                _isAuthenticated.value = true
-                checkDefaultsAndSync()
-                notifyUser("Unido a familia: $code")
+
+                if (isNewAccount && !firebaseUser.isEmailVerified) {
+                    runCatching { firebaseUser.sendEmailVerification().await() }
+                    _pendingVerificationEmail.value = cleanEmail
+                    _pendingEmailVerification.value = true
+                    notifyUser("Verifica tu correo ($cleanEmail) para completar el acceso")
+                } else {
+                    _needsUnlockMethodChoice.value = true
+                }
             } catch (e: Exception) {
-                notifyUser("Error al unirse: ${e.localizedMessage}")
+                val msg = mapFirebaseAuthError(e)
+                _authError.value = msg
+                notifyUser(msg)
+            } finally {
+                _isAuthLoading.value = false
             }
+        }
+    }
+
+    fun checkEmailVerified() {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            try {
+                val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                if (user == null) {
+                    _pendingEmailVerification.value = false
+                    _authError.value = "Sesión expirada. Inicia sesión nuevamente."
+                    return@launch
+                }
+                user.reload().await()
+                if (user.isEmailVerified) {
+                    _pendingEmailVerification.value = false
+                    _needsUnlockMethodChoice.value = true
+                    notifyUser("¡Correo verificado con éxito! ✨")
+                } else {
+                    _authError.value = "Tu correo aún no aparece verificado. Abre el enlace en tu bandeja (o Spam) y vuelve a intentarlo."
+                }
+            } catch (e: Exception) {
+                _authError.value = "Error al verificar: ${e.localizedMessage}"
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun resendVerificationEmail() {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            try {
+                val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                if (user != null) {
+                    user.sendEmailVerification().await()
+                    notifyUser("Correo de verificación reenviado a ${user.email}")
+                }
+            } catch (e: Exception) {
+                _authError.value = mapFirebaseAuthError(e)
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun cancelPendingVerification() {
+        viewModelScope.launch {
+            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+            dataStoreManager.clearAuthData()
+            _pendingEmailVerification.value = false
+            _pendingVerificationEmail.value = ""
+            _familyId.value = null
+            _currentUser.value = ""
+        }
+    }
+
+    fun sendPasswordReset(email: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim()
+            if (!isValidEmailFormat(cleanEmail)) {
+                _authError.value = "Ingresa un correo electrónico válido para recuperar tu cuenta."
+                return@launch
+            }
+            _isAuthLoading.value = true
+            _authError.value = null
+            try {
+                com.google.firebase.auth.FirebaseAuth.getInstance().sendPasswordResetEmail(cleanEmail).await()
+                notifyUser("Correo de recuperación enviado a $cleanEmail")
+                onSuccess()
+            } catch (e: Exception) {
+                val msg = mapFirebaseAuthError(e)
+                _authError.value = msg
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    fun confirmPasswordResetWithCode(oobCodeOrLink: String, newPassword: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val cleanCode = extractOobCode(oobCodeOrLink)
+            if (cleanCode.isBlank()) {
+                _authError.value = "Código de recuperación inválido."
+                return@launch
+            }
+            if (newPassword.length < 6) {
+                _authError.value = "La nueva contraseña debe tener al menos 6 caracteres."
+                return@launch
+            }
+            _isAuthLoading.value = true
+            _authError.value = null
+            try {
+                com.google.firebase.auth.FirebaseAuth.getInstance()
+                    .confirmPasswordReset(cleanCode, newPassword).await()
+                notifyUser("Contraseña actualizada. Ya puedes iniciar sesión.")
+                onSuccess()
+            } catch (e: Exception) {
+                _authError.value = mapFirebaseAuthError(e)
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    private fun extractOobCode(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.contains("oobCode=")) {
+            return trimmed.substringAfter("oobCode=").substringBefore("&").trim()
+        }
+        return trimmed
+    }
+
+    fun handleGoogleFirebaseUser(
+        firebaseUser: com.google.firebase.auth.FirebaseUser,
+        joinFamilyCode: String = "",
+        customFamilyName: String = "",
+        pin: String = "00000"
+    ) {
+        viewModelScope.launch {
+            _isAuthLoading.value = true
+            _authError.value = null
+            try {
+                val uid = firebaseUser.uid
+                val email = firebaseUser.email.orEmpty()
+                val displayName = firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() }
+                    ?: email.substringBefore("@").ifBlank { "Usuario Fami" }
+
+                val snapshot = repository.getUserMapping(uid)
+                val existingFid = snapshot.child("familyId").getValue(String::class.java)
+                val existingName = snapshot.child("userName").getValue(String::class.java)
+
+                val finalFid: String
+                val finalUserName: String
+                val isNewSetup: Boolean
+
+                if (existingFid != null && existingName != null) {
+                    finalFid = existingFid
+                    finalUserName = existingName
+                    isNewSetup = false
+                } else if (joinFamilyCode.trim().isNotBlank()) {
+                    val code = joinFamilyCode.trim().uppercase()
+                    finalFid = code
+                    finalUserName = displayName
+                    repository.registerFamilyMember(code, uid)
+                    repository.registerUserMapping(uid, code, finalUserName)
+                    _familyId.value = code
+                    repository.setFamilyId(code)
+                    syncPendingNotebookSetup(userName = finalUserName, colorHex = "#EFB8C8")
+                    isNewSetup = true
+                } else {
+                    finalFid = UUID.randomUUID().toString().substring(0, 8).uppercase()
+                    finalUserName = displayName
+                    repository.registerUserMapping(uid, finalFid, finalUserName)
+                    repository.registerFamilyMember(finalFid, uid)
+                    _familyId.value = finalFid
+                    repository.setFamilyId(finalFid)
+                    repository.populateDefaultsIfNeeded()
+                    syncPendingNotebookSetup(
+                        userName = finalUserName,
+                        colorHex = "#D0BCFF",
+                        familyNameOverride = customFamilyName.ifBlank { pendingFamilyName.value }
+                    )
+                    isNewSetup = true
+                }
+
+                dataStoreManager.saveAuthData(
+                    familyId = finalFid,
+                    userName = finalUserName,
+                    pin = pin,
+                    email = email,
+                    authProvider = "google"
+                )
+                _familyId.value = finalFid
+                repository.setFamilyId(finalFid)
+                _currentUser.value = finalUserName
+
+                val savedMethod = dataStoreManager.unlockMethodFlow.firstOrNull() ?: "unset"
+                if (isNewSetup || savedMethod == "unset") {
+                    _needsUnlockMethodChoice.value = true
+                } else {
+                    _isAuthenticated.value = true
+                    checkDefaultsAndSync()
+                    notifyUser("¡Bienvenido, $finalUserName!")
+                }
+            } catch (e: Exception) {
+                val msg = mapFirebaseAuthError(e)
+                _authError.value = msg
+                notifyUser(msg)
+            } finally {
+                _isAuthLoading.value = false
+            }
+        }
+    }
+
+    private fun mapFirebaseAuthError(e: Exception): String {
+        val msg = e.localizedMessage ?: "Error de autenticación"
+        return when {
+            msg.contains("password is invalid", ignoreCase = true) || msg.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true) ->
+                "Correo o contraseña incorrectos."
+            msg.contains("no user record", ignoreCase = true) || msg.contains("USER_NOT_FOUND", ignoreCase = true) ->
+                "No existe una cuenta registrada con ese correo."
+            msg.contains("already in use", ignoreCase = true) ->
+                "Este correo ya tiene una cuenta. Inicia sesión o recupera tu contraseña."
+            msg.contains("network", ignoreCase = true) ->
+                "Error de conexión. Verifica tu internet e intenta nuevamente."
+            else -> msg
         }
     }
 
@@ -501,30 +907,48 @@ class FamilyViewModel(
 
     fun loginExisting(email: String, password: String, pin: String) {
         viewModelScope.launch {
+            val cleanEmail = email.trim()
+            if (!isValidEmailFormat(cleanEmail)) {
+                _authError.value = "Ingresa un correo electrónico válido."
+                return@launch
+            }
+            _isAuthLoading.value = true
+            _authError.value = null
             try {
-                val authResult = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    .signInWithEmailAndPassword(email.trim(), password).await()
-                val uid = authResult.user?.uid ?: throw Exception("No se pudo obtener el UID")
-                
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                val authResult = auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                val firebaseUser = authResult.user ?: throw Exception("No se pudo obtener el UID")
+                val uid = firebaseUser.uid
+
                 val snapshot = repository.getUserMapping(uid)
                 val fid = snapshot.child("familyId").getValue(String::class.java)
                 val userName = snapshot.child("userName").getValue(String::class.java)
-                
+
                 if (fid == null || userName == null) {
-                    notifyUser("Información de usuario no encontrada en el servidor.")
-                    com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                    _authError.value = "Información de usuario no encontrada en el servidor."
+                    auth.signOut()
                     return@launch
                 }
-                
-                dataStoreManager.saveAuthData(fid, userName, pin)
+
+                dataStoreManager.saveAuthData(fid, userName, pin, email = cleanEmail, authProvider = "email")
                 _familyId.value = fid
                 repository.setFamilyId(fid)
                 _currentUser.value = userName
-                _isAuthenticated.value = true
-                checkDefaultsAndSync()
-                notifyUser("¡Bienvenido de vuelta, $userName!")
+
+                val savedMethod = dataStoreManager.unlockMethodFlow.firstOrNull() ?: "unset"
+                if (savedMethod == "unset") {
+                    _needsUnlockMethodChoice.value = true
+                } else {
+                    _isAuthenticated.value = true
+                    checkDefaultsAndSync()
+                    notifyUser("¡Bienvenido de vuelta, $userName!")
+                }
             } catch (e: Exception) {
-                notifyUser("Error al iniciar sesión: ${e.localizedMessage}")
+                val msg = mapFirebaseAuthError(e)
+                _authError.value = msg
+                notifyUser(msg)
+            } finally {
+                _isAuthLoading.value = false
             }
         }
     }
@@ -534,6 +958,8 @@ class FamilyViewModel(
             com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
             dataStoreManager.clearAuthData()
             _isAuthenticated.value = false
+            _pendingEmailVerification.value = false
+            _needsUnlockMethodChoice.value = false
             _familyId.value = null
             _currentUser.value = ""
         }
@@ -542,8 +968,8 @@ class FamilyViewModel(
     private fun checkDefaultsAndSync() {
         viewModelScope.launch {
             try {
-                repository.updateBcvRateFromLiveApi("Sistema")
-            } catch (e: Exception) { }
+                syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value)
+            } catch (_: Exception) { }
         }
     }
 
@@ -564,17 +990,44 @@ class FamilyViewModel(
         return repository.uploadReceiptImage(bitmap)
     }
 
-    fun addTransaction(originalAmount: Double, category: String, description: String, currency: String = "USD", isIncome: Boolean = false, date: Long = System.currentTimeMillis(), receiptUrl: String = "", balanceDate: Long = 0L, items: List<com.example.database.TransactionItem> = emptyList()) {
+    fun addTransaction(
+        originalAmount: Double,
+        category: String,
+        description: String,
+        currency: String = "USD",
+        isIncome: Boolean = false,
+        date: Long = System.currentTimeMillis(),
+        receiptUrl: String = "",
+        balanceDate: Long = 0L,
+        items: List<com.example.database.TransactionItem> = emptyList(),
+        walletId: String = ""
+    ) {
         viewModelScope.launch {
             val user = _currentUser.value
-            val tx = Transaction(amount = originalAmount, category = category, description = description, date = date, registeredBy = user, currency = currency, originalAmount = originalAmount, isIncome = isIncome, receiptUrl = receiptUrl, balanceDate = balanceDate, items = items)
-            val alertMessage = repository.insertTransaction(tx, user)
+            val resolvedWalletId = walletId.ifBlank {
+                wallets.value.firstOrNull { it.currency.equals(currency, ignoreCase = true) }?.id.orEmpty()
+            }
+            val tx = Transaction(
+                amount = originalAmount,
+                category = category,
+                description = description,
+                date = date,
+                registeredBy = user,
+                currency = currency,
+                originalAmount = originalAmount,
+                isIncome = isIncome,
+                receiptUrl = receiptUrl,
+                balanceDate = balanceDate,
+                items = items,
+                walletId = resolvedWalletId
+            )
+            val alertMessage = repository.insertTransaction(tx, user, isNewEntry = true)
             if (alertMessage != null) notifyUser(alertMessage)
-            else notifyUser("¡Guardado!: $originalAmount en '$description'")
+            else notifyUser("¡Guardado!: $originalAmount $currency en '$description'")
         }
     }
     fun deleteTransaction(transaction: Transaction) { viewModelScope.launch { repository.deleteTransaction(transaction, _currentUser.value) } }
-    fun editTransaction(transaction: Transaction) { viewModelScope.launch { repository.insertTransaction(transaction, _currentUser.value) } }
+    fun editTransaction(transaction: Transaction) { viewModelScope.launch { repository.insertTransaction(transaction, _currentUser.value, isNewEntry = false) } }
 
     fun createOrEditCategory(oldName: String?, name: String, limit: Double, iconEmoji: String, monthKey: String) {
         viewModelScope.launch {
@@ -585,7 +1038,7 @@ class FamilyViewModel(
                 if (oldCat != null) repository.deleteCategory(oldCat, user)
                 val txsToUpdate = transactions.value.filter { it.category == oldName }
                 for (tx in txsToUpdate) {
-                    repository.insertTransaction(tx.copy(category = newName), user)
+                    repository.insertTransaction(tx.copy(category = newName), user, isNewEntry = false)
                 }
             } else if (oldCat == null) {
                 oldCat = categories.value.find { it.categoryName == newName }
@@ -623,10 +1076,10 @@ class FamilyViewModel(
     }
     fun deleteProfile(profile: UserProfile) { viewModelScope.launch { repository.deleteProfile(profile, _currentUser.value) } }
 
-    fun syncLiveBcvRate() { viewModelScope.launch { repository.updateBcvRateFromLiveApi(_currentUser.value) } }
+    fun syncLiveBcvRate() { viewModelScope.launch { syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value) } }
     fun updateValueSetting(key: String, value: String) { viewModelScope.launch { repository.insertSetting(key, value, _currentUser.value) } }
 
-    fun registerFromNaturalLanguage(inputText: String) {
+    fun registerFromNaturalLanguage(inputText: String, walletId: String = "") {
         if (inputText.isBlank()) return
         viewModelScope.launch {
             _isRegisteringNlp.value = true
@@ -639,7 +1092,10 @@ class FamilyViewModel(
                 if (error != null) {
                     _nlpError.value = error
                 } else if (transaction != null) {
-                    repository.insertTransaction(transaction, user)
+                    val resolvedWalletId = walletId.ifBlank {
+                        wallets.value.firstOrNull { it.currency.equals(transaction.currency, ignoreCase = true) }?.id.orEmpty()
+                    }
+                    repository.insertTransaction(transaction.copy(walletId = resolvedWalletId), user, isNewEntry = true)
                     notifyUser(successMsg.ifBlank { "IA registró gasto/ingreso exitosamente." })
                 }
             } catch (e: Exception) {

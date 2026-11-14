@@ -65,6 +65,7 @@ fun PhysicalPaperCalendar(
     toColor: (String) -> Color,
     getMonthName: (Int) -> String
 ) {
+    val paper = FamiTheme.paper
     var calendarMonth by remember(selectedMonth) {
         mutableStateOf(Calendar.getInstance().apply {
             set(Calendar.YEAR, selectedMonth.get(Calendar.YEAR))
@@ -103,8 +104,8 @@ fun PhysicalPaperCalendar(
                 .padding(top = 18.dp, start = 6.dp)
                 .offset(x = 4.dp, y = 5.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(PaperSheetCream)
-                .border(1.5.dp, FamiMidnight, RoundedCornerShape(16.dp))
+                .background(paper.sheetCream)
+                .border(1.5.dp, paper.border, RoundedCornerShape(16.dp))
         )
         Box(
             modifier = Modifier
@@ -112,8 +113,8 @@ fun PhysicalPaperCalendar(
                 .padding(top = 14.dp, start = 3.dp)
                 .offset(x = 2.dp, y = 2.5.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFFDF5E6))
-                .border(1.5.dp, FamiMidnight, RoundedCornerShape(16.dp))
+                .background(if (paper.isDark) paper.sheetCream.copy(alpha = 0.9f) else Color(0xFFFDF5E6))
+                .border(1.5.dp, paper.border, RoundedCornerShape(16.dp))
         )
 
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -123,14 +124,14 @@ fun PhysicalPaperCalendar(
                     .fillMaxWidth()
                     .height(26.dp)
             ) {
-                // Barra encuadernadora superior (cabezal de cartón marino)
+                // Barra encuadernadora superior (cabezal de cartón marino / pizarra)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(14.dp)
                         .align(Alignment.BottomCenter)
                         .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .background(FamiMidnight)
+                        .background(if (paper.isDark) paper.lipNavy else FamiMidnight)
                 )
                 // Espirales metálicos dobles que atraviesan la parte superior
                 Canvas(
@@ -144,7 +145,7 @@ fun PhysicalPaperCalendar(
                         val cx = step * i
                         // Perforación ovalada en el papel
                         drawOval(
-                            color = Color(0xFF1F2752),
+                            color = if (paper.isDark) Color(0xFF0A0D14) else Color(0xFF1F2752),
                             topLeft = Offset(cx - 4.5.dp.toPx(), size.height - 6.dp.toPx()),
                             size = Size(9.dp.toPx(), 6.dp.toPx())
                         )
@@ -168,7 +169,7 @@ fun PhysicalPaperCalendar(
                             cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx())
                         )
                         drawRoundRect(
-                            color = FamiMidnight,
+                            color = paper.border,
                             topLeft = Offset(cx - 2.3.dp.toPx(), 1.dp.toPx()),
                             size = Size(4.6.dp.toPx(), size.height - 4.dp.toPx()),
                             cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx()),
@@ -212,10 +213,10 @@ fun PhysicalPaperCalendar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                        .background(PaperSheetWhite)
+                        .background(paper.sheet)
                         .border(
                             1.8.dp,
-                            FamiMidnight,
+                            paper.border,
                             RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                         )
                         .pointerInput(monthKeyVal) {
@@ -236,7 +237,7 @@ fun PhysicalPaperCalendar(
                         .drawBehind {
                             // Margen vertical rojo tenue de cuaderno + cuadrícula de papel
                             drawLine(
-                                color = PaperMarginRed.copy(alpha = 0.25f),
+                                color = paper.marginLine.copy(alpha = 0.3f),
                                 start = Offset(14.dp.toPx(), 0f),
                                 end = Offset(14.dp.toPx(), size.height),
                                 strokeWidth = 1.dp.toPx()
@@ -252,7 +253,7 @@ fun PhysicalPaperCalendar(
                         Surface(
                             color = FamiCoral,
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            border = BorderStroke(1.5.dp, paper.border),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -264,8 +265,8 @@ fun PhysicalPaperCalendar(
                             ) {
                                 Tactile3DButton(
                                     onClick = goPrevMonth,
-                                    faceColor = PaperSheetWhite,
-                                    lipColor = Lip3DPaper,
+                                    faceColor = paper.sheet,
+                                    lipColor = paper.lipPaper,
                                     lipHeight = 2.5.dp,
                                     cornerRadius = 8.dp,
                                     contentPadding = PaddingValues(4.dp),
@@ -274,7 +275,7 @@ fun PhysicalPaperCalendar(
                                     Icon(
                                         Icons.Default.ChevronLeft,
                                         contentDescription = "Mes anterior",
-                                        tint = FamiMidnight,
+                                        tint = paper.ink,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -298,8 +299,8 @@ fun PhysicalPaperCalendar(
 
                                 Tactile3DButton(
                                     onClick = goNextMonth,
-                                    faceColor = PaperSheetWhite,
-                                    lipColor = Lip3DPaper,
+                                    faceColor = paper.sheet,
+                                    lipColor = paper.lipPaper,
                                     lipHeight = 2.5.dp,
                                     cornerRadius = 8.dp,
                                     contentPadding = PaddingValues(4.dp),
@@ -308,7 +309,7 @@ fun PhysicalPaperCalendar(
                                     Icon(
                                         Icons.Default.ChevronRight,
                                         contentDescription = "Mes siguiente",
-                                        tint = FamiMidnight,
+                                        tint = paper.ink,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -327,8 +328,8 @@ fun PhysicalPaperCalendar(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(PaperSheetCream)
-                                .border(1.dp, FamiMidnight.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .background(paper.sheetCream)
+                                .border(1.dp, paper.border.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                                 .padding(vertical = 5.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -337,7 +338,7 @@ fun PhysicalPaperCalendar(
                                     text = wDay,
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = if (idx >= 5) FamiCoral else FamiMidnight,
+                                    color = if (idx >= 5) FamiCoral else paper.ink,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -365,7 +366,7 @@ fun PhysicalPaperCalendar(
                                                     .aspectRatio(1f)
                                                     .padding(1.5.dp)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(PaperSheetCream.copy(alpha = 0.45f))
+                                                    .background(paper.sheetCream.copy(alpha = 0.45f))
                                             )
                                         } else {
                                             val dayNum = cellIndex - emptyDaysBefore + 1
@@ -392,15 +393,15 @@ fun PhysicalPaperCalendar(
                                                     .background(
                                                         when {
                                                             isSelected -> FamiCoral
-                                                            isToday -> PaperStickyYellow
-                                                            col >= 5 -> PaperStickyPeach.copy(alpha = 0.45f)
-                                                            else -> PaperSheetWhite
+                                                            isToday -> paper.stickyYellow
+                                                            col >= 5 -> paper.stickyPeach.copy(alpha = 0.45f)
+                                                            else -> paper.sheet
                                                         }
                                                     )
                                                     .clickable { selectedDayCal = cellCal }
                                                     .border(
                                                         width = if (isToday || isSelected) 1.6.dp else 0.8.dp,
-                                                        color = if (isSelected || isToday) FamiMidnight else PaperRuleLine,
+                                                        color = if (isSelected || isToday) paper.border else paper.ruleLine,
                                                         shape = RoundedCornerShape(8.dp)
                                                     ),
                                                 contentAlignment = Alignment.Center
@@ -414,7 +415,7 @@ fun PhysicalPaperCalendar(
                                                         text = "$dayNum",
                                                         fontSize = 11.5.sp,
                                                         fontWeight = if (isToday || isSelected) FontWeight.Black else FontWeight.Bold,
-                                                        color = if (isSelected) Color.White else FamiMidnight
+                                                        color = if (isSelected) Color.White else paper.ink
                                                     )
                                                     if (dayTransactions.isNotEmpty() || dayCompletedChores.isNotEmpty()) {
                                                         Row(
@@ -463,14 +464,14 @@ fun PhysicalPaperCalendar(
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = PaperRuleLine, thickness = 1.2.dp)
+                        HorizontalDivider(color = paper.ruleLine, thickness = 1.2.dp)
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
                             text = "📌 ANOTADO EL ${selectedDateTimeLabel.uppercase()}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiCoralDeep,
+                            color = if (paper.isDark) FamiCoral else FamiCoralDeep,
                             letterSpacing = 0.5.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -479,7 +480,7 @@ fun PhysicalPaperCalendar(
                             RuledNotebookText(
                                 text = "Sin movimientos ni tareas registradas este día.",
                                 fontSize = 12.sp,
-                                color = FamiNavyMuted,
+                                color = paper.inkMuted,
                                 lineHeight = 24.sp
                             )
                         } else {
@@ -489,7 +490,7 @@ fun PhysicalPaperCalendar(
                                         text = "✅ Tarea lista: ${chore.title} (${chore.assignedTo})",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = FamiMidnight,
+                                        color = paper.ink,
                                         lineHeight = 24.sp
                                     )
                                 }
@@ -499,7 +500,7 @@ fun PhysicalPaperCalendar(
                                         text = "${if (tx.isIncome) "💵" else "🧾"} ${tx.description}: $sign${String.format(Locale.US, "%.2f", tx.originalAmount)} ${tx.currency} (${tx.category})",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (tx.isIncome) FamiEmerald else FamiMidnight,
+                                        color = if (tx.isIncome) FamiEmerald else paper.ink,
                                         lineHeight = 24.sp
                                     )
                                 }
@@ -507,8 +508,8 @@ fun PhysicalPaperCalendar(
                                     RuledNotebookText(
                                         text = "📝 [${log.tag}] ${log.message}",
                                         fontSize = 11.5.sp,
-                                        color = FamiNavyMuted,
-                                        lineHeight = 22.sp
+                                        color = paper.inkMuted,
+                                        lineHeight = 24.sp
                                     )
                                 }
                             }

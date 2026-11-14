@@ -48,15 +48,28 @@ val FamiGoldContainer = Color(0xFFFFF5D6)
 val FamiAlertRed = Color(0xFFD93829)       // Rojo sello alerta / Gastos
 val FamiAlertRedBg = Color(0xFFFDE8E6)
 
-// Modo Cuaderno Nocturno (Opcional en Ajustes)
-val DarkBackground = Color(0xFF101535)
-val DarkSurface = Color(0xFF19204A)
-val DarkSurfaceElevated = Color(0xFF232C60)
+// Modo Cuaderno Nocturno — Papel Grafito / Pizarra Tactil (Flat Paper Dark)
+val DarkDeskBg = Color(0xFF0F1117)
+val DarkPaperSheet = Color(0xFF181A20)
+val DarkPaperCream = Color(0xFF22252D)
+val DarkPaperRuler = Color(0xFF2E3340)
+val DarkPaperBorder = Color(0xFF3A4152)
+val DarkInk = Color(0xFFF1F5F9)
+val DarkInkMuted = Color(0xFF94A3B8)
+val DarkStickyYellow = Color(0xFF332D1B)
+val DarkStickyPeach = Color(0xFF352220)
+val DarkStickyMint = Color(0xFF172E28)
+val DarkAlertRedBg = Color(0xFF3A1D20)
+val Lip3DPaperDark = Color(0xFF101218)
+
+val DarkBackground = DarkDeskBg
+val DarkSurface = DarkPaperSheet
+val DarkSurfaceElevated = DarkPaperCream
 val DarkPrimary = FamiCoral
 val DarkSecondary = FamiCoralLight
-val DarkOnBackground = Color(0xFFFFFDF9)
-val DarkOnSurfaceVariant = Color(0xFFB8C2E6)
-val DarkOutline = Color(0xFF344080)
+val DarkOnBackground = DarkInk
+val DarkOnSurfaceVariant = DarkInkMuted
+val DarkOutline = DarkPaperBorder
 
 // Modo Cuaderno de Papel Plano (Predeterminado en Fami v3.0)
 val LightBackground = PaperDeskBg

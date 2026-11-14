@@ -70,6 +70,7 @@ fun OnboardingScreen(
     initialFamilyAction: String = "create",
     initialFamilyName: String = "",
     initialAvatarId: String = "woman_1",
+    onLoginExisting: () -> Unit = {},
     onComplete: (
         selectedCountry: CountryInfo,
         primaryCurrency: String,
@@ -86,6 +87,7 @@ fun OnboardingScreen(
     ) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val paper = FamiTheme.paper
 
     var selectedCountry by remember {
         mutableStateOf(CountryCurrencyConfig.getCountryByCode(initialCountryCode))
@@ -177,6 +179,7 @@ fun OnboardingScreen(
 
     val strings = remember(selectedLanguage) { FamiStrings.get(selectedLanguage) }
     val isEn = selectedLanguage.lowercase() == "en"
+    val accentCoralText = if (paper.isDark) FamiCoral else FamiCoralDeep
     val totalPages = 5
     val pagerState = rememberPagerState(pageCount = { totalPages })
     val finalRole = customRoleInput.trim().ifBlank { selectedRole }
@@ -216,7 +219,7 @@ fun OnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PaperDeskBg)
+            .background(paper.deskBg)
     ) {
         Column(
             modifier = Modifier
@@ -241,15 +244,15 @@ fun OnboardingScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
-                        color = PaperStickyYellow,
+                        color = paper.stickyYellow,
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.2.dp, FamiMidnight)
+                        border = BorderStroke(1.2.dp, paper.border)
                     ) {
                         Text(
                             text = if (isEn) "SHEET ${pagerState.currentPage + 1}/$totalPages" else "HOJA ${pagerState.currentPage + 1}/$totalPages",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiMidnight,
+                            color = paper.ink,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
@@ -258,13 +261,13 @@ fun OnboardingScreen(
                 if (pagerState.currentPage < totalPages - 1) {
                     Tactile3DButton(
                         onClick = finishOnboarding,
-                        faceColor = PaperSheetWhite,
-                        lipColor = Lip3DPaper,
+                        faceColor = paper.sheet,
+                        lipColor = paper.lipPaper,
                         lipHeight = 3.dp,
                         cornerRadius = 10.dp,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
                     ) {
-                        Text(strings.skipBtn, color = FamiNavy, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                        Text(strings.skipBtn, color = paper.ink, fontSize = 11.sp, fontWeight = FontWeight.Black)
                     }
                 }
             }
@@ -279,7 +282,7 @@ fun OnboardingScreen(
             ) { page ->
                 NotebookPaperSheet(
                     modifier = Modifier.fillMaxSize(),
-                    paperColor = PaperSheetWhite,
+                    paperColor = paper.sheet,
                     showSpiralTop = true,
                     showRuledLines = false,
                     showMarginLine = true,
@@ -294,19 +297,19 @@ fun OnboardingScreen(
                     ) {
                         when (page) {
                             // ==============================================================
-                            // HOJA 1: BIENVENIDA CON MASCOTA + PAÍS (IP AUTO) + IDIOMA
+                            // HOJA 1: BIENVENIDA CON MASCOTA + ACCESO DIRECTO + PAÍS + IDIOMA
                             // ==============================================================
                             0 -> {
                                 Surface(
-                                    color = PaperStickyPeach,
+                                    color = paper.stickyPeach,
                                     shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                    border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
                                         text = if (isEn) "📓 PAGE 1 • MEET YOUR FAMI NOTEBOOK" else "📓 HOJA 1 • BIENVENIDA AL CUADERNO FAMI",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiCoralDeep,
+                                        color = accentCoralText,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -314,10 +317,10 @@ fun OnboardingScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(165.dp)
+                                        .height(155.dp)
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(PaperSheetCream)
-                                        .border(1.8.dp, FamiMidnight, RoundedCornerShape(16.dp))
+                                        .background(paper.sheetCream)
+                                        .border(1.8.dp, paper.border, RoundedCornerShape(16.dp))
                                         .padding(6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -335,7 +338,7 @@ fun OnboardingScreen(
                                     text = if (isEn) "Hi! I'm Fami 🐾" else "¡Hola! Soy Fami 🐾",
                                     fontSize = 21.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
 
                                 RuledNotebookText(
@@ -345,16 +348,38 @@ fun OnboardingScreen(
                                         "Vamos a preparar tu cuaderno familiar o personal hoja por hoja. Todo se adapta a tu país, idioma y monedas.",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = FamiNavyMuted,
-                                    lineHeight = 23.sp
+                                    color = paper.inkMuted,
+                                    lineHeight = 24.sp
                                 )
+
+                                // Acceso directo para usuarios que ya tienen cuenta creada
+                                Tactile3DButton(
+                                    onClick = onLoginExisting,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    faceColor = paper.stickyYellow,
+                                    lipColor = Lip3DGold,
+                                    lipHeight = 3.dp,
+                                    cornerRadius = 12.dp,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
+                                ) {
+                                    Text(
+                                        text = when (selectedLanguage.lowercase()) {
+                                            "en" -> "🔑 Already have an account? Sign In"
+                                            "pt" -> "🔑 Já tem conta? Entrar"
+                                            else -> "🔑 ¿Ya tienes cuenta? Iniciar Sesión"
+                                        },
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
+                                }
 
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (ipDetectionState == "detected") PaperStickyMint else PaperStickyYellow)
-                                        .border(1.4.dp, FamiNavy, RoundedCornerShape(10.dp))
+                                        .background(if (ipDetectionState == "detected") paper.stickyMint else paper.stickyYellow)
+                                        .border(1.4.dp, paper.border, RoundedCornerShape(10.dp))
                                         .padding(horizontal = 10.dp, vertical = 7.dp)
                                 ) {
                                     Text(
@@ -364,7 +389,7 @@ fun OnboardingScreen(
                                         },
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = FamiNavy
+                                        color = paper.ink
                                     )
                                 }
 
@@ -392,15 +417,15 @@ fun OnboardingScreen(
                             // ==============================================================
                             1 -> {
                                 Surface(
-                                    color = PaperStickyMint,
+                                    color = paper.stickyMint,
                                     shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                    border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
                                         text = if (isEn) "💱 PAGE 2 • PREFERRED CURRENCIES" else "💱 HOJA 2 • MONEDAS PREFERIDAS",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiMidnight,
+                                        color = paper.ink,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -414,8 +439,8 @@ fun OnboardingScreen(
                                         modifier = Modifier
                                             .size(64.dp)
                                             .clip(RoundedCornerShape(14.dp))
-                                            .background(PaperSheetCream)
-                                            .border(1.6.dp, FamiMidnight, RoundedCornerShape(14.dp))
+                                            .background(paper.sheetCream)
+                                            .border(1.6.dp, paper.border, RoundedCornerShape(14.dp))
                                             .padding(4.dp)
                                     ) {
                                         Image(
@@ -430,13 +455,13 @@ fun OnboardingScreen(
                                             text = if (isEn) "Local + Optional Extra" else "Moneda Local + Extra Opcional",
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = FamiMidnight
+                                            color = paper.ink
                                         )
                                         Text(
                                             text = if (isEn) "Track amounts in your local currency and convert live if you want."
                                             else "Anota en tu moneda local y activa una segunda divisa para convertir en vivo.",
                                             fontSize = 11.5.sp,
-                                            color = FamiNavyMuted,
+                                            color = paper.inkMuted,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     }
@@ -469,7 +494,7 @@ fun OnboardingScreen(
                                     text = "⚡ Atajos rápidos para moneda de conversión:",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
 
                                 FlowRow(
@@ -491,8 +516,8 @@ fun OnboardingScreen(
                                                     )
                                                 }
                                             },
-                                            faceColor = if (active) FamiCoral else PaperSheetCream,
-                                            lipColor = if (active) Lip3DCoral else Lip3DPaper,
+                                            faceColor = if (active) FamiCoral else paper.sheetCream,
+                                            lipColor = if (active) Lip3DCoral else paper.lipPaper,
                                             lipHeight = 2.5.dp,
                                             cornerRadius = 10.dp,
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
@@ -501,7 +526,7 @@ fun OnboardingScreen(
                                                 text = label,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = if (active) Color.White else FamiMidnight
+                                                color = if (active) Color.White else paper.ink
                                             )
                                         }
                                     }
@@ -509,7 +534,7 @@ fun OnboardingScreen(
 
                                 StickyNoteSheet(
                                     modifier = Modifier.fillMaxWidth(),
-                                    noteColor = PaperStickyYellow
+                                    noteColor = paper.stickyYellow
                                 ) {
                                     RuledNotebookText(
                                         text = if (selectedSecondaryCurrency == "NONE")
@@ -518,8 +543,8 @@ fun OnboardingScreen(
                                             "Conversión activa: tus gastos en $selectedPrimaryCurrency mostrarán equivalente en $selectedSecondaryCurrency.",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = FamiMidnight,
-                                        lineHeight = 22.sp,
+                                        color = paper.ink,
+                                        lineHeight = 24.sp,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                     )
                                 }
@@ -530,15 +555,15 @@ fun OnboardingScreen(
                             // ==============================================================
                             2 -> {
                                 Surface(
-                                    color = PaperStickyYellow,
+                                    color = paper.stickyYellow,
                                     shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                    border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
                                         text = if (isEn) "🏡 PAGE 3 • HOUSEHOLD MODE & ROLE" else "🏡 HOJA 3 • MODO DE USO, FAMILIA Y ROL",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiMidnight,
+                                        color = paper.ink,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -547,7 +572,7 @@ fun OnboardingScreen(
                                     text = if (isEn) "How will you use Fami?" else "¿Cómo vas a llevar este cuaderno?",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
 
                                 Row(
@@ -558,15 +583,15 @@ fun OnboardingScreen(
                                     Tactile3DButton(
                                         onClick = { managementMode = "familiar" },
                                         modifier = Modifier.weight(1f),
-                                        faceColor = if (isFam) FamiCoral else PaperSheetCream,
-                                        lipColor = if (isFam) Lip3DCoral else Lip3DPaper,
+                                        faceColor = if (isFam) FamiCoral else paper.sheetCream,
+                                        lipColor = if (isFam) Lip3DCoral else paper.lipPaper,
                                         lipHeight = 3.5.dp,
                                         cornerRadius = 12.dp,
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("👨‍👩‍👧‍👦 Familiar", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (isFam) Color.White else FamiMidnight)
-                                            Text("Compartido en casa", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = if (isFam) Color.White.copy(alpha = 0.9f) else FamiNavyMuted)
+                                            Text("👨‍👩‍👧‍👦 Familiar", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (isFam) Color.White else paper.ink)
+                                            Text("Compartido en casa", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = if (isFam) Color.White.copy(alpha = 0.9f) else paper.inkMuted)
                                         }
                                     }
 
@@ -578,15 +603,15 @@ fun OnboardingScreen(
                                             selectedRole = "Administrador"
                                         },
                                         modifier = Modifier.weight(1f),
-                                        faceColor = if (isInd) FamiMidnight else PaperSheetCream,
-                                        lipColor = if (isInd) Lip3DNavy else Lip3DPaper,
+                                        faceColor = if (isInd) FamiMidnight else paper.sheetCream,
+                                        lipColor = if (isInd) paper.lipNavy else paper.lipPaper,
                                         lipHeight = 3.5.dp,
                                         cornerRadius = 12.dp,
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("👤 Individual", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (isInd) Color.White else FamiMidnight)
-                                            Text("Solo mis finanzas", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = if (isInd) Color.White.copy(alpha = 0.9f) else FamiNavyMuted)
+                                            Text("👤 Individual", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (isInd) Color.White else paper.ink)
+                                            Text("Solo mis finanzas", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = if (isInd) Color.White.copy(alpha = 0.9f) else paper.inkMuted)
                                         }
                                     }
                                 }
@@ -596,7 +621,7 @@ fun OnboardingScreen(
                                         text = "¿Qué deseas hacer ahora?",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiMidnight
+                                        color = paper.ink
                                     )
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -609,13 +634,13 @@ fun OnboardingScreen(
                                                 selectedRole = "Administrador"
                                             },
                                             modifier = Modifier.weight(1f),
-                                            faceColor = if (isCreate) PaperStickyMint else PaperSheetCream,
-                                            lipColor = if (isCreate) Lip3DMint else Lip3DPaper,
+                                            faceColor = if (isCreate) paper.stickyMint else paper.sheetCream,
+                                            lipColor = if (isCreate) Lip3DMint else paper.lipPaper,
                                             lipHeight = 3.dp,
                                             cornerRadius = 10.dp,
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                                         ) {
-                                            Text("✨ Crear Familia", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                            Text("✨ Crear Familia", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
                                         }
 
                                         val isJoin = familyAction == "join"
@@ -625,13 +650,13 @@ fun OnboardingScreen(
                                                 if (selectedRole == "Administrador") selectedRole = "Miembro familiar"
                                             },
                                             modifier = Modifier.weight(1f),
-                                            faceColor = if (isJoin) PaperStickyPeach else PaperSheetCream,
-                                            lipColor = if (isJoin) Lip3DCoral else Lip3DPaper,
+                                            faceColor = if (isJoin) paper.stickyPeach else paper.sheetCream,
+                                            lipColor = if (isJoin) Lip3DCoral else paper.lipPaper,
                                             lipHeight = 3.dp,
                                             cornerRadius = 10.dp,
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                                         ) {
-                                            Text("🔑 Unirme con Código", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                            Text("🔑 Unirme con Código", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
                                         }
                                     }
                                 }
@@ -648,9 +673,9 @@ fun OnboardingScreen(
                                         },
                                         placeholder = {
                                             Text(
-                                                if (managementMode == "individual") "Ej: Finanzas de Julio" else "Ej: Familia Pérez García",
+                                                if (managementMode == "individual") "Ej: Mis Finanzas" else "Ej: Familia Pérez García",
                                                 fontSize = 11.sp,
-                                                color = FamiNavyMuted
+                                                color = paper.inkMuted
                                             )
                                         },
                                         singleLine = true,
@@ -658,23 +683,23 @@ fun OnboardingScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = FamiCoral,
-                                            unfocusedBorderColor = FamiNavy.copy(alpha = 0.5f),
-                                            focusedContainerColor = PaperSheetCream,
-                                            unfocusedContainerColor = PaperSheetCream,
-                                            focusedTextColor = FamiMidnight,
-                                            unfocusedTextColor = FamiMidnight
+                                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                            focusedContainerColor = paper.sheetCream,
+                                            unfocusedContainerColor = paper.sheetCream,
+                                            focusedTextColor = paper.ink,
+                                            unfocusedTextColor = paper.ink
                                         )
                                     )
                                 } else {
                                     StickyNoteSheet(
                                         modifier = Modifier.fillMaxWidth(),
-                                        noteColor = PaperStickyMint
+                                        noteColor = paper.stickyMint
                                     ) {
                                         Text(
                                             text = "📲 Al terminar las hojas podrás escribir el Código Familiar que te dio el Administrador para sincronizarte al instante.",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = FamiMidnight,
+                                            color = paper.ink,
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                         )
                                     }
@@ -684,7 +709,7 @@ fun OnboardingScreen(
                                     text = "👑 ${strings.familyRoleLabel}:",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
 
                                 FlowRow(
@@ -704,8 +729,8 @@ fun OnboardingScreen(
                                                 selectedRole = label
                                                 customRoleInput = ""
                                             },
-                                            faceColor = if (isChosen) FamiCoral else PaperSheetCream,
-                                            lipColor = if (isChosen) Lip3DCoral else Lip3DPaper,
+                                            faceColor = if (isChosen) FamiCoral else paper.sheetCream,
+                                            lipColor = if (isChosen) Lip3DCoral else paper.lipPaper,
                                             lipHeight = 2.5.dp,
                                             cornerRadius = 10.dp,
                                             contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
@@ -714,7 +739,7 @@ fun OnboardingScreen(
                                                 text = "${roleOpt.emoji} $label",
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = if (isChosen) Color.White else FamiNavy
+                                                color = if (isChosen) Color.White else paper.ink
                                             )
                                         }
                                     }
@@ -723,17 +748,17 @@ fun OnboardingScreen(
                                 OutlinedTextField(
                                     value = customRoleInput,
                                     onValueChange = { customRoleInput = it },
-                                    placeholder = { Text(strings.customRoleHint, fontSize = 11.sp, color = FamiNavyMuted) },
+                                    placeholder = { Text(strings.customRoleHint, fontSize = 11.sp, color = paper.inkMuted) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = FamiCoral,
-                                        unfocusedBorderColor = FamiNavy.copy(alpha = 0.45f),
-                                        focusedContainerColor = PaperSheetCream,
-                                        unfocusedContainerColor = PaperSheetCream,
-                                        focusedTextColor = FamiNavy,
-                                        unfocusedTextColor = FamiNavy
+                                        unfocusedBorderColor = paper.border.copy(alpha = 0.45f),
+                                        focusedContainerColor = paper.sheetCream,
+                                        unfocusedContainerColor = paper.sheetCream,
+                                        focusedTextColor = paper.ink,
+                                        unfocusedTextColor = paper.ink
                                     )
                                 )
                             }
@@ -743,15 +768,15 @@ fun OnboardingScreen(
                             // ==============================================================
                             3 -> {
                                 Surface(
-                                    color = PaperStickyMint,
+                                    color = paper.stickyMint,
                                     shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                    border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
                                         text = if (isEn) "💼 PAGE 4 • INCOME & MULTI-WALLETS" else "💼 HOJA 4 • INGRESO MENSUAL Y BILLETERAS",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiMidnight,
+                                        color = paper.ink,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -760,7 +785,7 @@ fun OnboardingScreen(
                                     text = if (isEn) "Income & Wallets" else "Tu Ingreso y Billeteras",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
 
                                 Text(
@@ -768,7 +793,7 @@ fun OnboardingScreen(
                                     else "Define tu ingreso mensual aproximado y configura billeteras en moneda local y extranjera simultáneamente.",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = FamiNavyMuted
+                                    color = paper.inkMuted
                                 )
 
                                 // Ingreso mensual + Moneda
@@ -788,17 +813,17 @@ fun OnboardingScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = FamiCoral,
-                                            unfocusedBorderColor = FamiNavy.copy(alpha = 0.5f),
-                                            focusedContainerColor = PaperSheetCream,
-                                            unfocusedContainerColor = PaperSheetCream,
-                                            focusedTextColor = FamiMidnight,
-                                            unfocusedTextColor = FamiMidnight
+                                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                            focusedContainerColor = paper.sheetCream,
+                                            unfocusedContainerColor = paper.sheetCream,
+                                            focusedTextColor = paper.ink,
+                                            unfocusedTextColor = paper.ink
                                         )
                                     )
 
                                     Tactile3DButton(
                                         onClick = { showIncomeCurrencyDialog = true },
-                                        faceColor = PaperStickyYellow,
+                                        faceColor = paper.stickyYellow,
                                         lipColor = Lip3DGold,
                                         lipHeight = 3.dp,
                                         cornerRadius = 12.dp,
@@ -808,7 +833,7 @@ fun OnboardingScreen(
                                             text = "$monthlyIncomeCurrency ▼",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = FamiMidnight
+                                            color = paper.ink
                                         )
                                     }
                                 }
@@ -822,7 +847,7 @@ fun OnboardingScreen(
                                         text = "👛 Billeteras (${draftWallets.size})",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiMidnight
+                                        color = paper.ink
                                     )
                                     Tactile3DButton(
                                         onClick = {
@@ -834,15 +859,15 @@ fun OnboardingScreen(
                                                 isLocal = false
                                             )
                                         },
-                                        faceColor = PaperStickyMint,
+                                        faceColor = paper.stickyMint,
                                         lipColor = Lip3DMint,
                                         lipHeight = 2.5.dp,
                                         cornerRadius = 10.dp,
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
                                     ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, tint = FamiMidnight, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = paper.ink, modifier = Modifier.size(14.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Agregar Billetera", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                        Text("Agregar Billetera", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
                                     }
                                 }
 
@@ -850,8 +875,8 @@ fun OnboardingScreen(
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
-                                        color = if (w.isLocal) PaperStickyPeach.copy(alpha = 0.65f) else PaperSheetCream,
-                                        border = BorderStroke(1.4.dp, FamiMidnight)
+                                        color = if (w.isLocal) paper.stickyPeach.copy(alpha = if (paper.isDark) 0.75f else 0.65f) else paper.sheetCream,
+                                        border = BorderStroke(1.4.dp, paper.border)
                                     ) {
                                         Column(
                                             modifier = Modifier.padding(10.dp),
@@ -866,7 +891,7 @@ fun OnboardingScreen(
                                                     text = if (w.isLocal) "🏠 MONEDA LOCAL" else "🌐 DIVISA / EXTRA",
                                                     fontSize = 9.5.sp,
                                                     fontWeight = FontWeight.Black,
-                                                    color = FamiCoralDeep
+                                                    color = accentCoralText
                                                 )
                                                 if (draftWallets.size > 1) {
                                                     IconButton(
@@ -895,11 +920,11 @@ fun OnboardingScreen(
                                                     shape = RoundedCornerShape(10.dp),
                                                     colors = OutlinedTextFieldDefaults.colors(
                                                         focusedBorderColor = FamiCoral,
-                                                        unfocusedBorderColor = FamiNavy.copy(alpha = 0.4f),
-                                                        focusedContainerColor = PaperSheetWhite,
-                                                        unfocusedContainerColor = PaperSheetWhite,
-                                                        focusedTextColor = FamiMidnight,
-                                                        unfocusedTextColor = FamiMidnight
+                                                        unfocusedBorderColor = paper.border.copy(alpha = 0.4f),
+                                                        focusedContainerColor = paper.sheet,
+                                                        unfocusedContainerColor = paper.sheet,
+                                                        focusedTextColor = paper.ink,
+                                                        unfocusedTextColor = paper.ink
                                                     )
                                                 )
                                                 OutlinedTextField(
@@ -915,22 +940,22 @@ fun OnboardingScreen(
                                                     shape = RoundedCornerShape(10.dp),
                                                     colors = OutlinedTextFieldDefaults.colors(
                                                         focusedBorderColor = FamiCoral,
-                                                        unfocusedBorderColor = FamiNavy.copy(alpha = 0.4f),
-                                                        focusedContainerColor = PaperSheetWhite,
-                                                        unfocusedContainerColor = PaperSheetWhite,
-                                                        focusedTextColor = FamiMidnight,
-                                                        unfocusedTextColor = FamiMidnight
+                                                        unfocusedBorderColor = paper.border.copy(alpha = 0.4f),
+                                                        focusedContainerColor = paper.sheet,
+                                                        unfocusedContainerColor = paper.sheet,
+                                                        focusedTextColor = paper.ink,
+                                                        unfocusedTextColor = paper.ink
                                                     )
                                                 )
                                                 Tactile3DButton(
                                                     onClick = { editingWalletCurrencyIdx = idx },
-                                                    faceColor = PaperStickyYellow,
+                                                    faceColor = paper.stickyYellow,
                                                     lipColor = Lip3DGold,
                                                     lipHeight = 2.5.dp,
                                                     cornerRadius = 10.dp,
                                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
                                                 ) {
-                                                    Text(w.currency, fontSize = 11.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                                    Text(w.currency, fontSize = 11.sp, fontWeight = FontWeight.Black, color = paper.ink)
                                                 }
                                             }
                                         }
@@ -943,15 +968,15 @@ fun OnboardingScreen(
                             // ==============================================================
                             4 -> {
                                 Surface(
-                                    color = PaperStickyPeach,
+                                    color = paper.stickyPeach,
                                     shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                    border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
                                         text = if (isEn) "🎨 PAGE 5 • CHOOSE YOUR AVATAR" else "🎨 HOJA 5 • ELIGE TU AVATAR DE CUENTA",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiCoralDeep,
+                                        color = accentCoralText,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -960,7 +985,7 @@ fun OnboardingScreen(
                                     text = if (isEn) "Pick Your Fami Character" else "¿Cuál te representa mejor?",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
 
                                 // Filtros por Adultos / Menores / F / M
@@ -973,8 +998,8 @@ fun OnboardingScreen(
                                         val active = avatarFilter == filter
                                         Tactile3DButton(
                                             onClick = { avatarFilter = filter },
-                                            faceColor = if (active) FamiCoral else PaperSheetCream,
-                                            lipColor = if (active) Lip3DCoral else Lip3DPaper,
+                                            faceColor = if (active) FamiCoral else paper.sheetCream,
+                                            lipColor = if (active) Lip3DCoral else paper.lipPaper,
                                             lipHeight = 2.dp,
                                             cornerRadius = 9.dp,
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
@@ -983,7 +1008,7 @@ fun OnboardingScreen(
                                                 text = filter,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = if (active) Color.White else FamiMidnight
+                                                color = if (active) Color.White else paper.ink
                                             )
                                         }
                                     }
@@ -1011,8 +1036,8 @@ fun OnboardingScreen(
                                                     onClick = { selectedAvatarId = av.id },
                                                     modifier = Modifier.weight(1f),
                                                     shape = RoundedCornerShape(14.dp),
-                                                    color = if (isSel) PaperStickyYellow else PaperSheetCream,
-                                                    border = BorderStroke(if (isSel) 2.2.dp else 1.2.dp, if (isSel) FamiCoral else FamiMidnight)
+                                                    color = if (isSel) paper.stickyYellow else paper.sheetCream,
+                                                    border = BorderStroke(if (isSel) 2.2.dp else 1.2.dp, if (isSel) FamiCoral else paper.border)
                                                 ) {
                                                     Column(
                                                         modifier = Modifier.padding(6.dp),
@@ -1022,8 +1047,8 @@ fun OnboardingScreen(
                                                             modifier = Modifier
                                                                 .size(58.dp)
                                                                 .clip(CircleShape)
-                                                                .background(PaperSheetWhite)
-                                                                .border(1.4.dp, if (isSel) FamiCoral else FamiMidnight, CircleShape)
+                                                                .background(paper.sheet)
+                                                                .border(1.4.dp, if (isSel) FamiCoral else paper.border, CircleShape)
                                                         ) {
                                                             Image(
                                                                 painter = painterResource(id = av.drawableRes),
@@ -1037,7 +1062,7 @@ fun OnboardingScreen(
                                                             text = if (isEn) av.labelEn else av.labelEs,
                                                             fontSize = 9.5.sp,
                                                             fontWeight = FontWeight.Black,
-                                                            color = FamiMidnight,
+                                                            color = paper.ink,
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis,
                                                             textAlign = TextAlign.Center
@@ -1046,7 +1071,7 @@ fun OnboardingScreen(
                                                             text = "${av.ageGroup} • ${av.gender}",
                                                             fontSize = 8.sp,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = if (isSel) FamiCoral else FamiNavyMuted
+                                                            color = if (isSel) FamiCoral else paper.inkMuted
                                                         )
                                                     }
                                                 }
@@ -1076,8 +1101,8 @@ fun OnboardingScreen(
                             .height(10.dp)
                             .width(if (isSelected) 26.dp else 10.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) FamiCoral else PaperSheetWhite)
-                            .border(1.5.dp, FamiNavy, CircleShape)
+                            .background(if (isSelected) FamiCoral else paper.sheet)
+                            .border(1.5.dp, paper.border, CircleShape)
                     )
                 }
             }
@@ -1094,13 +1119,13 @@ fun OnboardingScreen(
                                 pagerState.animateScrollToPage(pagerState.currentPage - 1)
                             }
                         },
-                        faceColor = PaperSheetWhite,
-                        lipColor = Lip3DPaper,
+                        faceColor = paper.sheet,
+                        lipColor = paper.lipPaper,
                         lipHeight = 5.dp,
                         cornerRadius = 14.dp,
                         contentPadding = PaddingValues(vertical = 13.dp, horizontal = 16.dp)
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = FamiMidnight, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = paper.ink, modifier = Modifier.size(18.dp))
                     }
                 }
 
@@ -1251,20 +1276,21 @@ fun NotebookDropdownField(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    val paper = FamiTheme.paper
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
             fontSize = 10.5.sp,
             fontWeight = FontWeight.Black,
-            color = FamiNavy
+            color = paper.ink
         )
         Spacer(modifier = Modifier.height(4.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(PaperSheetCream)
-                .border(1.6.dp, FamiNavy, RoundedCornerShape(12.dp))
+                .background(paper.sheetCream)
+                .border(1.6.dp, paper.border, RoundedCornerShape(12.dp))
                 .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 9.dp)
         ) {
@@ -1278,7 +1304,7 @@ fun NotebookDropdownField(
                         text = value,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiNavy,
+                        color = paper.ink,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1286,7 +1312,7 @@ fun NotebookDropdownField(
                         text = subtitle,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = FamiNavyMuted,
+                        color = paper.inkMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1309,6 +1335,7 @@ fun GooglePlayCountryPickerDialog(
     onDismiss: () -> Unit,
     onSelectCountry: (CountryInfo) -> Unit
 ) {
+    val paper = FamiTheme.paper
     var query by remember { mutableStateOf("") }
     val filteredCountries = remember(query) {
         val q = query.trim().lowercase()
@@ -1325,7 +1352,7 @@ fun GooglePlayCountryPickerDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.82f),
-            paperColor = PaperSheetWhite,
+            paperColor = paper.sheet,
             showSpiralTop = true,
             showRuledLines = false,
             showMarginLine = false
@@ -1344,10 +1371,10 @@ fun GooglePlayCountryPickerDialog(
                         text = "🌍 Países de Google Play (${CountryCurrencyConfig.SUPPORTED_COUNTRIES.size})",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiNavy
+                        color = paper.ink
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiNavy)
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink)
                     }
                 }
 
@@ -1357,17 +1384,17 @@ fun GooglePlayCountryPickerDialog(
                     value = query,
                     onValueChange = { query = it },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = FamiCoral) },
-                    placeholder = { Text(searchHint, fontSize = 12.sp) },
+                    placeholder = { Text(searchHint, fontSize = 12.sp, color = paper.inkMuted) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = FamiCoral,
-                        unfocusedBorderColor = FamiNavy,
-                        focusedContainerColor = PaperSheetCream,
-                        unfocusedContainerColor = PaperSheetCream,
-                        focusedTextColor = FamiNavy,
-                        unfocusedTextColor = FamiNavy
+                        unfocusedBorderColor = paper.border,
+                        focusedContainerColor = paper.sheetCream,
+                        unfocusedContainerColor = paper.sheetCream,
+                        focusedTextColor = paper.ink,
+                        unfocusedTextColor = paper.ink
                     )
                 )
 
@@ -1383,10 +1410,10 @@ fun GooglePlayCountryPickerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isChosen) PaperStickyPeach else PaperSheetCream)
+                                .background(if (isChosen) paper.stickyPeach else paper.sheetCream)
                                 .border(
                                     width = if (isChosen) 2.dp else 1.2.dp,
-                                    color = if (isChosen) FamiCoral else FamiNavy.copy(alpha = 0.5f),
+                                    color = if (isChosen) FamiCoral else paper.border.copy(alpha = 0.5f),
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .clickable { onSelectCountry(country) }
@@ -1405,13 +1432,13 @@ fun GooglePlayCountryPickerDialog(
                                         text = "${country.name} (${country.code})",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = FamiNavy
+                                        color = paper.ink
                                     )
                                     Text(
                                         text = "${country.localCurrency} (${country.symbol}) • ${country.rateProvider}",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = FamiNavyMuted
+                                        color = paper.inkMuted
                                     )
                                 }
                             }
@@ -1432,10 +1459,11 @@ fun LanguagePickerDialog(
     onDismiss: () -> Unit,
     onSelectLanguage: (LanguageOption) -> Unit
 ) {
+    val paper = FamiTheme.paper
     Dialog(onDismissRequest = onDismiss) {
         NotebookPaperSheet(
             modifier = Modifier.fillMaxWidth(),
-            paperColor = PaperSheetWhite,
+            paperColor = paper.sheet,
             showSpiralTop = true,
             showRuledLines = false,
             showMarginLine = false
@@ -1455,10 +1483,10 @@ fun LanguagePickerDialog(
                         text = "🗣️ Selecciona el Idioma",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiNavy
+                        color = paper.ink
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiNavy)
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink)
                     }
                 }
 
@@ -1468,10 +1496,10 @@ fun LanguagePickerDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isChosen) PaperStickyPeach else PaperSheetCream)
+                            .background(if (isChosen) paper.stickyPeach else paper.sheetCream)
                             .border(
                                 width = if (isChosen) 2.dp else 1.2.dp,
-                                color = if (isChosen) FamiCoral else FamiNavy.copy(alpha = 0.5f),
+                                color = if (isChosen) FamiCoral else paper.border.copy(alpha = 0.5f),
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { onSelectLanguage(lang) }
@@ -1483,8 +1511,8 @@ fun LanguagePickerDialog(
                             Text(lang.flag, fontSize = 20.sp)
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
-                                Text(lang.nativeName, fontSize = 13.5.sp, fontWeight = FontWeight.Black, color = FamiNavy)
-                                Text(lang.name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = FamiNavyMuted)
+                                Text(lang.nativeName, fontSize = 13.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                                Text(lang.name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = paper.inkMuted)
                             }
                         }
                         if (isChosen) {
@@ -1506,6 +1534,7 @@ fun CurrencyPickerDialog(
     onDismiss: () -> Unit,
     onSelectCurrency: (String) -> Unit
 ) {
+    val paper = FamiTheme.paper
     var query by remember { mutableStateOf("") }
     val filtered = remember(query) {
         val q = query.trim().lowercase()
@@ -1520,7 +1549,7 @@ fun CurrencyPickerDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.75f),
-            paperColor = PaperSheetWhite,
+            paperColor = paper.sheet,
             showSpiralTop = true,
             showRuledLines = false,
             showMarginLine = false
@@ -1535,9 +1564,9 @@ fun CurrencyPickerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(title, fontSize = 14.sp, fontWeight = FontWeight.Black, color = FamiNavy)
+                    Text(title, fontSize = 14.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiNavy)
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink)
                     }
                 }
 
@@ -1547,17 +1576,17 @@ fun CurrencyPickerDialog(
                     value = query,
                     onValueChange = { query = it },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = FamiCoral) },
-                    placeholder = { Text("Buscar moneda (USD, EUR, VES...)", fontSize = 12.sp) },
+                    placeholder = { Text("Buscar moneda (USD, EUR, VES...)", fontSize = 12.sp, color = paper.inkMuted) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = FamiCoral,
-                        unfocusedBorderColor = FamiNavy,
-                        focusedContainerColor = PaperSheetCream,
-                        unfocusedContainerColor = PaperSheetCream,
-                        focusedTextColor = FamiNavy,
-                        unfocusedTextColor = FamiNavy
+                        unfocusedBorderColor = paper.border,
+                        focusedContainerColor = paper.sheetCream,
+                        unfocusedContainerColor = paper.sheetCream,
+                        focusedTextColor = paper.ink,
+                        unfocusedTextColor = paper.ink
                     )
                 )
 
@@ -1574,10 +1603,10 @@ fun CurrencyPickerDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isChosen) PaperStickyYellow else PaperStickyPeach)
+                                    .background(if (isChosen) paper.stickyYellow else paper.stickyPeach)
                                     .border(
                                         width = if (isChosen) 2.dp else 1.4.dp,
-                                        color = if (isChosen) FamiCoral else FamiNavy,
+                                        color = if (isChosen) FamiCoral else paper.border,
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .clickable { onSelectCurrency("NONE") }
@@ -1589,7 +1618,7 @@ fun CurrencyPickerDialog(
                                     text = "🚫 $noneLabel",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiNavy,
+                                    color = paper.ink,
                                     modifier = Modifier.weight(1f)
                                 )
                                 if (isChosen) {
@@ -1605,10 +1634,10 @@ fun CurrencyPickerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isChosen) PaperStickyMint else PaperSheetCream)
+                                .background(if (isChosen) paper.stickyMint else paper.sheetCream)
                                 .border(
                                     width = if (isChosen) 2.dp else 1.2.dp,
-                                    color = if (isChosen) FamiCoral else FamiNavy.copy(alpha = 0.5f),
+                                    color = if (isChosen) FamiCoral else paper.border.copy(alpha = 0.5f),
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .clickable { onSelectCurrency(curr.code) }
@@ -1621,13 +1650,13 @@ fun CurrencyPickerDialog(
                                     text = "${curr.code} (${curr.symbol})",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiNavy
+                                    color = paper.ink
                                 )
                                 Text(
                                     text = curr.name,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = FamiNavyMuted
+                                    color = paper.inkMuted
                                 )
                             }
                             if (isChosen) {

@@ -504,6 +504,7 @@ fun MainScreen(viewModel: FamilyViewModel) {
             initialFamilyAction = familyActionState,
             initialFamilyName = pendingFamilyNameState,
             initialAvatarId = userAvatarIdState,
+            onLoginExisting = { viewModel.openExistingLoginFromOnboarding() },
             onComplete = { selectedCountry, primaryCurr, secondaryCurr, langCode, role, mgmtMode, famAction, famName, avatarId, incomeAmt, incomeCurr, initWallets ->
                 viewModel.applyInitialConfiguration(
                     country = selectedCountry,
@@ -658,9 +659,6 @@ fun MainScreen(viewModel: FamilyViewModel) {
                 if (showUpdateDialog) {
                     AlertDialog(
                         onDismissRequest = {
-                            if (latestVersionCode > 0) {
-                                OtaUpdateManager.dismissUpdateForVersion(context, latestVersionCode)
-                            }
                             showUpdateDialog = false
                         },
                         title = {
@@ -672,11 +670,16 @@ fun MainScreen(viewModel: FamilyViewModel) {
                         text = { Text("Hay una nueva versión de Fami disponible. ¿Deseas descargarla e instalarla ahora?") },
                         confirmButton = {
                             TextButton(onClick = {
-                                showUpdateDialog = false
                                 if (updateUrl.isNotEmpty() && !updateUrl.contains("play.google.com")) {
-                                    android.widget.Toast.makeText(context, "Descargando actualización OTA...", android.widget.Toast.LENGTH_LONG).show()
-                                    OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode)
+                                    if (OtaUpdateManager.canInstallPackages(context)) {
+                                        showUpdateDialog = false
+                                        android.widget.Toast.makeText(context, "Descargando actualización OTA...", android.widget.Toast.LENGTH_LONG).show()
+                                        OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode)
+                                    } else {
+                                        OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode)
+                                    }
                                 } else {
+                                    showUpdateDialog = false
                                     try {
                                         val playIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=${context.packageName}"))
                                         context.startActivity(playIntent)
@@ -733,6 +736,7 @@ fun FamilyBottomNavigation(
     appLanguage: String = "es",
     onTabSelected: (String) -> Unit
 ) {
+    val paper = FamiTheme.paper
     val strings = remember(appLanguage) { com.example.ui.FamiStrings.get(appLanguage) }
     val tabs = listOf(
         Triple("inicio", strings.tabNotebook, if (currentTab == "inicio") Icons.Filled.MenuBook else Icons.Outlined.MenuBook),
@@ -756,15 +760,15 @@ fun FamilyBottomNavigation(
                 .padding(bottom = 4.dp, end = 3.dp)
                 .drawBehind {
                     drawRoundRect(
-                        color = FamiMidnight,
+                        color = paper.shadow3D,
                         topLeft = Offset(3.dp.toPx(), 4.dp.toPx()),
                         size = androidx.compose.ui.geometry.Size(size.width, size.height),
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(22.dp.toPx(), 22.dp.toPx())
                     )
                 }
                 .clip(RoundedCornerShape(22.dp))
-                .background(if (isDarkTheme) DarkSurface else PaperSheetWhite)
-                .border(2.dp, FamiMidnight, RoundedCornerShape(22.dp))
+                .background(paper.sheet)
+                .border(2.dp, paper.border, RoundedCornerShape(22.dp))
                 .padding(horizontal = 8.dp, vertical = 7.dp)
         ) {
             Row(
@@ -777,9 +781,9 @@ fun FamilyBottomNavigation(
                     com.example.ui.Tactile3DButton(
                         onClick = { onTabSelected(tabId) },
                         modifier = Modifier.weight(1f),
-                        faceColor = if (selected) FamiCoral else if (isDarkTheme) DarkSurfaceElevated else PaperSheetCream,
-                        lipColor = if (selected) Lip3DCoral else if (isDarkTheme) Lip3DNavy else Lip3DPaper,
-                        borderColor = FamiMidnight,
+                        faceColor = if (selected) FamiCoral else paper.sheetCream,
+                        lipColor = if (selected) Lip3DCoral else paper.lipPaper,
+                        borderColor = paper.border,
                         cornerRadius = 14.dp,
                         lipHeight = if (selected) 4.dp else 3.dp,
                         contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
@@ -791,7 +795,7 @@ fun FamilyBottomNavigation(
                             Icon(
                                 imageVector = icon,
                                 contentDescription = label,
-                                tint = if (selected) Color.White else if (isDarkTheme) Color.White else FamiMidnight,
+                                tint = if (selected) Color.White else paper.ink,
                                 modifier = Modifier.size(19.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
@@ -799,7 +803,7 @@ fun FamilyBottomNavigation(
                                 text = label,
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Black,
-                                color = if (selected) Color.White else if (isDarkTheme) Color.White else FamiMidnight,
+                                color = if (selected) Color.White else paper.ink,
                                 maxLines = 1
                             )
                         }
@@ -972,8 +976,14 @@ fun DashboardTab(
     val isRegisteringNlp by viewModel.isRegisteringNlp.collectAsStateWithLifecycle()
     val nlpError by viewModel.nlpError.collectAsStateWithLifecycle()
 
+    val primaryCurrencyState by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+    val savedEmailState by viewModel.savedEmail.collectAsStateWithLifecycle()
+    val paper = FamiTheme.paper
+
     var nlpInputText by remember { mutableStateOf("") }
+    var selectedNlpWalletId by remember(wallets) { mutableStateOf(wallets.firstOrNull()?.id.orEmpty()) }
     var showWalletDialog by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
     var editingWallet by remember { mutableStateOf<com.example.database.Wallet?>(null) }
     var walletNameInput by remember { mutableStateOf("") }
     var walletCurrencyInput by remember { mutableStateOf("USD") }
@@ -1027,9 +1037,9 @@ fun DashboardTab(
         tCal.get(java.util.Calendar.MONTH) == curMonth && tCal.get(java.util.Calendar.YEAR) == curYear
     }
 
-    val totalSpentUsd = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.amount }
-    val totalIncomeUsd = currentMonthTransactions.filter { it.isIncome }.sumOf { it.amount }
-    val baseLimitUsd = totalLimit + totalIncomeUsd // Configurado en Ajustes + Ingresos
+    val totalSpentUsd = currentMonthTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
+    val totalIncomeUsd = currentMonthTransactions.filter { it.isIncome && !it.isTransfer }.sumOf { it.amount }
+    val baseLimitUsd = totalLimit + totalIncomeUsd // Ingreso base + ingresos extra del mes
     val disponibleUsd = baseLimitUsd - totalSpentUsd // DISPONIBLE = BASE - CONSUMIDO
     val monthKey = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault()).format(selectedMonth.time)
     val presupuestadoUsd = categories.sumOf { it.limitsPerMonth[monthKey] ?: it.limitAmount } // Suma de categorias
@@ -1121,7 +1131,7 @@ fun DashboardTab(
             // 1. PORTADA SUPERIOR DEL CUADERNO FAMI (Anillos + Logo Oficial + Botones 3D)
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
-                sheetColor = PaperSheetWhite,
+                sheetColor = paper.sheet,
                 showRuledLines = false,
                 showMarginLine = false,
                 showSpiralTop = true
@@ -1145,8 +1155,8 @@ fun DashboardTab(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(PaperSheetCream)
-                                .border(1.8.dp, FamiMidnight, CircleShape),
+                                .background(paper.sheetCream)
+                                .border(1.8.dp, paper.border, CircleShape),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -1165,7 +1175,7 @@ fun DashboardTab(
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight,
+                                color = paper.ink,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1186,9 +1196,9 @@ fun DashboardTab(
                         // Botón 3D Selector de País y Moneda
                         com.example.ui.Tactile3DButton(
                             onClick = { showCountryPickerModal = true },
-                            faceColor = PaperStickyYellow,
+                            faceColor = paper.stickyYellow,
                             lipColor = Lip3DGold,
-                            borderColor = FamiMidnight,
+                            borderColor = paper.border,
                             cornerRadius = 12.dp,
                             lipHeight = 3.5.dp,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
@@ -1199,12 +1209,12 @@ fun DashboardTab(
                                 text = countryInfo.localCurrency,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight
+                                color = paper.ink
                             )
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = "Cambiar país",
-                                tint = FamiMidnight,
+                                tint = paper.ink,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -1212,9 +1222,9 @@ fun DashboardTab(
                         // Botón 3D de Ajustes
                         com.example.ui.Tactile3DButton(
                             onClick = onOpenConfig,
-                            faceColor = PaperSheetCream,
-                            lipColor = Lip3DPaper,
-                            borderColor = FamiMidnight,
+                            faceColor = paper.sheetCream,
+                            lipColor = paper.lipPaper,
+                            borderColor = paper.border,
                             cornerRadius = 12.dp,
                             lipHeight = 3.5.dp,
                             contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp)
@@ -1222,7 +1232,7 @@ fun DashboardTab(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Ajustes",
-                                tint = FamiMidnight,
+                                tint = paper.ink,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1249,6 +1259,7 @@ fun DashboardTab(
                     modifier = Modifier.weight(1f),
                     faceColor = FamiCoral,
                     lipColor = Lip3DCoral,
+                    borderColor = paper.border,
                     cornerRadius = 14.dp,
                     lipHeight = 4.dp,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
@@ -1262,7 +1273,8 @@ fun DashboardTab(
                     onClick = { onLaunchGallery() },
                     modifier = Modifier.weight(1f),
                     faceColor = FamiMidnight,
-                    lipColor = Lip3DNavy,
+                    lipColor = paper.lipNavy,
+                    borderColor = paper.border,
                     cornerRadius = 14.dp,
                     lipHeight = 4.dp,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
@@ -1275,19 +1287,20 @@ fun DashboardTab(
                 com.example.ui.Tactile3DButton(
                     onClick = { viewModel.toggleViewInSecondary() },
                     modifier = Modifier.weight(1f),
-                    faceColor = PaperStickyMint,
+                    faceColor = paper.stickyMint,
                     lipColor = Lip3DMint,
+                    borderColor = paper.border,
                     cornerRadius = 14.dp,
                     lipHeight = 4.dp,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
                 ) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = "Moneda", tint = FamiMidnight, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Default.SwapHoriz, contentDescription = "Moneda", tint = paper.ink, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (viewInSecondary) "VER USD" else "VER ${countryInfo.localCurrency}",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Black,
-                        color = FamiMidnight,
+                        color = paper.ink,
                         maxLines = 1
                     )
                 }
@@ -1305,7 +1318,7 @@ fun DashboardTab(
 
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
-                sheetColor = PaperSheetWhite,
+                sheetColor = paper.sheet,
                 showRuledLines = false,
                 showMarginLine = true,
                 showSpiralTop = false
@@ -1315,16 +1328,16 @@ fun DashboardTab(
                         .fillMaxWidth()
                         .padding(start = 28.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)
                 ) {
-                    // Cabecera de Fecha y Sello de Tasa Oficial dentro de la Hoja
+                    // Cabecera de Fecha y Sello de Referencia Interna dentro de la Hoja
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            color = PaperStickyPeach,
+                            color = paper.stickyPeach,
                             shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.2.dp, FamiMidnight)
+                            border = BorderStroke(1.2.dp, paper.border)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1334,7 +1347,7 @@ fun DashboardTab(
                                     text = "📓 HOJA DEL MES",
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
@@ -1351,24 +1364,17 @@ fun DashboardTab(
                             }
                         }
 
-                        com.example.ui.Tactile3DButton(
-                            onClick = {
-                                viewModel.syncLiveBcvRate()
-                                viewModel.syncExchangeRate()
-                            },
-                            faceColor = PaperStickyYellow,
-                            lipColor = Lip3DGold,
-                            cornerRadius = 10.dp,
-                            lipHeight = 2.5.dp,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        Surface(
+                            color = paper.stickyYellow,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.2.dp, paper.border)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Actualizar tasa", modifier = Modifier.size(11.dp), tint = FamiMidnight)
-                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "1$ = ${countryInfo.symbol} $bcvRateStr",
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight
+                                color = paper.ink,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -1377,7 +1383,7 @@ fun DashboardTab(
                     ModernMonthSelector(selectedMonth = selectedMonth, onMonthChange = { viewModel.updateSelectedMonth(it) })
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Bloque Principal: Saldo en Tinta #101535 + Ilustración Nano Banana sin recortes
+                    // Bloque Principal: Saldo + Ilustración Nano Banana sin recortes
                     val primaryDisplayText = if (!showBalance) {
                         "••••••"
                     } else if (viewInSecondary) {
@@ -1387,9 +1393,9 @@ fun DashboardTab(
                     }
 
                     val secondaryDisplayText = if (viewInSecondary) {
-                        "Equivale a $${String.format(Locale.US, "%,.2f", disponibleUsd)} USD (${countryInfo.rateProvider})"
+                        "Equivale a $${String.format(Locale.US, "%,.2f", disponibleUsd)} USD"
                     } else {
-                        "Equivale a ${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} ${countryInfo.localCurrency} (${countryInfo.rateProvider})"
+                        "Equivale a ${countryInfo.symbol} ${String.format(Locale.US, "%,.2f", disponibleUsd * bcvRate)} ${countryInfo.localCurrency}"
                     }
 
                     Row(
@@ -1410,7 +1416,7 @@ fun DashboardTab(
                                 text = primaryDisplayText,
                                 fontSize = 27.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight,
+                                color = paper.ink,
                                 letterSpacing = (-0.6).sp
                             )
                             if (showBalance) {
@@ -1418,7 +1424,7 @@ fun DashboardTab(
                                     text = secondaryDisplayText,
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = FamiMidnight.copy(alpha = 0.75f)
+                                    color = paper.inkMuted
                                 )
                             }
                         }
@@ -1429,8 +1435,8 @@ fun DashboardTab(
                             modifier = Modifier
                                 .size(78.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(PaperSheetCream)
-                                .border(1.8.dp, FamiMidnight, RoundedCornerShape(16.dp))
+                                .background(paper.sheetCream)
+                                .border(1.8.dp, paper.border, RoundedCornerShape(16.dp))
                                 .padding(3.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1453,46 +1459,46 @@ fun DashboardTab(
                     ) {
                         Surface(
                             modifier = Modifier.weight(1f),
-                            color = PaperStickyMint,
+                            color = paper.stickyMint,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.5.dp, FamiMidnight)
+                            border = BorderStroke(1.5.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text("INGRESOS", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight.copy(alpha = 0.7f))
+                                Text("INGRESOS", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = if (showBalance) "$${String.format(Locale.US, "%,.0f", baseLimitUsd)}" else "••••",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
                             }
                         }
 
                         Surface(
                             modifier = Modifier.weight(1f),
-                            color = PaperStickyYellow,
+                            color = paper.stickyYellow,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.5.dp, FamiMidnight)
+                            border = BorderStroke(1.5.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text("PRESUPUESTO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight.copy(alpha = 0.7f))
+                                Text("PRESUPUESTO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = if (showBalance) "$${String.format(Locale.US, "%,.0f", presupuestadoUsd)}" else "••••",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
                             }
                         }
 
                         Surface(
                             modifier = Modifier.weight(1f),
-                            color = PaperStickyPeach,
+                            color = paper.stickyPeach,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.5.dp, FamiMidnight)
+                            border = BorderStroke(1.5.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text("GASTADO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight.copy(alpha = 0.7f))
+                                Text("GASTADO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = if (showBalance) "$${String.format(Locale.US, "%,.2f", totalSpentUsd)}" else "••••",
                                     fontSize = 13.sp,
@@ -1515,8 +1521,8 @@ fun DashboardTab(
                             .fillMaxWidth()
                             .height(12.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(PaperSheetCream)
-                            .border(1.2.dp, FamiMidnight, RoundedCornerShape(6.dp))
+                            .background(paper.sheetCream)
+                            .border(1.2.dp, paper.border, RoundedCornerShape(6.dp))
                     ) {
                         val frac = (if (baseLimitUsd > 0) (totalSpentUsd / baseLimitUsd) else 0.0).toFloat().coerceIn(0f, 1f)
                         Box(
@@ -1536,26 +1542,25 @@ fun DashboardTab(
                         },
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = FamiMidnight,
-                        lineHeight = 22.sp
+                        color = paper.ink,
+                        lineHeight = 24.sp
                     )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // 3B. BILLETERAS MULTI-MONEDA SIMULTÁNEAS (Moneda Local + Divisas)
+        // 3B. BILLETERAS MULTI-MONEDA SIMULTÁNEAS (Moneda Local + Divisas + Transferencias)
         item {
             val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
-            val primaryCurrencyCode by viewModel.primaryCurrency.collectAsStateWithLifecycle()
             val countryInfo = remember(selectedCountryCode) {
                 com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
             }
-            val defaultLocalCurr = primaryCurrencyCode.ifBlank { countryInfo.localCurrency }
+            val defaultLocalCurr = primaryCurrencyState.ifBlank { countryInfo.localCurrency }
 
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
-                sheetColor = PaperSheetWhite,
+                sheetColor = paper.sheet,
                 showRuledLines = false,
                 showMarginLine = true,
                 showSpiralTop = false
@@ -1571,38 +1576,56 @@ fun DashboardTab(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "👛 MIS BILLETERAS MULTI-MONEDA",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight
+                                color = paper.ink
                             )
                             Text(
                                 text = "Moneda local y extranjera al mismo tiempo",
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = FamiNavyMuted
+                                color = paper.inkMuted
                             )
                         }
 
-                        com.example.ui.Tactile3DButton(
-                            onClick = {
-                                editingWallet = null
-                                walletNameInput = ""
-                                walletCurrencyInput = if (wallets.any { it.currency.equals(defaultLocalCurr, ignoreCase = true) }) "USD" else defaultLocalCurr
-                                walletBalanceInput = ""
-                                showWalletDialog = true
-                            },
-                            faceColor = PaperStickyMint,
-                            lipColor = Lip3DMint,
-                            cornerRadius = 10.dp,
-                            lipHeight = 2.5.dp,
-                            contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = FamiMidnight, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("Billetera", fontSize = 10.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (wallets.size >= 2) {
+                                com.example.ui.Tactile3DButton(
+                                    onClick = { showTransferDialog = true },
+                                    faceColor = paper.stickyYellow,
+                                    lipColor = Lip3DGold,
+                                    borderColor = paper.border,
+                                    cornerRadius = 10.dp,
+                                    lipHeight = 2.5.dp,
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp)
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = paper.ink, modifier = Modifier.size(13.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Transferir", fontSize = 10.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                                }
+                            }
+                            com.example.ui.Tactile3DButton(
+                                onClick = {
+                                    editingWallet = null
+                                    walletNameInput = ""
+                                    walletCurrencyInput = if (wallets.any { it.currency.equals(defaultLocalCurr, ignoreCase = true) }) "USD" else defaultLocalCurr
+                                    walletBalanceInput = ""
+                                    showWalletDialog = true
+                                },
+                                faceColor = paper.stickyMint,
+                                lipColor = Lip3DMint,
+                                borderColor = paper.border,
+                                cornerRadius = 10.dp,
+                                lipHeight = 2.5.dp,
+                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = paper.ink, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Billetera", fontSize = 10.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                            }
                         }
                     }
 
@@ -1610,8 +1633,8 @@ fun DashboardTab(
                         com.example.ui.RuledNotebookText(
                             text = "Toca '+ Billetera' para llevar tus cuentas en $defaultLocalCurr, USD o EUR simultáneamente.",
                             fontSize = 11.5.sp,
-                            color = FamiNavyMuted,
-                            lineHeight = 22.sp
+                            color = paper.inkMuted,
+                            lineHeight = 24.sp
                         )
                     } else {
                         LazyRow(
@@ -1620,7 +1643,7 @@ fun DashboardTab(
                         ) {
                             items(wallets, key = { it.id.ifEmpty { "${it.name}_${it.currency}" } }) { w ->
                                 val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(w.currency)
-                                val bgColor = if (w.currency.equals(defaultLocalCurr, ignoreCase = true)) PaperStickyPeach else PaperStickyYellow
+                                val bgColor = if (w.currency.equals(defaultLocalCurr, ignoreCase = true)) paper.stickyPeach else paper.stickyYellow
                                 Surface(
                                     onClick = {
                                         editingWallet = w
@@ -1631,7 +1654,7 @@ fun DashboardTab(
                                     },
                                     shape = RoundedCornerShape(12.dp),
                                     color = bgColor,
-                                    border = BorderStroke(1.5.dp, FamiMidnight),
+                                    border = BorderStroke(1.5.dp, paper.border),
                                     modifier = Modifier.widthIn(min = 132.dp)
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
@@ -1650,7 +1673,7 @@ fun DashboardTab(
                                             Icon(
                                                 imageVector = Icons.Default.Edit,
                                                 contentDescription = "Editar",
-                                                tint = FamiMidnight.copy(alpha = 0.6f),
+                                                tint = paper.inkMuted,
                                                 modifier = Modifier.size(11.dp)
                                             )
                                         }
@@ -1659,7 +1682,7 @@ fun DashboardTab(
                                             text = w.name,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = FamiMidnight,
+                                            color = paper.ink,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -1667,7 +1690,7 @@ fun DashboardTab(
                                             text = if (showBalance) "$sym ${String.format(Locale.US, "%,.2f", w.balance)}" else "••••",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = FamiMidnight
+                                            color = paper.ink
                                         )
                                     }
                                 }
@@ -1683,7 +1706,7 @@ fun DashboardTab(
         item {
             com.example.ui.StickyNoteSheet(
                 modifier = Modifier.fillMaxWidth(),
-                noteColor = PaperStickyYellow
+                noteColor = paper.stickyYellow
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -1698,7 +1721,7 @@ fun DashboardTab(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .border(1.5.dp, FamiMidnight, RoundedCornerShape(14.dp))
+                                    .border(1.5.dp, paper.border, RoundedCornerShape(14.dp))
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
@@ -1706,13 +1729,13 @@ fun DashboardTab(
                                     text = "NOTA RÁPIDA CON FAMI IA ✏️",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
                                 )
                                 Text(
                                     text = "Escribe tu gasto como en un cuaderno y Fami lo clasifica solo",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = FamiMidnight.copy(alpha = 0.75f)
+                                    color = paper.inkMuted
                                 )
                             }
                         }
@@ -1723,7 +1746,7 @@ fun DashboardTab(
                     val quickPrompts = listOf(
                         "🛒 Mercado 45$" to "Gasté 45$ en Supermercado",
                         "⛽ Gasolina 20$" to "Gasté 20$ en Gasolina",
-                        "🥖 Panadería 350" to "Gasté 350 bs en Panadería",
+                        "🥖 Panadería 350" to "Gasté 350 $primaryCurrencyState en Panadería",
                         "💊 Farmacia 15$" to "Gasté 15$ en Farmacia"
                     )
                     LazyRow(
@@ -1733,8 +1756,9 @@ fun DashboardTab(
                         items(quickPrompts) { (chipLabel, promptText) ->
                             com.example.ui.Tactile3DButton(
                                 onClick = { nlpInputText = promptText },
-                                faceColor = PaperSheetWhite,
-                                lipColor = Lip3DPaper,
+                                faceColor = paper.sheet,
+                                lipColor = paper.lipPaper,
+                                borderColor = paper.border,
                                 cornerRadius = 10.dp,
                                 lipHeight = 2.5.dp,
                                 contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
@@ -1743,7 +1767,25 @@ fun DashboardTab(
                                     text = chipLabel,
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiMidnight
+                                    color = paper.ink
+                                )
+                            }
+                        }
+                    }
+
+                    if (wallets.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(wallets, key = { it.id.ifBlank { it.name } }) { w ->
+                                val isSelected = selectedNlpWalletId == w.id
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { selectedNlpWalletId = w.id },
+                                    label = { Text("👛 ${w.name} (${w.currency})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                    shape = RoundedCornerShape(10.dp)
                                 )
                             }
                         }
@@ -1755,25 +1797,25 @@ fun DashboardTab(
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         value = nlpInputText,
                         onValueChange = { nlpInputText = it },
-                        placeholder = { Text("Ej: Anota 25$ de almuerzo familiar...", fontSize = 12.5.sp, color = FamiMidnight.copy(alpha = 0.55f)) },
+                        placeholder = { Text("Ej: Anota 25$ de almuerzo familiar...", fontSize = 12.5.sp, color = paper.inkMuted) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(PaperSheetWhite, RoundedCornerShape(14.dp)),
+                            .background(paper.sheet, RoundedCornerShape(14.dp)),
                         shape = RoundedCornerShape(14.dp),
                         trailingIcon = {
                             if (isRegisteringNlp) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = FamiCoral)
                             } else if (nlpInputText.isNotEmpty()) {
                                 IconButton(onClick = { nlpInputText = "" }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = FamiMidnight, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = paper.ink, modifier = Modifier.size(16.dp))
                                 }
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FamiMidnight,
-                            unfocusedBorderColor = FamiMidnight,
-                            focusedTextColor = FamiMidnight,
-                            unfocusedTextColor = FamiMidnight
+                            focusedBorderColor = paper.border,
+                            unfocusedBorderColor = paper.border,
+                            focusedTextColor = paper.ink,
+                            unfocusedTextColor = paper.ink
                         ),
                         maxLines = 2
                     )
@@ -1797,13 +1839,14 @@ fun DashboardTab(
                         com.example.ui.Tactile3DButton(
                             onClick = {
                                 if (nlpInputText.isNotBlank()) {
-                                    viewModel.registerFromNaturalLanguage(nlpInputText)
+                                    viewModel.registerFromNaturalLanguage(nlpInputText, selectedNlpWalletId)
                                     nlpInputText = ""
                                 }
                             },
                             modifier = Modifier.weight(1.3f),
                             faceColor = FamiCoral,
                             lipColor = Lip3DCoral,
+                            borderColor = paper.border,
                             cornerRadius = 12.dp,
                             lipHeight = 4.dp,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
@@ -1817,7 +1860,8 @@ fun DashboardTab(
                             onClick = { onLaunchCamera() },
                             modifier = Modifier.weight(1f),
                             faceColor = FamiMidnight,
-                            lipColor = Lip3DNavy,
+                            lipColor = paper.lipNavy,
+                            borderColor = paper.border,
                             cornerRadius = 12.dp,
                             lipHeight = 4.dp,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
@@ -1831,8 +1875,8 @@ fun DashboardTab(
                     if (isScanningDirect) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Surface(
-                            color = PaperSheetWhite,
-                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            color = paper.sheet,
+                            border = BorderStroke(1.5.dp, paper.border),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1845,7 +1889,7 @@ fun DashboardTab(
                                 Text(
                                     text = "Fami IA leyendo el recibo y anotando en el cuaderno...",
                                     fontSize = 11.sp,
-                                    color = FamiMidnight,
+                                    color = paper.ink,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -1855,8 +1899,8 @@ fun DashboardTab(
                     if (errorMessageScan != null) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Surface(
-                            color = FamiAlertRedBg,
-                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            color = paper.alertBg,
+                            border = BorderStroke(1.5.dp, paper.border),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1866,9 +1910,9 @@ fun DashboardTab(
                             ) {
                                 Icon(Icons.Default.Error, "Error", tint = FamiAlertRed, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = errorMessageScan!!, fontSize = 11.sp, color = FamiMidnight, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text(text = errorMessageScan!!, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 IconButton(onClick = { onSetErrorMessageScan(null) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiMidnight, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink, modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
@@ -1877,8 +1921,8 @@ fun DashboardTab(
                     if (successMessageScan != null) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Surface(
-                            color = PaperStickyMint,
-                            border = BorderStroke(1.5.dp, FamiMidnight),
+                            color = paper.stickyMint,
+                            border = BorderStroke(1.5.dp, paper.border),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1888,9 +1932,9 @@ fun DashboardTab(
                             ) {
                                 Icon(Icons.Default.CheckCircle, "Éxito", tint = FamiEmerald, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = successMessageScan!!, fontSize = 11.sp, color = FamiMidnight, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text(text = successMessageScan!!, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 IconButton(onClick = { onSetSuccessMessageScan(null) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = FamiMidnight, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink, modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
@@ -1986,7 +2030,8 @@ fun DashboardTab(
             showAddRecurringDialog = true
         },
         onConfirmMarkPaid = { rec, amt, cur, dateMillis ->
-            viewModel.markRecurringPaymentPaid(rec, monthKey, amt, cur, dateMillis)
+            val matchedWalletId = wallets.firstOrNull { it.currency.equals(cur, ignoreCase = true) }?.id.orEmpty()
+            viewModel.markRecurringPaymentPaid(rec, monthKey, amt, cur, dateMillis, matchedWalletId)
             showMarkPaidDialog = false
         },
         onConfirmMarkUnpaid = { rec ->
@@ -2000,26 +2045,39 @@ fun DashboardTab(
         onDeleteRecurring = { rec ->
             viewModel.deleteRecurringPayment(rec)
             showAddRecurringDialog = false
-        }
+        },
+        localCurrency = primaryCurrencyState.ifBlank { "VES" }
     )
+
+    if (showTransferDialog && wallets.size >= 2) {
+        com.example.ui.WalletTransferDialog(
+            wallets = wallets,
+            bcvRate = bcvRate,
+            localCurrency = primaryCurrencyState,
+            onDismiss = { showTransferDialog = false },
+            onConfirmTransfer = { fromW, toW, fromAmt, toAmt, note ->
+                viewModel.transferBetweenWallets(fromW, toW, fromAmt, toAmt, note)
+                showTransferDialog = false
+            }
+        )
+    }
 
     if (showWalletDialog) {
         val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
-        val primaryCurrencyCode by viewModel.primaryCurrency.collectAsStateWithLifecycle()
-        val localCurr = primaryCurrencyCode.ifBlank {
+        val localCurr = primaryCurrencyState.ifBlank {
             com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode).localCurrency
         }
         AlertDialog(
             onDismissRequest = { showWalletDialog = false },
-            containerColor = PaperSheetWhite,
-            titleContentColor = FamiMidnight,
-            textContentColor = FamiMidnight,
+            containerColor = paper.sheet,
+            titleContentColor = paper.ink,
+            textContentColor = paper.ink,
             title = {
                 Text(
                     text = if (editingWallet == null) "Nueva Billetera Multi-Moneda" else "Editar Billetera",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
-                    color = FamiMidnight
+                    color = paper.ink
                 )
             },
             text = {
@@ -2046,6 +2104,45 @@ fun DashboardTab(
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     )
+                    if (editingWallet != null) {
+                        var deltaAdjustInput by remember { mutableStateOf("") }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = deltaAdjustInput,
+                                onValueChange = { deltaAdjustInput = it },
+                                label = { Text("Ajuste rápido (+/-)", fontSize = 11.sp) },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                            )
+                            TextButton(onClick = {
+                                val d = deltaAdjustInput.replace(",", ".").toDoubleOrNull() ?: 0.0
+                                if (d > 0.0) {
+                                    viewModel.adjustWalletBalance(editingWallet!!.id, d)
+                                    val newBal = (walletBalanceInput.replace(",", ".").toDoubleOrNull() ?: editingWallet!!.balance) + d
+                                    walletBalanceInput = String.format(Locale.US, "%.2f", newBal)
+                                    deltaAdjustInput = ""
+                                }
+                            }) {
+                                Text("+ Sumar", color = FamiEmerald, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                            }
+                            TextButton(onClick = {
+                                val d = deltaAdjustInput.replace(",", ".").toDoubleOrNull() ?: 0.0
+                                if (d > 0.0) {
+                                    viewModel.adjustWalletBalance(editingWallet!!.id, -d)
+                                    val newBal = (walletBalanceInput.replace(",", ".").toDoubleOrNull() ?: editingWallet!!.balance) - d
+                                    walletBalanceInput = String.format(Locale.US, "%.2f", newBal)
+                                    deltaAdjustInput = ""
+                                }
+                            }) {
+                                Text("- Restar", color = FamiAlertRed, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                            }
+                        }
+                    }
                 }
             },
             dismissButton = {
@@ -2060,7 +2157,7 @@ fun DashboardTab(
                         }
                     }
                     TextButton(onClick = { showWalletDialog = false }) {
-                        Text("Cancelar", color = FamiNavyMuted)
+                        Text("Cancelar", color = paper.inkMuted)
                     }
                 }
             },
@@ -2082,6 +2179,7 @@ fun DashboardTab(
                     },
                     faceColor = FamiCoral,
                     lipColor = Lip3DCoral,
+                    borderColor = paper.border,
                     cornerRadius = 10.dp,
                     lipHeight = 3.dp,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
@@ -2107,383 +2205,69 @@ fun DashboardTab(
     }
 
     if (showConfirmScanDialog) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { onSetShowConfirmScanDialog(false) },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            androidx.compose.material3.Surface(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .fillMaxHeight(0.85f)
-                    .padding(vertical = 12.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(18.dp)
-                        .fillMaxSize()
-                ) {
-                    // --- FIXED HEADER ---
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF7C4DFF), Color(0xFF651FFF))
-                                        ),
-                                        CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "Confirmar IA",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "Confirmar Recibo ✨",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Extracción Inteligente por IA",
-                                    fontSize = 10.sp,
-                                    color = SubtitleText
-                                )
-                            }
+        com.example.ui.ReceiptScanConfirmDialog(
+            scannedDesc = scannedDesc,
+            scannedAmount = scannedAmount,
+            scannedCurrency = scannedCurrency,
+            scannedCategory = scannedCategory,
+            scannedDate = scannedDate,
+            scannedBalanceDate = scannedBalanceDate,
+            scannedItems = scannedItems,
+            saveReceiptPhoto = saveReceiptPhoto,
+            primaryCurrency = primaryCurrencyState,
+            categories = categories,
+            wallets = wallets,
+            onSetScannedDesc = onSetScannedDesc,
+            onSetScannedAmount = onSetScannedAmount,
+            onSetScannedCurrency = onSetScannedCurrency,
+            onSetScannedCategory = onSetScannedCategory,
+            onSetScannedDate = onSetScannedDate,
+            onSetScannedBalanceDate = onSetScannedBalanceDate,
+            onSetSaveReceiptPhoto = onSetSaveReceiptPhoto,
+            onDismiss = { onSetShowConfirmScanDialog(false) },
+            onConfirm = { chosenWalletId ->
+                val amt = scannedAmount.replace(",", ".").toDoubleOrNull() ?: 0.0
+                if (amt > 0.0 && scannedDesc.isNotBlank()) {
+                    coroutineScope.launch {
+                        var receiptUrl = ""
+                        if (saveReceiptPhoto && scannedBitmap != null) {
+                            receiptUrl = viewModel.uploadReceiptImage(scannedBitmap) ?: ""
                         }
-                        IconButton(
-                            onClick = { onSetShowConfirmScanDialog(false) },
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cerrar",
-                                tint = SubtitleText,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        val txItems = scannedItems.map { item ->
+                            val catName = if (categories.any { c -> c.categoryName == item.category }) item.category
+                            else scannedCategory.ifEmpty { categories.firstOrNull()?.categoryName ?: "General" }
+                            com.example.database.TransactionItem(name = item.name, amount = item.amount, category = catName)
                         }
-                    }
-
-                    Divider(color = OutlineGrey.copy(alpha = 0.3f), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-
-                    // --- SCROLLABLE BODY ---
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedTextField(
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                            value = scannedDesc,
-                            onValueChange = { onSetScannedDesc(it) },
-                            label = { Text("Comercio / Detalle", fontSize = 11.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                        viewModel.addTransaction(
+                            originalAmount = amt,
+                            category = scannedCategory.ifEmpty { categories.firstOrNull()?.categoryName ?: "General" },
+                            description = scannedDesc,
+                            currency = scannedCurrency,
+                            isIncome = false,
+                            date = scannedDate,
+                            balanceDate = scannedBalanceDate,
+                            receiptUrl = receiptUrl,
+                            items = txItems,
+                            walletId = chosenWalletId
                         )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = scannedAmount,
-                                onValueChange = { onSetScannedAmount(it) },
-                                label = { Text("Monto Total", fontSize = 11.sp) },
-                                modifier = Modifier.weight(1.3f),
-                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00C853)),
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                                ),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Moneda:", fontSize = 10.sp, color = SubtitleText)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    listOf("USD", "VES").forEach { m ->
-                                        val isSelected = scannedCurrency == m
-                                        Button(
-                                            onClick = { onSetScannedCurrency(m) },
-                                            modifier = Modifier.weight(1f),
-                                            shape = RoundedCornerShape(8.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                                contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                            ),
-                                            contentPadding = PaddingValues(0.dp)
-                                        ) {
-                                            Text(if (m == "USD") "$" else "Bs.", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                }
-                            }
+                        val msg = if (txItems.isNotEmpty()) {
+                            "Recibo registrado ($amt $scannedCurrency) con ${txItems.size} ítems en $scannedDesc"
+                        } else {
+                            "Gasto registrado: $amt $scannedCurrency en $scannedDesc"
                         }
-
-                        Text("Fechas del Registro:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        val sdfDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            androidx.compose.material3.Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .scaleClickable {
-                                        val cal = Calendar.getInstance().apply { timeInMillis = scannedDate }
-                                        android.app.DatePickerDialog(
-                                            context,
-                                            { _, year, month, day ->
-                                                val newCal = Calendar.getInstance().apply {
-                                                    set(Calendar.YEAR, year)
-                                                    set(Calendar.MONTH, month)
-                                                    set(Calendar.DAY_OF_MONTH, day)
-                                                }
-                                                onSetScannedDate(newCal.timeInMillis)
-                                            },
-                                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-                                        ).show()
-                                    },
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, OutlineGrey.copy(alpha = 0.4f))
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Text("📄 Fecha Factura", fontSize = 10.sp, color = SubtitleText, fontWeight = FontWeight.Medium)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(sdfDate.format(Date(scannedDate)), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                }
-                            }
-
-                            androidx.compose.material3.Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .scaleClickable {
-                                        val cal = Calendar.getInstance().apply { timeInMillis = scannedBalanceDate }
-                                        android.app.DatePickerDialog(
-                                            context,
-                                            { _, year, month, day ->
-                                                val newCal = Calendar.getInstance().apply {
-                                                    set(Calendar.YEAR, year)
-                                                    set(Calendar.MONTH, month)
-                                                    set(Calendar.DAY_OF_MONTH, day)
-                                                }
-                                                onSetScannedBalanceDate(newCal.timeInMillis)
-                                            },
-                                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-                                        ).show()
-                                    },
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                            ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Text("⚖️ Fecha Balance", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(sdfDate.format(Date(scannedBalanceDate)), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                }
-                            }
-                        }
-
-                        Text("Categoría Principal:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = SubtitleText)
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            this@LazyRow.items(categories) { cat ->
-                                val isSelected = scannedCategory == cat.categoryName
-                                androidx.compose.material3.FilterChip(
-                                    selected = isSelected,
-                                    onClick = { onSetScannedCategory(cat.categoryName) },
-                                    label = { Text(cat.categoryName, fontSize = 10.sp) },
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                            }
-                        }
-
-                        if (scannedItems.isNotEmpty()) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = "🛒 Desglose de Productos (${scannedItems.size} ítems)",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "IVA Incluido",
-                                        fontSize = 9.sp,
-                                        color = SubtitleText,
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                androidx.compose.material3.Surface(
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                    shape = RoundedCornerShape(14.dp),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 220.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .padding(8.dp)
-                                            .fillMaxWidth()
-                                            .verticalScroll(rememberScrollState()),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        scannedItems.forEach { item ->
-                                            androidx.compose.material3.Surface(
-                                                color = MaterialTheme.colorScheme.surface,
-                                                shape = RoundedCornerShape(10.dp),
-                                                tonalElevation = 1.dp,
-                                                border = BorderStroke(1.dp, OutlineGrey.copy(alpha = 0.3f))
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(
-                                                            text = item.name,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                        if (item.category.isNotBlank()) {
-                                                            androidx.compose.material3.Surface(
-                                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                                                shape = RoundedCornerShape(4.dp),
-                                                                modifier = Modifier.padding(top = 2.dp)
-                                                            ) {
-                                                                Text(
-                                                                    text = item.category,
-                                                                    fontSize = 9.sp,
-                                                                    color = MaterialTheme.colorScheme.primary,
-                                                                    fontWeight = FontWeight.SemiBold,
-                                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                    Text(
-                                                        text = "${item.amount} $scannedCurrency",
-                                                        fontSize = 12.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFF00C853)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 2.dp)
-                        ) {
-                            androidx.compose.material3.Switch(
-                                checked = saveReceiptPhoto,
-                                onCheckedChange = { onSetSaveReceiptPhoto(it) },
-                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Guardar foto como respaldo", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                        }
+                        onSetSuccessMessageScan(msg)
+                        onSetShowConfirmScanDialog(false)
                     }
-
-                    Divider(color = OutlineGrey.copy(alpha = 0.3f), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        TextButton(
-                            onClick = { onSetShowConfirmScanDialog(false) },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Descartar", color = SubtitleText, fontSize = 13.sp)
-                        }
-
-                        Button(
-                            onClick = {
-                                val amt = scannedAmount.replace(",", ".").toDoubleOrNull() ?: 0.0
-                                if (amt > 0.0 && scannedDesc.isNotBlank()) {
-                                    coroutineScope.launch {
-                                        var receiptUrl = ""
-                                        if (saveReceiptPhoto && scannedBitmap != null) {
-                                            receiptUrl = viewModel.uploadReceiptImage(scannedBitmap!!) ?: ""
-                                        }
-                                        val txItems = scannedItems.map { item ->
-                                            val catName = if (categories.any { c -> c.categoryName == item.category }) item.category else (if (scannedCategory.isEmpty()) (categories.firstOrNull()?.categoryName ?: "General") else scannedCategory)
-                                            com.example.database.TransactionItem(name = item.name, amount = item.amount, category = catName)
-                                        }
-                                        viewModel.addTransaction(
-                                            originalAmount = amt,
-                                            category = if (scannedCategory.isEmpty()) (categories.firstOrNull()?.categoryName ?: "General") else scannedCategory,
-                                            description = scannedDesc,
-                                            currency = scannedCurrency,
-                                            isIncome = false,
-                                            date = scannedDate,
-                                            balanceDate = scannedBalanceDate,
-                                            receiptUrl = receiptUrl,
-                                            items = txItems
-                                        )
-                                        val msg = if (txItems.isNotEmpty()) "Recibo registrado ($amt $scannedCurrency) con ${txItems.size} ítems en $scannedDesc" else "Gasto registrado: $amt $scannedCurrency en $scannedDesc"
-                                        onSetSuccessMessageScan(msg)
-                                        onSetShowConfirmScanDialog(false)
-                                    }
-                                } else {
-                                    onSetErrorMessageScan("Por favor ingrese un monto y descripción válidos.")
-                                    onSetShowConfirmScanDialog(false)
-                                }
-                            },
-                            modifier = Modifier.weight(1.5f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Registrar Gasto", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                } else {
+                    onSetErrorMessageScan("Por favor ingrese un monto y descripción válidos.")
+                    onSetShowConfirmScanDialog(false)
                 }
             }
-        }
+        )
     }
 
     if (showEmailSyncDialog) {
-        var simMailInput by remember { mutableStateOf(currentUser.ifBlank { "julioingdlop@gmail.com" }) }
+        var simMailInput by remember { mutableStateOf(savedEmailState.ifBlank { currentUser }) }
         val detectedEmailsList = listOf(
             Triple("PedidosYa - Delivery Cena 🍔", 14.50, "USD"),
             Triple("Netflix - Suscripción Familiar 📺", 7.99, "USD"),
@@ -3135,6 +2919,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val paper = FamiTheme.paper
 
     var showChoreDialog by remember { mutableStateOf(false) }
     var isEditingChore by remember { mutableStateOf(false) }
@@ -3143,7 +2928,9 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     var taskTitle by remember { mutableStateOf("") }
     var taskCategorySelected by remember { mutableStateOf("General") }
     var taskDesc by remember { mutableStateOf("") }
-    var taskAssignee by remember { mutableStateOf("Julio") }
+    var taskAssignee by remember(currentUser, profiles) {
+        mutableStateOf(currentUser.ifBlank { profiles.firstOrNull()?.name ?: "Todos" })
+    }
     var taskPrioritySelected by remember { mutableStateOf("Medio") } // Alto, Medio, Bajo
     var taskIsPrivate by remember { mutableStateOf(false) }
 
@@ -3189,7 +2976,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     taskTitle = ""
                     taskDesc = ""
                     taskCategorySelected = if (selectedListName == "Todas") "General" else selectedListName
-                    taskAssignee = if (profiles.isNotEmpty()) profiles.first().name else "Julio"
+                    taskAssignee = currentUser.ifBlank { profiles.firstOrNull()?.name ?: "Todos" }
                     taskPrioritySelected = "Medio"
                     taskIsPrivate = false
                     showChoreDialog = true
@@ -3445,7 +3232,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         taskTitle = ""
                         taskDesc = ""
                         taskCategorySelected = if (selectedListName == "Todas") "General" else selectedListName
-                        taskAssignee = if (profiles.isNotEmpty()) profiles.first().name else "Julio"
+                        taskAssignee = currentUser.ifBlank { profiles.firstOrNull()?.name ?: "Todos" }
                         taskPrioritySelected = "Medio"
                         taskIsPrivate = false
                         showChoreDialog = true
@@ -3460,16 +3247,10 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         else -> Color(0xFF00796B)
                     }
 
-                    val cardBgColor = if (chore.isCompleted) {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                         com.example.ui.NotebookPaperSheet(
                             modifier = Modifier.fillMaxWidth(),
-                            sheetColor = if (chore.isCompleted) PaperSheetCream else PaperSheetWhite,
+                            sheetColor = if (chore.isCompleted) paper.sheetCream else paper.sheet,
                             showRuledLines = false,
                             showMarginLine = true,
                             showSpiralTop = false,
@@ -3525,7 +3306,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             text = chore.title,
                                             fontSize = 14.5.sp,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = if (chore.isCompleted) FamiNavyMuted.copy(alpha = 0.65f) else FamiMidnight,
+                                            color = if (chore.isCompleted) paper.inkMuted else paper.ink,
                                             lineHeight = 24.sp,
                                             textDecoration = if (chore.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
                                             modifier = Modifier.weight(1f)
@@ -3535,9 +3316,9 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
                                         // Priority badge tag
                                         val priorityBg = when (chore.priority.lowercase()) {
-                                            "alto" -> Color(0xFFFEE2E2)
-                                            "medio" -> Color(0xFFFFEDD5)
-                                            else -> Color(0xFFCCFBF1)
+                                            "alto" -> if (paper.isDark) Color(0xFF451C1F) else Color(0xFFFEE2E2)
+                                            "medio" -> if (paper.isDark) Color(0xFF432B18) else Color(0xFFFFEDD5)
+                                            else -> if (paper.isDark) Color(0xFF153732) else Color(0xFFCCFBF1)
                                         }
                                         val priorityTextCol = when (chore.priority.lowercase()) {
                                             "alto" -> Color(0xFFEF4444)
@@ -3547,15 +3328,15 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(if (chore.isCompleted) OutlineGrey.copy(alpha = 0.15f) else priorityBg)
-                                                .border(1.dp, FamiMidnight.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                                .background(if (chore.isCompleted) paper.sheetCream else priorityBg)
+                                                .border(1.dp, paper.border.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
                                             Text(
                                                 text = chore.priority.uppercase(),
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = if (chore.isCompleted) FamiNavyMuted.copy(alpha = 0.6f) else priorityTextCol,
+                                                color = if (chore.isCompleted) paper.inkMuted else priorityTextCol,
                                                 letterSpacing = 0.5.sp
                                             )
                                         }
@@ -3565,9 +3346,9 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             text = chore.description,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = if (chore.isCompleted) FamiNavyMuted.copy(alpha = 0.55f) else FamiNavyMuted,
+                                            color = paper.inkMuted,
                                             maxLines = 3,
-                                            lineHeight = 22.sp,
+                                            lineHeight = 24.sp,
                                             modifier = Modifier.padding(top = 2.dp)
                                         )
                                     }
@@ -3583,27 +3364,27 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .clip(CircleShape)
-                                                .background(PaperStickyPeach)
-                                                .border(1.dp, FamiMidnight, CircleShape),
+                                                .background(paper.stickyPeach)
+                                                .border(1.dp, paper.border, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = initialChar,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = FamiMidnight
+                                                color = paper.ink
                                             )
                                         }
                                         Text(
                                             text = "Asignado a ${chore.assignedTo}",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = FamiNavyMuted
+                                            color = paper.inkMuted
                                         )
                                         Text(
                                             text = " • ${chore.category}",
                                             fontSize = 11.sp,
-                                            color = FamiNavyMuted
+                                            color = paper.inkMuted
                                         )
                                         Spacer(modifier = Modifier.weight(1f))
                                         IconButton(
@@ -3620,9 +3401,9 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             },
                                             modifier = Modifier
                                                 .size(34.dp)
-                                                .background(PaperSheetCream, CircleShape)
+                                                .background(paper.sheetCream, CircleShape)
                                         ) {
-                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = FamiMidnight, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = paper.ink, modifier = Modifier.size(16.dp))
                                         }
                                         Spacer(modifier = Modifier.width(6.dp))
                                         DeleteIconButton(
@@ -3779,11 +3560,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp) ){
-                            val activeProfiles = if (profiles.isEmpty() ){
-                                listOf("Julio", "Ana", "Ambos")
-                            } else {
-                                profiles.map { it.name } + "Ambos"
-                            }
+                            val activeProfiles = (profiles.map { it.name }.ifEmpty { listOf(currentUser.ifBlank { "Miembro" }) } + "Todos").distinct()
 
                             activeProfiles.forEach { name ->
                                 val isSelected = taskAssignee == name
@@ -3864,6 +3641,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val paper = FamiTheme.paper
     val shoppingItems by viewModel.shoppingItems.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
@@ -4088,18 +3866,10 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             }
         } else {
             items(shownShopping, key = { it.id.ifEmpty { "${it.name}_${it.dateAdded}" } }) { item ->
-                val cardBgColor = if (item.isBought) {
-                    MaterialTheme.colorScheme.surfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.surface
-                }
-                
-                val accentColor = if (item.isBought) OutlineGrey.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
-
                 Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                     com.example.ui.NotebookPaperSheet(
                         modifier = Modifier.fillMaxWidth(),
-                        sheetColor = if (item.isBought) PaperSheetCream else PaperSheetWhite,
+                        sheetColor = if (item.isBought) paper.sheetCream else paper.sheet,
                         showRuledLines = false,
                         showMarginLine = true,
                         showSpiralTop = false,
@@ -4147,7 +3917,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     text = item.name,
                                     fontSize = 14.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (item.isBought) FamiNavyMuted.copy(alpha = 0.65f) else FamiMidnight,
+                                    color = if (item.isBought) paper.inkMuted else paper.ink,
                                     maxLines = 2,
                                     lineHeight = 24.sp,
                                     textDecoration = if (item.isBought) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
@@ -4162,22 +3932,22 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         modifier = Modifier
                                             .size(20.dp)
                                             .clip(CircleShape)
-                                            .background(PaperStickyMint)
-                                            .border(1.dp, FamiMidnight, CircleShape),
+                                            .background(paper.stickyMint)
+                                            .border(1.dp, paper.border, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = initialChar,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = FamiMidnight
+                                            color = paper.ink
                                         )
                                     }
                                     Text(
                                         text = "Por ${item.addedBy}",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = FamiNavyMuted
+                                        color = paper.inkMuted
                                     )
                                 }
                             }
@@ -4194,8 +3964,8 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(PaperStickyYellow)
-                                        .border(1.2.dp, FamiMidnight, RoundedCornerShape(10.dp))
+                                        .background(paper.stickyYellow)
+                                        .border(1.2.dp, paper.border, RoundedCornerShape(10.dp))
                                         .padding(horizontal = 2.dp, vertical = 1.dp)
                                 ) {
                                     IconButton(
@@ -4209,7 +3979,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         Icon(
                                             imageVector = Icons.Default.Remove,
                                             contentDescription = "Disminuir",
-                                            tint = FamiMidnight,
+                                            tint = paper.ink,
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }
@@ -4218,7 +3988,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         text = item.quantity,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = FamiMidnight,
+                                        color = paper.ink,
                                         modifier = Modifier.padding(horizontal = 6.dp)
                                     )
 
@@ -4233,7 +4003,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = "Aumentar",
-                                            tint = FamiMidnight,
+                                            tint = paper.ink,
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }
@@ -4248,9 +4018,9 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     },
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .background(PaperSheetCream, CircleShape)
+                                        .background(paper.sheetCream, CircleShape)
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = FamiMidnight, modifier = Modifier.size(15.dp))
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = paper.ink, modifier = Modifier.size(15.dp))
                                 }
                                 DeleteIconButton(
                                     modifier = Modifier
@@ -4479,903 +4249,8 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             shape = RoundedCornerShape(28.dp)
         )
     }
-}// --- TAB 4: CONFIGURACIÓN, PERFILES & TEMA ---
-@Composable
-fun NavigationSidebar(
-    categories: List<String>,
-    selectedCategory: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp) ){
-        categories.forEachIndexed { index, name ->
-            val isSelected = selectedCategory == index
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary 
-                        else Color.Transparent
-                    )
-                    .clickable { onSelect(index) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp) ){
-                Text(
-                    text = name,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
 }
 
-@Composable
-fun HorizontalCategoryTabs(
-    categories: List<String>,
-    selectedCategory: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp) ){
-        categories.forEachIndexed { index, name ->
-            val isSelected = selectedCategory == index
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.surface 
-                        else Color.Transparent
-                    )
-                    .clickable { onSelect(index) }
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = name,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ConfigMainContent(
-    selectedCategory: Int,
-    profiles: List<UserProfile>,
-    settings: List<AppSetting>,
-    activityLogs: List<ActivityLog>,
-    isDarkTheme: Boolean,
-    inputRateField: String,
-    inputLimitField: String,
-    onInputRateChange: (String) -> Unit,
-    onInputLimitChange: (String) -> Unit,
-    onSyncBcv: () -> Unit,
-    onSaveBcv: () -> Unit,
-    onSaveLimit: () -> Unit,
-    onToggleTheme: (Boolean) -> Unit,
-    onAddProfileClick: () -> Unit,
-    onEditProfileClick: (UserProfile) -> Unit,
-    onDeleteProfileClick: (UserProfile) -> Unit,
-    viewModel: FamilyViewModel,
-    modifier: Modifier = Modifier,
-    onOpenGuide: () -> Unit = {}
-) {
-    var showDeleteAccountDialog by remember { mutableStateOf(false) }
-    var deleteAccountError by remember { mutableStateOf<String?>(null) }
-    val currentAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
-
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 150.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp) ){
-        if (selectedCategory == 0) {
-            // --- GENERAL CATEGORY ---
-            // --- MI AVATAR FAMI (12 AVATARES NANO BANANA) ---
-            item {
-                com.example.ui.NotebookPaperSheet(
-                    modifier = Modifier.fillMaxWidth(),
-                    sheetColor = PaperSheetWhite,
-                    showRuledLines = false,
-                    showMarginLine = false
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "🧑 MI AVATAR DE CUENTA FAMI",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                            color = FamiMidnight
-                        )
-                        Text(
-                            text = "Elige tu personaje (mujer, hombre, niño o niña):",
-                            fontSize = 11.sp,
-                            color = FamiNavyMuted
-                        )
-                        com.example.ui.AvatarCatalog.ALL.chunked(4).forEach { rowAvatars ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                rowAvatars.forEach { av ->
-                                    val isChosen = av.id == currentAvatarId
-                                    Column(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(if (isChosen) PaperStickyYellow else PaperSheetCream)
-                                            .border(
-                                                width = if (isChosen) 2.2.dp else 1.2.dp,
-                                                color = if (isChosen) FamiCoral else FamiMidnight.copy(alpha = 0.45f),
-                                                shape = RoundedCornerShape(12.dp)
-                                            )
-                                            .clickable { viewModel.updateUserAvatar(av.id) }
-                                            .padding(6.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        androidx.compose.foundation.Image(
-                                            painter = androidx.compose.ui.res.painterResource(id = av.drawableRes),
-                                            contentDescription = av.labelEs,
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .border(1.2.dp, FamiMidnight, CircleShape),
-                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                        )
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = av.labelEs,
-                                            fontSize = 8.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = FamiMidnight,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // --- GUÍA INTERACTIVA DE OPCIONES ---
-            item {
-                com.example.ui.Tactile3DButton(
-                    onClick = onOpenGuide,
-                    modifier = Modifier.fillMaxWidth(),
-                    faceColor = PaperStickyMint,
-                    lipColor = Lip3DMint,
-                    cornerRadius = 14.dp,
-                    lipHeight = 4.dp,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Icon(Icons.Default.HelpOutline, contentDescription = null, tint = FamiMidnight, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Ver Guía Interactiva de Opciones",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Black,
-                        color = FamiMidnight
-                    )
-                }
-            }
-
-            // --- THEME SWAP SECTION ---
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = borderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) )){
-                    Row(
-                        modifier = Modifier
-                            .padding(14.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode,
-                                contentDescription = "Theme state",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f) ){
-                                Text("Aspecto Visual del Sistema", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                Text("Alterna entre tema claro y tema oscuro", fontSize = 11.sp, color = SubtitleText)
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Switch(
-                            checked = isDarkTheme,
-                            onCheckedChange = { onToggleTheme(it) }
-                        )
-                    }
-                }
-            }
-
-            // --- BCV CONVERSION RATE SETTINGS ---
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = borderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) )){
-                    Column(modifier = Modifier.padding(14.dp) ){
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Tasa Oficial BCV ($ a Bs.)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Button(
-                                onClick = onSyncBcv,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp) ){
-                                Icon(Icons.Default.CloudSync, contentDescription = "Sync", modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Sincronizar", fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Text("Tasa oficial del BCV para cálculos. 'Todo es editable'.", fontSize = 11.sp, color = SubtitleText)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = inputRateField,
-                                onValueChange = onInputRateChange,
-                                label = { Text("Tasa en Bs/$") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Button(
-                                onClick = onSaveBcv
-                            ) {
-                                Text("Guardar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // --- FAMILY CODE & LOGOUT ---
-            item {
-                val familyId by viewModel.familyId.collectAsStateWithLifecycle()
-                val context = androidx.compose.ui.platform.LocalContext.current
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = borderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) )){
-                    Column(modifier = Modifier.padding(14.dp) ){
-                        Text("Código Familiar", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                        Text("Comparte este código para que otros miembros se unan al nido.", fontSize = 11.sp, color = SubtitleText)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = familyId ?: "CARGANDO...",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 2.sp,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            )
-                            Button(
-                                onClick = {
-                                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clip = android.content.ClipData.newPlainText("Código Familiar", familyId ?: "")
-                                    clipboardManager.setPrimaryClip(clip)
-                                    android.widget.Toast.makeText(context, "Código copiado", android.widget.Toast.LENGTH_SHORT).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary) ){
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Copiar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://somosfami.app/privacy.html"))
-                                    context.startActivity(browserIntent)
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Privacidad", fontSize = 11.sp)
-                            }
-                            OutlinedButton(
-                                onClick = {
-                                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://somosfami.app/terms.html"))
-                                    context.startActivity(browserIntent)
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Términos", fontSize = 11.sp)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { viewModel.logout() },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier.fillMaxWidth() ){
-                            Icon(Icons.Default.Logout, contentDescription = "Cerrar Sesión", modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Cerrar Sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { showDeleteAccountDialog = true },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertRed),
-                            border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = "Eliminar Cuenta", modifier = Modifier.size(14.dp), tint = AlertRed)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Eliminar mi Cuenta y Datos", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AlertRed)
-                        }
-                    }
-                }
-            }
-            
-            // --- GLOBAL BUDGET LIMITS ---
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = borderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) )){
-                    Column(modifier = Modifier.padding(14.dp) ){
-                        Text("Base Presupuestaria Global ($ USD)", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                        Text("Reajusta la base de gastos global de la familia.", fontSize = 11.sp, color = SubtitleText)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = inputLimitField,
-                                onValueChange = onInputLimitChange,
-                                label = { Text("Monto en USD") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Button(
-                                onClick = onSaveLimit
-                            ) {
-                                Text("Reajustar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-
-        } else if (selectedCategory == 1) {
-            // --- SPOUSE PROFILE MANAGEMENT PANEL ---
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = borderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) )){
-                    Column(modifier = Modifier.padding(14.dp) ){
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Miembros del Hogar", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Button(
-                                onClick = onAddProfileClick,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp) ){
-                                Icon(Icons.Default.Add, contentDescription = "Nuevo perfil", modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Añadir", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Text("Perfiles registrados en el hogar para la asignación de responsabilidades.", fontSize = 11.sp, color = SubtitleText)
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (profiles.isEmpty() ){
-                            Text("No hay perfiles configurados.", fontSize = 11.sp, color = SubtitleText)
-                        } else {
-                            profiles.forEach { p ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                        .padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        modifier = Modifier.weight(1f),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(28.dp)
-                                                .clip(CircleShape)
-                                                .background(p.colorHex.toColor()),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(p.name.take(1).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Text(p.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                                    }
-                                    
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = { onEditProfileClick(p) },
-                                            modifier = Modifier.size(28.dp) ){
-                                            Icon(Icons.Default.Edit, contentDescription = "Edit profile", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                        }
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        // Prevent deleting necessary defaults
-                                        if (p.name != "Julio" && p.name != "Ana") {
-                                            DeleteIconButton(
-                                                modifier = Modifier.size(28.dp),
-                                                iconSize = 16.dp,
-                                                tint = AlertRed.copy(alpha = 0.8f),
-                                                onDeleteConfirm = { onDeleteProfileClick(p) }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // --- HISTORY LOGS ---
-            item {
-                Text("Historial de Actividades Recientes", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-
-            if (activityLogs.isEmpty() ){
-                item {
-                    Text("No hay logs de actividad registrados.", fontSize = 11.sp, color = SubtitleText)
-                }
-            } else {
-                items(activityLogs.take(30) ){ log ->
-                    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                    val dateStr = format.format(Date(log.timestamp))
-                    
-                    val tagColor = when (log.tag.uppercase() ){
-                        "FINANZAS" -> MaterialTheme.colorScheme.primary
-                        "TAREAS" -> Color(0xFFE65100)
-                        "COMPRAS" -> Color(0xFF0D9488)
-                        "ALERTA" -> AlertRed
-                        else -> SubtitleText
-                    }
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = borderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f) )){
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Tag sticker
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(tagColor.copy(alpha = 0.12f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp) ){
-                                Text(
-                                    text = log.tag,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = tagColor
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = log.message,
-                                fontSize = 11.sp,
-                                modifier = Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = dateStr,
-                                fontSize = 9.sp,
-                                color = SubtitleText
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    val dialogContext = androidx.compose.ui.platform.LocalContext.current
-    if (showDeleteAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showDeleteAccountDialog = false 
-                deleteAccountError = null
-            },
-            title = { Text("¿Eliminar tu Cuenta?", color = AlertRed, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Esta acción es irreversible y permanente conforme a las políticas de Google Play. Se eliminarán tus credenciales de acceso, tus comprobantes en la nube y tus preferencias.")
-                    deleteAccountError?.let { err: String ->
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(err, color = AlertRed, fontSize = 12.sp)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteUserAccount(
-                            onSuccess = {
-                                showDeleteAccountDialog = false
-                                android.widget.Toast.makeText(dialogContext, "Cuenta eliminada correctamente", android.widget.Toast.LENGTH_LONG).show()
-                            },
-                            onError = { err: String ->
-                                deleteAccountError = err
-                            }
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("Sí, Eliminar Cuenta")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { 
-                    showDeleteAccountDialog = false 
-                    deleteAccountError = null
-                }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
-    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val activityLogs by viewModel.activityLogs.collectAsStateWithLifecycle()
-
-    var showProfileCreatorDialog by remember { mutableStateOf(false) }
-    var isEditingProfile by remember { mutableStateOf(false) }
-    var editingProfile by remember { mutableStateOf<UserProfile?>(null) }
-    var profileNameInput by remember { mutableStateOf("") }
-    var profileColorHexSelected by remember { mutableStateOf("#D0BCFF") }
-
-    // Read details
-    val bcvRateStr = settings.find { it.key == "bcv_rate" }?.value ?: "36.85"
-    val totalLimitStr = settings.find { it.key == "total_limit_usd" }?.value ?: "1800.0"
-    val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
-
-    var inputRateField by remember { mutableStateOf(bcvRateStr) }
-    var inputLimitField by remember { mutableStateOf(totalLimitStr) }
-
-    androidx.compose.runtime.LaunchedEffect(settings) {
-        val bcv = settings.find { it.key == "bcv_rate" }?.value
-        if (bcv != null) {
-            inputRateField = bcv
-        }
-        val limit = settings.find { it.key == "total_limit_usd" }?.value
-        if (limit != null) {
-            inputLimitField = limit
-        }
-    }
-
-    val profileAvatarColors = listOf("#D0BCFF", "#EFB8C8", "#81C784", "#64B5F6", "#FFD54F", "#BA68C8", "#E0E0E0")
-    var selectedCategory by remember { mutableStateOf(0) }
-    val categoriesList = listOf("General", "Miembros")
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize() ){
-        val isWideScreen = maxWidth > 600.dp
-        
-        if (isWideScreen) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp) ){
-                NavigationSidebar(
-                    categories = categoriesList,
-                    selectedCategory = selectedCategory,
-                    onSelect = { selectedCategory = it },
-                    modifier = Modifier.width(180.dp)
-                )
-
-                Box(modifier = Modifier.weight(1f) ){
-                    ConfigMainContent(
-                        selectedCategory = selectedCategory,
-                        profiles = profiles,
-                        settings = settings,
-                        activityLogs = activityLogs,
-                        isDarkTheme = isDarkTheme,
-                        inputRateField = inputRateField,
-                        inputLimitField = inputLimitField,
-                        onInputRateChange = { inputRateField = it },
-                        onInputLimitChange = { inputLimitField = it },
-                        onSyncBcv = { viewModel.syncLiveBcvRate() },
-                        onSaveBcv = { 
-                            if (inputRateField.isNotBlank() ){
-                                viewModel.updateValueSetting("bcv_rate", inputRateField)
-                            }
-                        },
-                        onSaveLimit = {
-                            if (inputLimitField.isNotBlank() ){
-                                viewModel.updateValueSetting("total_limit_usd", inputLimitField)
-                            }
-                        },
-                        onToggleTheme = { viewModel.toggleDarkTheme(it) },
-                        onAddProfileClick = { showProfileCreatorDialog = true },
-                        onEditProfileClick = { p ->
-                            isEditingProfile = true
-                            editingProfile = p
-                            profileNameInput = p.name
-                            profileColorHexSelected = p.colorHex
-                            showProfileCreatorDialog = true
-                        },
-                        onDeleteProfileClick = { p -> viewModel.deleteProfile(p) },
-                        viewModel = viewModel,
-                        onOpenGuide = onOpenGuide
-                    )
-                }
-            }
-        } else {
-            Column(modifier = Modifier.fillMaxSize() ){
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Ajustes del Hogar",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    letterSpacing = (-0.5).sp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                
-                HorizontalCategoryTabs(
-                    categories = categoriesList,
-                    selectedCategory = selectedCategory,
-                    onSelect = { selectedCategory = it },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp) ){
-                    ConfigMainContent(
-                        selectedCategory = selectedCategory,
-                        profiles = profiles,
-                        settings = settings,
-                        activityLogs = activityLogs,
-                        isDarkTheme = isDarkTheme,
-                        inputRateField = inputRateField,
-                        inputLimitField = inputLimitField,
-                        onInputRateChange = { inputRateField = it },
-                        onInputLimitChange = { inputLimitField = it },
-                        onSyncBcv = { viewModel.syncLiveBcvRate() },
-                        onSaveBcv = { 
-                            if (inputRateField.isNotBlank() ){
-                                viewModel.updateValueSetting("bcv_rate", inputRateField)
-                            }
-                        },
-                        onSaveLimit = {
-                            if (inputLimitField.isNotBlank() ){
-                                viewModel.updateValueSetting("total_limit_usd", inputLimitField)
-                            }
-                        },
-                        onToggleTheme = { viewModel.toggleDarkTheme(it) },
-                        onAddProfileClick = { showProfileCreatorDialog = true },
-                        onEditProfileClick = { p ->
-                            isEditingProfile = true
-                            editingProfile = p
-                            profileNameInput = p.name
-                            profileColorHexSelected = p.colorHex
-                            showProfileCreatorDialog = true
-                        },
-                        onDeleteProfileClick = { p -> viewModel.deleteProfile(p) },
-                        viewModel = viewModel,
-                        onOpenGuide = onOpenGuide
-                    )
-                }
-            }
-        }
-    }
-
-    // --- POPUP: PROFILE CREATOR/EDITOR DIALOG ---
-    if (showProfileCreatorDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showProfileCreatorDialog = false 
-                isEditingProfile = false
-                editingProfile = null
-                profileNameInput = ""
-                profileColorHexSelected = "#D0BCFF"
-            },
-            title = { Text(if (isEditingProfile) "Editar Miembro del Hogar" else "Registrar Miembro del Hogar", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp) ){
-                    OutlinedTextField(keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), 
-                        value = profileNameInput,
-                        onValueChange = { profileNameInput = it },
-                        label = { Text("Nombre del Perfil") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Text("Color de avatar representativo:", fontSize = 12.sp, color = SubtitleText, fontWeight = FontWeight.Medium)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp) ){
-                        profileAvatarColors.forEach { hex ->
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(hex.toColor())
-                                    .clickable { profileColorHexSelected = hex }
-                                    .border(
-                                        width = if (profileColorHexSelected == hex) 2.dp else 0.dp,
-                                        color = if (profileColorHexSelected == hex) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                        shape = CircleShape
-                                    )
-                              )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (profileNameInput.isNotBlank() ){
-                        if (isEditingProfile && editingProfile != null) {
-                            viewModel.editProfile(editingProfile!!, profileNameInput, profileColorHexSelected)
-                        } else {
-                            viewModel.createProfile(profileNameInput, profileColorHexSelected)
-                        }
-                        profileNameInput = ""
-                        showProfileCreatorDialog = false
-                        isEditingProfile = false
-                        editingProfile = null
-                    }
-                }) {
-                    Text(if (isEditingProfile) "Guardar" else "Registrar", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { 
-                    showProfileCreatorDialog = false 
-                    isEditingProfile = false
-                    editingProfile = null
-                    profileNameInput = ""
-                    profileColorHexSelected = "#D0BCFF"
-                }) {
-                    Text("Cancelar", color = SubtitleText)
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    }
-}
-
-// --- POPUP DIALOG FOR SETTINGS/CONFIGURATION ---
-@Composable
-fun ConfigDialog(
-    viewModel: FamilyViewModel,
-    onDismiss: () -> Unit,
-    onOpenGuide: () -> Unit = {}
-) {
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.85f),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
-            border = borderStroke(1.dp, OutlineGrey) ){
-            Column(modifier = Modifier.fillMaxSize() ){
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Ajustes de la Aplicación",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                }
-                
-                androidx.compose.material3.HorizontalDivider(color = OutlineGrey.copy(alpha = 0.5f), thickness = 1.dp)
-                
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth() ){
-                    ConfigTab(viewModel = viewModel, onOpenGuide = onOpenGuide)
-                }
-            }
-        }
-    }
-}
 
 // --- BRAND IDENTITY LOGO COMPOSE CANVAS ---
 @Composable
@@ -5393,6 +4268,8 @@ fun FamiLogo(modifier: Modifier = Modifier) {
 fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
+    val appPrimaryCurrency by viewModel.appPrimaryCurrency.collectAsStateWithLifecycle()
+    val paper = FamiTheme.paper
 
     var activeSubTab by remember { mutableStateOf("deseos") } // "deseos" or "notas"
     var activeGoalFilter by remember { mutableStateOf("pendientes") }
@@ -5439,9 +4316,10 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             // Nota Adhesiva de Papel Plano: Alcancía Familiar Fami con Sticker Completo
             val totalSavedGoals = goals.filter { it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
             val totalPendingGoals = goals.filter { !it.isCompleted }.sumOf { it.targetAmount ?: 0.0 }
+            val currSym = CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)
             StickyNoteSheet(
                 modifier = Modifier.fillMaxWidth(),
-                noteColor = PaperStickyPeach,
+                noteColor = paper.stickyPeach,
                 tapeColor = FamiCoral.copy(alpha = 0.65f)
             ) {
                 Row(
@@ -5454,8 +4332,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             modifier = Modifier
                                 .size(66.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(PaperSheetWhite)
-                                .border(1.8.dp, FamiNavy, RoundedCornerShape(14.dp))
+                                .background(paper.sheet)
+                                .border(1.8.dp, paper.border, RoundedCornerShape(14.dp))
                                 .padding(3.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -5474,20 +4352,20 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 text = "🐷 ALCANCÍA FAMILIAR FAMI",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiCoralDark,
+                                color = FamiCoral,
                                 letterSpacing = 0.8.sp
                             )
                             Text(
                                 text = "${goals.count { it.isCompleted }} cumplidas • ${goals.count { !it.isCompleted }} en curso",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiNavy
+                                color = paper.ink
                             )
                             Text(
-                                text = "Meta activa: $${String.format(Locale.US, "%,.0f", totalPendingGoals)} USD • Logrado: $${String.format(Locale.US, "%,.0f", totalSavedGoals)}",
+                                text = "Meta activa: $currSym${String.format(Locale.US, "%,.0f", totalPendingGoals)} $appPrimaryCurrency • Logrado: $currSym${String.format(Locale.US, "%,.0f", totalSavedGoals)}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = FamiNavyMuted
+                                color = paper.inkMuted
                             )
                         }
                     }
@@ -5544,7 +4422,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 }
             } else {
                 items(shownGoals) { goal ->
-                    val cardBgColor = if (goal.isCompleted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+                    val cardBgColor = if (goal.isCompleted) paper.sheetCream else paper.sheet
                     PremiumCard(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -5564,8 +4442,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 .padding(horizontal = 18.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val checkboxBg = if (goal.isCompleted) Color(0xFF10B981) else Color.Transparent
-                            val checkboxBorderColor = if (goal.isCompleted) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
+                            val checkboxBg = if (goal.isCompleted) FamiEmerald else Color.Transparent
+                            val checkboxBorderColor = if (goal.isCompleted) FamiEmerald else FamiCoral
 
                             Box(
                                 modifier = Modifier
@@ -5596,16 +4474,21 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     textDecoration = if (goal.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                                    color = if (goal.isCompleted) SubtitleText.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+                                    color = if (goal.isCompleted) paper.inkMuted.copy(alpha = 0.65f) else paper.ink
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Por ${goal.createdBy}", fontSize = 11.sp, color = SubtitleText)
+                                    Text("Por ${goal.createdBy}", fontSize = 11.sp, color = paper.inkMuted)
                                     if (goal.targetAmount != null && goal.targetAmount > 0) {
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("•", fontSize = 11.sp, color = SubtitleText)
+                                        Text("•", fontSize = 11.sp, color = paper.inkMuted)
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Meta: $${goal.targetAmount}", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = "Meta: ${CountryCurrencyConfig.getCurrencySymbol(appPrimaryCurrency)}${goal.targetAmount}",
+                                            fontSize = 11.sp,
+                                            color = FamiCoral,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
                             }
@@ -5615,8 +4498,6 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             }
         } else {
             // Notas
-
-
             if (notes.isEmpty()) {
                 item {
                     ModernEmptyState(
@@ -5637,7 +4518,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                         com.example.ui.NotebookPaperSheet(
                             modifier = Modifier.fillMaxWidth(),
-                            sheetColor = if (note.isCompleted) PaperSheetCream else PaperStickyYellow.copy(alpha = 0.35f),
+                            sheetColor = if (note.isCompleted) paper.sheetCream else paper.stickyYellow.copy(alpha = if (paper.isDark) 0.55f else 0.35f),
                             showRuledLines = false,
                             showMarginLine = true,
                             showSpiralTop = false,
@@ -5687,7 +4568,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         maxLines = 2,
                                         lineHeight = 24.sp,
                                         textDecoration = if (note.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                                        color = if (note.isCompleted) FamiNavyMuted.copy(alpha = 0.65f) else FamiMidnight
+                                        color = if (note.isCompleted) paper.inkMuted.copy(alpha = 0.65f) else paper.ink
                                     )
                                     if (note.content.isNotBlank()) {
                                         com.example.ui.RuledNotebookText(
@@ -5696,11 +4577,11 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             fontWeight = FontWeight.Medium,
                                             lineHeight = 24.sp,
                                             minRuledLines = 2,
-                                            color = if (note.isCompleted) FamiNavyMuted.copy(alpha = 0.55f) else FamiMidnight
+                                            color = if (note.isCompleted) paper.inkMuted.copy(alpha = 0.55f) else paper.ink
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text("Por ${note.createdBy}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = FamiNavyMuted)
+                                    Text("Por ${note.createdBy}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = paper.inkMuted)
                                 }
                             }
                         }

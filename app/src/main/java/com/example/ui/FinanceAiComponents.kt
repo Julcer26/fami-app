@@ -44,9 +44,10 @@ fun FinanceAiHeroCard(
     onOpenAnalysis: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val paper = FamiTheme.paper
     StickyNoteSheet(
         modifier = modifier.fillMaxWidth(),
-        noteColor = PaperStickyYellow
+        noteColor = paper.stickyYellow
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -55,8 +56,8 @@ fun FinanceAiHeroCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = PaperStickyPeach,
-                    border = BorderStroke(1.2.dp, FamiMidnight),
+                    color = paper.stickyPeach,
+                    border = BorderStroke(1.2.dp, paper.border),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
@@ -69,7 +70,7 @@ fun FinanceAiHeroCard(
                             text = "NOTA DEL ASESOR FAMI IA",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiMidnight
+                            color = paper.ink
                         )
                     }
                 }
@@ -85,26 +86,26 @@ fun FinanceAiHeroCard(
                         Text(
                             text = "Calculando...",
                             fontSize = 10.sp,
-                            color = FamiMidnight,
+                            color = paper.ink,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 } else if (report != null) {
                     val healthBg = when (report.budgetHealth) {
-                        "Saludable" -> PaperStickyMint
-                        "Precaución" -> PaperStickyYellow
-                        else -> FamiAlertRedBg
+                        "Saludable" -> paper.stickyMint
+                        "Precaución" -> paper.stickyYellow
+                        else -> paper.alertBg
                     }
                     Surface(
                         color = healthBg,
-                        border = BorderStroke(1.2.dp, FamiMidnight),
+                        border = BorderStroke(1.2.dp, paper.border),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
                             text = "● ${report.budgetHealth.uppercase()}",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiMidnight,
+                            color = paper.ink,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
@@ -123,7 +124,7 @@ fun FinanceAiHeroCard(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .border(1.5.dp, FamiMidnight, RoundedCornerShape(14.dp))
+                        .border(1.5.dp, paper.border, RoundedCornerShape(14.dp))
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -132,28 +133,28 @@ fun FinanceAiHeroCard(
                             text = "Foco del mes: ${report.topSpendingCategory}",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiMidnight
+                            color = paper.ink
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Representa el ${report.topSpendingPercentage}% ($${String.format(Locale.US, "%,.2f", report.topSpendingAmountUsd)} USD).",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = FamiMidnight.copy(alpha = 0.78f)
+                            color = paper.ink.copy(alpha = 0.78f)
                         )
                     } else {
                         Text(
                             text = "¡Revisemos las cuentas del cuaderno!",
                             fontSize = 15.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiMidnight
+                            color = paper.ink
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Fami IA analiza cada hoja de gastos y te sugiere cómo ahorrar en familia.",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = FamiMidnight.copy(alpha = 0.78f)
+                            color = paper.ink.copy(alpha = 0.78f)
                         )
                     }
                 }
@@ -162,8 +163,8 @@ fun FinanceAiHeroCard(
             if (report != null && report.savingsTips.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
-                    color = PaperSheetWhite,
-                    border = BorderStroke(1.2.dp, FamiMidnight),
+                    color = paper.sheet,
+                    border = BorderStroke(1.2.dp, paper.border),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -177,7 +178,7 @@ fun FinanceAiHeroCard(
                             text = report.savingsTips.first(),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = FamiMidnight,
+                            color = paper.ink,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
