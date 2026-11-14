@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,14 +13,16 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,17 +43,19 @@ import com.example.R
 import com.example.api.BcvExchangeRateService
 import com.example.currency.CountryCurrencyConfig
 import com.example.currency.CountryInfo
-import com.example.currency.CurrencyOption
 import com.example.currency.LanguageOption
+import com.example.database.Wallet
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.util.UUID
 
-data class OnboardingStep(
-    val badge: String,
-    val title: String,
-    val description: String,
-    val imageRes: Int
+private data class DraftWallet(
+    val id: String = UUID.randomUUID().toString().take(8),
+    val name: String,
+    val currency: String,
+    val balanceText: String,
+    val isLocal: Boolean
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -60,12 +66,23 @@ fun OnboardingScreen(
     initialSecondaryCurrency: String = "USD",
     initialLanguage: String = CountryCurrencyConfig.detectSystemLanguageCode(),
     initialFamilyRole: String = "",
+    initialManagementMode: String = "familiar",
+    initialFamilyAction: String = "create",
+    initialFamilyName: String = "",
+    initialAvatarId: String = "woman_1",
     onComplete: (
         selectedCountry: CountryInfo,
         primaryCurrency: String,
         secondaryCurrency: String,
         languageCode: String,
-        familyRole: String
+        familyRole: String,
+        managementMode: String,
+        familyAction: String,
+        familyName: String,
+        avatarId: String,
+        monthlyIncome: Double,
+        monthlyIncomeCurrency: String,
+        initialWallets: List<Wallet>
     ) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -82,13 +99,55 @@ fun OnboardingScreen(
     var selectedSecondaryCurrency by remember {
         mutableStateOf(initialSecondaryCurrency.ifBlank { "USD" })
     }
-    var selectedRole by remember { mutableStateOf(initialFamilyRole.ifBlank { "Mamá" }) }
+
+    // Gestión Familiar / Individual + Acción + Roles
+    var managementMode by remember { mutableStateOf(initialManagementMode.ifBlank { "familiar" }) }
+    var familyAction by remember { mutableStateOf(initialFamilyAction.ifBlank { "create" }) }
+    var familyNameInput by remember { mutableStateOf(initialFamilyName) }
+    var selectedRole by remember { mutableStateOf(initialFamilyRole.ifBlank { "Administrador" }) }
     var customRoleInput by remember { mutableStateOf("") }
 
+    // Ingreso mensual y múltiples billeteras simultáneas
+    var monthlyIncomeInput by remember { mutableStateOf("") }
+    var monthlyIncomeCurrency by remember { mutableStateOf(selectedPrimaryCurrency) }
+    var draftWallets by remember {
+        mutableStateOf(
+            buildList {
+                add(
+                    DraftWallet(
+                        name = "Billetera Principal",
+                        currency = initialPrimaryCurrency.ifBlank { selectedCountry.localCurrency },
+                        balanceText = "",
+                        isLocal = true
+                    )
+                )
+                if (!initialSecondaryCurrency.equals("NONE", ignoreCase = true) &&
+                    !initialSecondaryCurrency.equals(initialPrimaryCurrency.ifBlank { selectedCountry.localCurrency }, ignoreCase = true)
+                ) {
+                    add(
+                        DraftWallet(
+                            name = "Billetera Divisas",
+                            currency = initialSecondaryCurrency.ifBlank { "USD" },
+                            balanceText = "",
+                            isLocal = false
+                        )
+                    )
+                }
+            }
+        )
+    }
+
+    // Selector de Avatar Nano Banana (12 disponibles)
+    var selectedAvatarId by remember { mutableStateOf(initialAvatarId.ifBlank { "woman_1" }) }
+    var avatarFilter by remember { mutableStateOf("Todos") }
+
+    // Diálogos
     var showCountryDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showPrimaryCurrencyDialog by remember { mutableStateOf(false) }
     var showSecondaryCurrencyDialog by remember { mutableStateOf(false) }
+    var showIncomeCurrencyDialog by remember { mutableStateOf(false) }
+    var editingWalletCurrencyIdx by remember { mutableStateOf<Int?>(null) }
 
     // Detección automática de país por IP al abrir la app
     LaunchedEffect(Unit) {
@@ -101,6 +160,12 @@ fun OnboardingScreen(
             if (found != null) {
                 selectedCountry = found
                 selectedPrimaryCurrency = found.localCurrency
+                monthlyIncomeCurrency = found.localCurrency
+                if (draftWallets.isNotEmpty()) {
+                    draftWallets = draftWallets.mapIndexed { idx, w ->
+                        if (idx == 0 && w.isLocal) w.copy(currency = found.localCurrency) else w
+                    }
+                }
                 ipDetectionState = "detected"
             } else {
                 ipDetectionState = "fallback"
@@ -111,35 +176,42 @@ fun OnboardingScreen(
     }
 
     val strings = remember(selectedLanguage) { FamiStrings.get(selectedLanguage) }
+    val isEn = selectedLanguage.lowercase() == "en"
+    val totalPages = 5
+    val pagerState = rememberPagerState(pageCount = { totalPages })
+    val finalRole = customRoleInput.trim().ifBlank { selectedRole }
 
-    val guideSteps = remember(selectedLanguage) {
-        when (selectedLanguage) {
-            "en" -> listOf(
-                OnboardingStep("STEP 1: MEET FAMI", "Hi! I'm Fami", "Your smart family financial advisor. Built to organize household income, bills, and savings like a clean notebook.", R.drawable.fami_onboarding_1),
-                OnboardingStep("STEP 2: CURRENCIES", "Local + Secondary Currency", "Track everything in your local currency with live central bank rates, and optionally view USD, EUR, or hide secondary currency.", R.drawable.fami_onboarding_2),
-                OnboardingStep("STEP 3: AI SCANNER", "Scan Receipts with AI", "Snap any supermarket ticket or utility bill. Fami AI extracts items, totals, and taxes in seconds.", R.drawable.fami_onboarding_3),
-                OnboardingStep("FAMI HOUSEHOLD!", "Your Home in Sync", "Invite family members with one code. Share budgets, chores, and shopping lists in real time.", R.drawable.fami_onboarding_4)
-            )
-            "pt" -> listOf(
-                OnboardingStep("PASSO 1: CONHEÇA A FAMI", "Olá! Sou a Fami", "Sua consultora financeira familiar. Criada para organizar receitas e gastos como um caderno claro e prático.", R.drawable.fami_onboarding_1),
-                OnboardingStep("PASSO 2: MOEDAS", "Moeda Local + Secundária", "Controle tudo na moeda do seu país com cotação oficial e escolha mostrar USD, EUR ou ocultar a moeda secundária.", R.drawable.fami_onboarding_2),
-                OnboardingStep("PASSO 3: ESCANEAMENTO IA", "Escaneie Notas com IA", "Tire foto de qualquer recibo ou fatura. A Fami IA organiza produtos, valores e impostos em segundos.", R.drawable.fami_onboarding_3),
-                OnboardingStep("COMUNIDADE FAMI!", "Lar em Sincronia", "Convide sua família com um código simples. Compartilhe orçamentos, tarefas e compras em tempo real.", R.drawable.fami_onboarding_4)
-            )
-            else -> listOf(
-                OnboardingStep("PASO 1: CONOCERNOS", "¡Hola! Soy Fami", "Tu asesor financiero inteligente. Creado para que tu familia tome el control total de sus ingresos y gastos con el orden de un cuaderno.", R.drawable.fami_onboarding_1),
-                OnboardingStep("PASO 2: TU MONEDA", "Moneda Local + Secundaria", "Monitorea tus gastos en la moneda de tu país con tasa oficial en vivo y elige ver USD, otra divisa o solo tu moneda local.", R.drawable.fami_onboarding_2),
-                OnboardingStep("PASO 3: TU CAMINO", "Escanea Facturas con IA", "Toma una foto a cualquier ticket de supermercado o factura de servicios. Fami IA desglosará productos y montos en segundos.", R.drawable.fami_onboarding_3),
-                OnboardingStep("¡COMUNIDAD FAMI!", "El Hogar en Sincronía", "Invita a tu pareja o seres queridos con un código simple. Compartan presupuestos, tareas del hogar y listas de compras.", R.drawable.fami_onboarding_4)
+    val buildFinalWallets: () -> List<Wallet> = {
+        draftWallets.mapNotNull { dw ->
+            val cleanName = dw.name.trim().ifBlank { "Billetera ${dw.currency}" }
+            val bal = dw.balanceText.replace(",", ".").toDoubleOrNull() ?: 0.0
+            Wallet(
+                id = dw.id,
+                name = cleanName,
+                currency = dw.currency,
+                balance = bal,
+                isLocal = dw.isLocal || dw.currency.equals(selectedPrimaryCurrency, ignoreCase = true)
             )
         }
     }
 
-    // Página 0 = Panel Inicial de Configuración; Páginas 1..4 = Guía ilustrada de Fami
-    val totalPages = 1 + guideSteps.size
-    val pagerState = rememberPagerState(pageCount = { totalPages })
-
-    val finalRole = customRoleInput.trim().ifBlank { selectedRole }
+    val finishOnboarding: () -> Unit = {
+        val parsedIncome = monthlyIncomeInput.replace(",", ".").toDoubleOrNull() ?: 0.0
+        onComplete(
+            selectedCountry,
+            selectedPrimaryCurrency,
+            selectedSecondaryCurrency,
+            selectedLanguage,
+            finalRole,
+            managementMode,
+            if (managementMode == "individual") "create" else familyAction,
+            familyNameInput.trim(),
+            selectedAvatarId,
+            parsedIncome,
+            monthlyIncomeCurrency.ifBlank { selectedPrimaryCurrency },
+            buildFinalWallets()
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -151,10 +223,10 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Superior con Logo Oficial de Fami (Carpeta Logos fami) + Botón Omitir
+            // Cabecera superior con Logo Oficial Fami + Indicador de Hoja + Saltar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -164,34 +236,40 @@ fun OnboardingScreen(
                     Image(
                         painter = painterResource(id = R.drawable.ic_fami_logo_wide),
                         contentDescription = "Logo Oficial Fami",
-                        modifier = Modifier.height(28.dp),
+                        modifier = Modifier.height(26.dp),
                         contentScale = ContentScale.FillHeight
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        color = PaperStickyYellow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.2.dp, FamiMidnight)
+                    ) {
+                        Text(
+                            text = if (isEn) "SHEET ${pagerState.currentPage + 1}/$totalPages" else "HOJA ${pagerState.currentPage + 1}/$totalPages",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
                 }
 
                 if (pagerState.currentPage < totalPages - 1) {
                     Tactile3DButton(
-                        onClick = {
-                            onComplete(
-                                selectedCountry,
-                                selectedPrimaryCurrency,
-                                selectedSecondaryCurrency,
-                                selectedLanguage,
-                                finalRole
-                            )
-                        },
+                        onClick = finishOnboarding,
                         faceColor = PaperSheetWhite,
                         lipColor = Lip3DPaper,
                         lipHeight = 3.dp,
                         cornerRadius = 10.dp,
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(strings.skipBtn, color = FamiNavy, fontSize = 11.sp, fontWeight = FontWeight.Black)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             HorizontalPager(
                 state = pagerState,
@@ -199,141 +277,416 @@ fun OnboardingScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) { page ->
-                if (page == 0) {
-                    // ==============================================================
-                    // PÁGINA 0: PANEL INICIAL DE CONFIGURACIÓN (IP, País, Idioma, Monedas, Rol)
-                    // ==============================================================
-                    NotebookPaperSheet(
-                        modifier = Modifier.fillMaxSize(),
-                        paperColor = PaperSheetWhite,
-                        showSpiralTop = true,
-                        showRuledLines = true,
-                        showMarginLine = true,
-                        cornerRadius = 18.dp
+                NotebookPaperSheet(
+                    modifier = Modifier.fillMaxSize(),
+                    paperColor = PaperSheetWhite,
+                    showSpiralTop = true,
+                    showRuledLines = false,
+                    showMarginLine = true,
+                    cornerRadius = 18.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(start = 28.dp, end = 16.dp, top = 8.dp, bottom = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(start = 28.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Saludo con Mascota + Título
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        when (page) {
+                            // ==============================================================
+                            // HOJA 1: BIENVENIDA CON MASCOTA + PAÍS (IP AUTO) + IDIOMA
+                            // ==============================================================
+                            0 -> {
+                                Surface(
+                                    color = PaperStickyPeach,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                ) {
+                                    Text(
+                                        text = if (isEn) "📓 PAGE 1 • MEET YOUR FAMI NOTEBOOK" else "📓 HOJA 1 • BIENVENIDA AL CUADERNO FAMI",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiCoralDeep,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .fillMaxWidth()
+                                        .height(165.dp)
+                                        .clip(RoundedCornerShape(16.dp))
                                         .background(PaperSheetCream)
-                                        .border(1.8.dp, FamiNavy, RoundedCornerShape(12.dp))
-                                        .padding(2.dp)
+                                        .border(1.8.dp, FamiMidnight, RoundedCornerShape(16.dp))
+                                        .padding(6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Image(
-                                        painter = painterResource(id = R.drawable.ic_fami_mascot),
+                                        painter = painterResource(id = R.drawable.fami_onboarding_1),
                                         contentDescription = "Mascota Fami",
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(12.dp)),
                                         contentScale = ContentScale.Fit
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
+
+                                Text(
+                                    text = if (isEn) "Hi! I'm Fami 🐾" else "¡Hola! Soy Fami 🐾",
+                                    fontSize = 21.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+
+                                RuledNotebookText(
+                                    text = if (isEn)
+                                        "Let's set up your family or personal ledger sheet by sheet. Everything adapts to your country and currency."
+                                    else
+                                        "Vamos a preparar tu cuaderno familiar o personal hoja por hoja. Todo se adapta a tu país, idioma y monedas.",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = FamiNavyMuted,
+                                    lineHeight = 23.sp
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (ipDetectionState == "detected") PaperStickyMint else PaperStickyYellow)
+                                        .border(1.4.dp, FamiNavy, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                                ) {
                                     Text(
-                                        text = strings.setupTitle,
-                                        color = FamiNavy,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                    Text(
-                                        text = strings.setupSubtitle,
-                                        color = FamiNavyMuted,
+                                        text = when (ipDetectionState) {
+                                            "loading" -> "🌐 ${strings.ipDetecting}"
+                                            else -> "📍 ${strings.ipDetectedPrefix} ${selectedCountry.flag} ${selectedCountry.name} (${selectedCountry.localCurrency})"
+                                        },
                                         fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        lineHeight = 14.sp
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = FamiNavy
                                     )
                                 }
-                            }
 
-                            // Etiqueta de detección IP en vivo
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (ipDetectionState == "detected") PaperStickyMint else PaperStickyYellow)
-                                    .border(1.4.dp, FamiNavy, RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = when (ipDetectionState) {
-                                        "loading" -> "🌐 ${strings.ipDetecting}"
-                                        else -> "📍 ${strings.ipDetectedPrefix} ${selectedCountry.flag} ${selectedCountry.name} (${selectedCountry.localCurrency})"
-                                    },
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = FamiNavy
+                                NotebookDropdownField(
+                                    label = "🌍 ${strings.countryLabel}",
+                                    value = "${selectedCountry.flag} ${selectedCountry.name} (${selectedCountry.code})",
+                                    subtitle = "${selectedCountry.rateProvider} • ${CountryCurrencyConfig.SUPPORTED_COUNTRIES.size} países",
+                                    onClick = { showCountryDialog = true }
+                                )
+
+                                val langOption = remember(selectedLanguage) {
+                                    CountryCurrencyConfig.getLanguageOption(selectedLanguage)
+                                }
+                                NotebookDropdownField(
+                                    label = "🗣️ ${strings.languageLabel}",
+                                    value = "${langOption.flag} ${langOption.nativeName}",
+                                    subtitle = if (selectedLanguage == CountryCurrencyConfig.detectSystemLanguageCode())
+                                        "Automático del teléfono (${langOption.name})" else "Idioma seleccionado manualmente",
+                                    onClick = { showLanguageDialog = true }
                                 )
                             }
 
-                            // 1. BARRA DESPLEGABLE DE PAÍS (Todos los países de Google Play)
-                            NotebookDropdownField(
-                                label = "🌍 ${strings.countryLabel}",
-                                value = "${selectedCountry.flag} ${selectedCountry.name} (${selectedCountry.code})",
-                                subtitle = "${selectedCountry.rateProvider} • ${CountryCurrencyConfig.SUPPORTED_COUNTRIES.size} países Google Play",
-                                onClick = { showCountryDialog = true }
-                            )
-
-                            // 2. BARRA DESPLEGABLE DE IDIOMA (Automático del sistema o selector)
-                            val langOption = remember(selectedLanguage) {
-                                CountryCurrencyConfig.getLanguageOption(selectedLanguage)
-                            }
-                            NotebookDropdownField(
-                                label = "🗣️ ${strings.languageLabel}",
-                                value = "${langOption.flag} ${langOption.nativeName}",
-                                subtitle = if (selectedLanguage == CountryCurrencyConfig.detectSystemLanguageCode())
-                                    "Automático del teléfono (${langOption.name})" else "Idioma seleccionado manualmente",
-                                onClick = { showLanguageDialog = true }
-                            )
-
-                            // 3. MONEDA LOCAL / PRINCIPAL + MONEDA SECUNDARIA (USD por defecto u ocultar)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    val primSym = CountryCurrencyConfig.getCurrencySymbol(selectedPrimaryCurrency)
-                                    NotebookDropdownField(
-                                        label = "💵 ${strings.primaryCurrencyLabel}",
-                                        value = "$selectedPrimaryCurrency ($primSym)",
-                                        subtitle = "Tocar para cambiar",
-                                        onClick = { showPrimaryCurrencyDialog = true }
+                            // ==============================================================
+                            // HOJA 2: MONEDAS PREFERIDAS (LOCAL + EXTRA OPCIONAL)
+                            // ==============================================================
+                            1 -> {
+                                Surface(
+                                    color = PaperStickyMint,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                ) {
+                                    Text(
+                                        text = if (isEn) "💱 PAGE 2 • PREFERRED CURRENCIES" else "💱 HOJA 2 • MONEDAS PREFERIDAS",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiMidnight,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
-                                Box(modifier = Modifier.weight(1f)) {
-                                    val secValue = if (selectedSecondaryCurrency == "NONE") {
-                                        "🚫 Oculta"
-                                    } else {
-                                        "$selectedSecondaryCurrency (${CountryCurrencyConfig.getCurrencySymbol(selectedSecondaryCurrency)})"
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(64.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(PaperSheetCream)
+                                            .border(1.6.dp, FamiMidnight, RoundedCornerShape(14.dp))
+                                            .padding(4.dp)
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.fami_onboarding_2),
+                                            contentDescription = "Monedas Fami",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Fit
+                                        )
                                     }
-                                    NotebookDropdownField(
-                                        label = "⇄ ${strings.secondaryCurrencyLabel}",
-                                        value = secValue,
-                                        subtitle = if (selectedSecondaryCurrency == "NONE") "Solo moneda local" else "Cambiar o quitar",
-                                        onClick = { showSecondaryCurrencyDialog = true }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isEn) "Local + Optional Extra" else "Moneda Local + Extra Opcional",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = FamiMidnight
+                                        )
+                                        Text(
+                                            text = if (isEn) "Track amounts in your local currency and convert live if you want."
+                                            else "Anota en tu moneda local y activa una segunda divisa para convertir en vivo.",
+                                            fontSize = 11.5.sp,
+                                            color = FamiNavyMuted,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+
+                                val primSym = CountryCurrencyConfig.getCurrencySymbol(selectedPrimaryCurrency)
+                                NotebookDropdownField(
+                                    label = "💵 ${strings.primaryCurrencyLabel}",
+                                    value = "$selectedPrimaryCurrency ($primSym)",
+                                    subtitle = "Basada en ${selectedCountry.flag} ${selectedCountry.name} (tocar para cambiar)",
+                                    onClick = { showPrimaryCurrencyDialog = true }
+                                )
+
+                                val secValue = if (selectedSecondaryCurrency == "NONE") {
+                                    "🚫 Oculta (Solo moneda local)"
+                                } else {
+                                    "$selectedSecondaryCurrency (${CountryCurrencyConfig.getCurrencySymbol(selectedSecondaryCurrency)})"
+                                }
+                                NotebookDropdownField(
+                                    label = "⇄ ${strings.secondaryCurrencyLabel} (Opcional)",
+                                    value = secValue,
+                                    subtitle = if (selectedSecondaryCurrency == "NONE")
+                                        "Sin conversión secundaria en pantalla"
+                                    else
+                                        "Verás tus montos convertidos entre $selectedPrimaryCurrency y $selectedSecondaryCurrency",
+                                    onClick = { showSecondaryCurrencyDialog = true }
+                                )
+
+                                Text(
+                                    text = "⚡ Atajos rápidos para moneda de conversión:",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    listOf("USD" to "🇺🇸 USD ($)", "EUR" to "🇪🇺 EUR (€)", "NONE" to "🚫 Solo Local").forEach { (code, label) ->
+                                        val active = selectedSecondaryCurrency.equals(code, ignoreCase = true)
+                                        Tactile3DButton(
+                                            onClick = {
+                                                selectedSecondaryCurrency = code
+                                                if (code != "NONE" && draftWallets.none { it.currency.equals(code, ignoreCase = true) }) {
+                                                    draftWallets = draftWallets + DraftWallet(
+                                                        name = "Billetera $code",
+                                                        currency = code,
+                                                        balanceText = "",
+                                                        isLocal = false
+                                                    )
+                                                }
+                                            },
+                                            faceColor = if (active) FamiCoral else PaperSheetCream,
+                                            lipColor = if (active) Lip3DCoral else Lip3DPaper,
+                                            lipHeight = 2.5.dp,
+                                            cornerRadius = 10.dp,
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (active) Color.White else FamiMidnight
+                                            )
+                                        }
+                                    }
+                                }
+
+                                StickyNoteSheet(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    noteColor = PaperStickyYellow
+                                ) {
+                                    RuledNotebookText(
+                                        text = if (selectedSecondaryCurrency == "NONE")
+                                            "Modo simple activo: solo se mostrará tu moneda local ($selectedPrimaryCurrency)."
+                                        else
+                                            "Conversión activa: tus gastos en $selectedPrimaryCurrency mostrarán equivalente en $selectedSecondaryCurrency.",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = FamiMidnight,
+                                        lineHeight = 22.sp,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                     )
                                 }
                             }
 
-                            // 4. SELECTOR DE ROL FAMILIAR
-                            Column(modifier = Modifier.fillMaxWidth()) {
+                            // ==============================================================
+                            // HOJA 3: MODO FAMILIAR VS INDIVIDUAL + CREAR/UNIRSE + ROLES
+                            // ==============================================================
+                            2 -> {
+                                Surface(
+                                    color = PaperStickyYellow,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                ) {
+                                    Text(
+                                        text = if (isEn) "🏡 PAGE 3 • HOUSEHOLD MODE & ROLE" else "🏡 HOJA 3 • MODO DE USO, FAMILIA Y ROL",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiMidnight,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
                                 Text(
-                                    text = "🏡 ${strings.familyRoleLabel}",
+                                    text = if (isEn) "How will you use Fami?" else "¿Cómo vas a llevar este cuaderno?",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val isFam = managementMode == "familiar"
+                                    Tactile3DButton(
+                                        onClick = { managementMode = "familiar" },
+                                        modifier = Modifier.weight(1f),
+                                        faceColor = if (isFam) FamiCoral else PaperSheetCream,
+                                        lipColor = if (isFam) Lip3DCoral else Lip3DPaper,
+                                        lipHeight = 3.5.dp,
+                                        cornerRadius = 12.dp,
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("👨‍👩‍👧‍👦 Familiar", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (isFam) Color.White else FamiMidnight)
+                                            Text("Compartido en casa", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = if (isFam) Color.White.copy(alpha = 0.9f) else FamiNavyMuted)
+                                        }
+                                    }
+
+                                    val isInd = managementMode == "individual"
+                                    Tactile3DButton(
+                                        onClick = {
+                                            managementMode = "individual"
+                                            familyAction = "create"
+                                            selectedRole = "Administrador"
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        faceColor = if (isInd) FamiMidnight else PaperSheetCream,
+                                        lipColor = if (isInd) Lip3DNavy else Lip3DPaper,
+                                        lipHeight = 3.5.dp,
+                                        cornerRadius = 12.dp,
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("👤 Individual", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (isInd) Color.White else FamiMidnight)
+                                            Text("Solo mis finanzas", fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = if (isInd) Color.White.copy(alpha = 0.9f) else FamiNavyMuted)
+                                        }
+                                    }
+                                }
+
+                                if (managementMode == "familiar") {
+                                    Text(
+                                        text = "¿Qué deseas hacer ahora?",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiMidnight
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val isCreate = familyAction == "create"
+                                        Tactile3DButton(
+                                            onClick = {
+                                                familyAction = "create"
+                                                selectedRole = "Administrador"
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            faceColor = if (isCreate) PaperStickyMint else PaperSheetCream,
+                                            lipColor = if (isCreate) Lip3DMint else Lip3DPaper,
+                                            lipHeight = 3.dp,
+                                            cornerRadius = 10.dp,
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                                        ) {
+                                            Text("✨ Crear Familia", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                        }
+
+                                        val isJoin = familyAction == "join"
+                                        Tactile3DButton(
+                                            onClick = {
+                                                familyAction = "join"
+                                                if (selectedRole == "Administrador") selectedRole = "Miembro familiar"
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            faceColor = if (isJoin) PaperStickyPeach else PaperSheetCream,
+                                            lipColor = if (isJoin) Lip3DCoral else Lip3DPaper,
+                                            lipHeight = 3.dp,
+                                            cornerRadius = 10.dp,
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                                        ) {
+                                            Text("🔑 Unirme con Código", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                        }
+                                    }
+                                }
+
+                                if (managementMode == "individual" || familyAction == "create") {
+                                    OutlinedTextField(
+                                        value = familyNameInput,
+                                        onValueChange = { familyNameInput = it },
+                                        label = {
+                                            Text(
+                                                if (managementMode == "individual") "Nombre de tu Cuaderno Personal" else "Nombre de la Familia / Hogar",
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        placeholder = {
+                                            Text(
+                                                if (managementMode == "individual") "Ej: Finanzas de Julio" else "Ej: Familia Pérez García",
+                                                fontSize = 11.sp,
+                                                color = FamiNavyMuted
+                                            )
+                                        },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = FamiCoral,
+                                            unfocusedBorderColor = FamiNavy.copy(alpha = 0.5f),
+                                            focusedContainerColor = PaperSheetCream,
+                                            unfocusedContainerColor = PaperSheetCream,
+                                            focusedTextColor = FamiMidnight,
+                                            unfocusedTextColor = FamiMidnight
+                                        )
+                                    )
+                                } else {
+                                    StickyNoteSheet(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        noteColor = PaperStickyMint
+                                    ) {
+                                        Text(
+                                            text = "📲 Al terminar las hojas podrás escribir el Código Familiar que te dio el Administrador para sincronizarte al instante.",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = FamiMidnight,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "👑 ${strings.familyRoleLabel}:",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiNavy
+                                    color = FamiMidnight
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
+
                                 FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -366,13 +719,11 @@ fun OnboardingScreen(
                                         }
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(6.dp))
+
                                 OutlinedTextField(
                                     value = customRoleInput,
                                     onValueChange = { customRoleInput = it },
-                                    placeholder = {
-                                        Text(strings.customRoleHint, fontSize = 11.sp, color = FamiNavyMuted)
-                                    },
+                                    placeholder = { Text(strings.customRoleHint, fontSize = 11.sp, color = FamiNavyMuted) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(10.dp),
@@ -386,98 +737,333 @@ fun OnboardingScreen(
                                     )
                                 )
                             }
-                        }
-                    }
-                } else {
-                    // ==============================================================
-                    // PÁGINAS 1..4: GUÍA ILUSTRADA DE LA MASCOTA FAMI
-                    // ==============================================================
-                    val step = guideSteps[page - 1]
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        NotebookPaperSheet(
-                            modifier = Modifier.fillMaxWidth(),
-                            paperColor = PaperSheetWhite,
-                            showSpiralTop = true,
-                            showRuledLines = true,
-                            showMarginLine = true,
-                            cornerRadius = 18.dp
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 28.dp, end = 18.dp, top = 12.dp, bottom = 20.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(PaperStickyPeach)
-                                        .border(1.5.dp, FamiNavy, RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+
+                            // ==============================================================
+                            // HOJA 4: INGRESO MENSUAL Y MÚLTIPLES BILLETERAS SIMULTÁNEAS
+                            // ==============================================================
+                            3 -> {
+                                Surface(
+                                    color = PaperStickyMint,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.2.dp, FamiMidnight)
                                 ) {
                                     Text(
-                                        text = "📓 ${step.badge}",
-                                        color = FamiCoralDark,
-                                        fontSize = 10.sp,
+                                        text = if (isEn) "💼 PAGE 4 • INCOME & MULTI-WALLETS" else "💼 HOJA 4 • INGRESO MENSUAL Y BILLETERAS",
+                                        fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
-                                        letterSpacing = 0.8.sp
+                                        color = FamiMidnight,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(225.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(PaperSheetCream)
-                                        .border(1.8.dp, FamiNavy, RoundedCornerShape(16.dp))
-                                        .padding(8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = step.imageRes),
-                                        contentDescription = step.title,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(12.dp)),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(14.dp))
 
                                 Text(
-                                    text = step.title,
-                                    color = FamiNavy,
-                                    fontSize = 21.sp,
+                                    text = if (isEn) "Income & Wallets" else "Tu Ingreso y Billeteras",
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
-                                    textAlign = TextAlign.Center
+                                    color = FamiMidnight
                                 )
-
-                                Spacer(modifier = Modifier.height(8.dp))
 
                                 Text(
-                                    text = step.description,
-                                    color = FamiNavyMuted,
-                                    fontSize = 13.sp,
+                                    text = if (isEn) "Set an approximate monthly income and manage local & foreign wallets at the same time."
+                                    else "Define tu ingreso mensual aproximado y configura billeteras en moneda local y extranjera simultáneamente.",
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    lineHeight = 19.sp,
-                                    textAlign = TextAlign.Center
+                                    color = FamiNavyMuted
                                 )
+
+                                // Ingreso mensual + Moneda
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedTextField(
+                                        value = monthlyIncomeInput,
+                                        onValueChange = { monthlyIncomeInput = it },
+                                        label = { Text("Ingreso Mensual", fontSize = 11.sp) },
+                                        placeholder = { Text("Ej: 1500", fontSize = 11.sp) },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1.4f),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = FamiCoral,
+                                            unfocusedBorderColor = FamiNavy.copy(alpha = 0.5f),
+                                            focusedContainerColor = PaperSheetCream,
+                                            unfocusedContainerColor = PaperSheetCream,
+                                            focusedTextColor = FamiMidnight,
+                                            unfocusedTextColor = FamiMidnight
+                                        )
+                                    )
+
+                                    Tactile3DButton(
+                                        onClick = { showIncomeCurrencyDialog = true },
+                                        faceColor = PaperStickyYellow,
+                                        lipColor = Lip3DGold,
+                                        lipHeight = 3.dp,
+                                        cornerRadius = 12.dp,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)
+                                    ) {
+                                        Text(
+                                            text = "$monthlyIncomeCurrency ▼",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = FamiMidnight
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "👛 Billeteras (${draftWallets.size})",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiMidnight
+                                    )
+                                    Tactile3DButton(
+                                        onClick = {
+                                            val defaultExtra = if (selectedSecondaryCurrency != "NONE") selectedSecondaryCurrency else "USD"
+                                            draftWallets = draftWallets + DraftWallet(
+                                                name = "Billetera ${draftWallets.size + 1}",
+                                                currency = defaultExtra,
+                                                balanceText = "",
+                                                isLocal = false
+                                            )
+                                        },
+                                        faceColor = PaperStickyMint,
+                                        lipColor = Lip3DMint,
+                                        lipHeight = 2.5.dp,
+                                        cornerRadius = 10.dp,
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = FamiMidnight, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Agregar Billetera", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                    }
+                                }
+
+                                draftWallets.forEachIndexed { idx, w ->
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (w.isLocal) PaperStickyPeach.copy(alpha = 0.65f) else PaperSheetCream,
+                                        border = BorderStroke(1.4.dp, FamiMidnight)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = if (w.isLocal) "🏠 MONEDA LOCAL" else "🌐 DIVISA / EXTRA",
+                                                    fontSize = 9.5.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = FamiCoralDeep
+                                                )
+                                                if (draftWallets.size > 1) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            draftWallets = draftWallets.filterIndexed { i, _ -> i != idx }
+                                                        },
+                                                        modifier = Modifier.size(22.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Delete, contentDescription = "Quitar", tint = FamiAlertRed, modifier = Modifier.size(15.dp))
+                                                    }
+                                                }
+                                            }
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                OutlinedTextField(
+                                                    value = w.name,
+                                                    onValueChange = { newVal ->
+                                                        draftWallets = draftWallets.mapIndexed { i, old -> if (i == idx) old.copy(name = newVal) else old }
+                                                    },
+                                                    label = { Text("Nombre", fontSize = 10.sp) },
+                                                    singleLine = true,
+                                                    modifier = Modifier.weight(1.3f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedBorderColor = FamiCoral,
+                                                        unfocusedBorderColor = FamiNavy.copy(alpha = 0.4f),
+                                                        focusedContainerColor = PaperSheetWhite,
+                                                        unfocusedContainerColor = PaperSheetWhite,
+                                                        focusedTextColor = FamiMidnight,
+                                                        unfocusedTextColor = FamiMidnight
+                                                    )
+                                                )
+                                                OutlinedTextField(
+                                                    value = w.balanceText,
+                                                    onValueChange = { newVal ->
+                                                        draftWallets = draftWallets.mapIndexed { i, old -> if (i == idx) old.copy(balanceText = newVal) else old }
+                                                    },
+                                                    label = { Text("Saldo", fontSize = 10.sp) },
+                                                    placeholder = { Text("0.00", fontSize = 10.sp) },
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                                    singleLine = true,
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = OutlinedTextFieldDefaults.colors(
+                                                        focusedBorderColor = FamiCoral,
+                                                        unfocusedBorderColor = FamiNavy.copy(alpha = 0.4f),
+                                                        focusedContainerColor = PaperSheetWhite,
+                                                        unfocusedContainerColor = PaperSheetWhite,
+                                                        focusedTextColor = FamiMidnight,
+                                                        unfocusedTextColor = FamiMidnight
+                                                    )
+                                                )
+                                                Tactile3DButton(
+                                                    onClick = { editingWalletCurrencyIdx = idx },
+                                                    faceColor = PaperStickyYellow,
+                                                    lipColor = Lip3DGold,
+                                                    lipHeight = 2.5.dp,
+                                                    cornerRadius = 10.dp,
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
+                                                ) {
+                                                    Text(w.currency, fontSize = 11.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ==============================================================
+                            // HOJA 5: SELECTOR DE 12 AVATARES NANO BANANA (M/F, ADULTOS/MENORES)
+                            // ==============================================================
+                            4 -> {
+                                Surface(
+                                    color = PaperStickyPeach,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.2.dp, FamiMidnight)
+                                ) {
+                                    Text(
+                                        text = if (isEn) "🎨 PAGE 5 • CHOOSE YOUR AVATAR" else "🎨 HOJA 5 • ELIGE TU AVATAR DE CUENTA",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiCoralDeep,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
+                                Text(
+                                    text = if (isEn) "Pick Your Fami Character" else "¿Cuál te representa mejor?",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiMidnight
+                                )
+
+                                // Filtros por Adultos / Menores / F / M
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    listOf("Todos", "Adultos", "Menores", "Femenino", "Masculino").forEach { filter ->
+                                        val active = avatarFilter == filter
+                                        Tactile3DButton(
+                                            onClick = { avatarFilter = filter },
+                                            faceColor = if (active) FamiCoral else PaperSheetCream,
+                                            lipColor = if (active) Lip3DCoral else Lip3DPaper,
+                                            lipHeight = 2.dp,
+                                            cornerRadius = 9.dp,
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = filter,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (active) Color.White else FamiMidnight
+                                            )
+                                        }
+                                    }
+                                }
+
+                                val shownAvatars = remember(avatarFilter) {
+                                    when (avatarFilter) {
+                                        "Adultos" -> AvatarCatalog.ALL.filter { it.ageGroup == "Adulto" }
+                                        "Menores" -> AvatarCatalog.ALL.filter { it.ageGroup == "Menor" }
+                                        "Femenino" -> AvatarCatalog.ALL.filter { it.gender == "F" }
+                                        "Masculino" -> AvatarCatalog.ALL.filter { it.gender == "M" }
+                                        else -> AvatarCatalog.ALL
+                                    }
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    shownAvatars.chunked(3).forEach { rowItems ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            rowItems.forEach { av ->
+                                                val isSel = selectedAvatarId == av.id
+                                                Surface(
+                                                    onClick = { selectedAvatarId = av.id },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(14.dp),
+                                                    color = if (isSel) PaperStickyYellow else PaperSheetCream,
+                                                    border = BorderStroke(if (isSel) 2.2.dp else 1.2.dp, if (isSel) FamiCoral else FamiMidnight)
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier.padding(6.dp),
+                                                        horizontalAlignment = Alignment.CenterHorizontally
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(58.dp)
+                                                                .clip(CircleShape)
+                                                                .background(PaperSheetWhite)
+                                                                .border(1.4.dp, if (isSel) FamiCoral else FamiMidnight, CircleShape)
+                                                        ) {
+                                                            Image(
+                                                                painter = painterResource(id = av.drawableRes),
+                                                                contentDescription = av.labelEs,
+                                                                modifier = Modifier.fillMaxSize(),
+                                                                contentScale = ContentScale.Crop
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                        Text(
+                                                            text = if (isEn) av.labelEn else av.labelEs,
+                                                            fontSize = 9.5.sp,
+                                                            fontWeight = FontWeight.Black,
+                                                            color = FamiMidnight,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = TextAlign.Center
+                                                        )
+                                                        Text(
+                                                            text = "${av.ageGroup} • ${av.gender}",
+                                                            fontSize = 8.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isSel) FamiCoral else FamiNavyMuted
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            repeat(3 - rowItems.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Indicador de Páginas (Dots con borde de tinta)
+            // Indicador de Hojas
             Row(
                 modifier = Modifier.padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.Center
@@ -496,49 +1082,64 @@ fun OnboardingScreen(
                 }
             }
 
-            // Botón Táctil 3D Principal
-            Tactile3DButton(
-                onClick = {
-                    if (pagerState.currentPage < totalPages - 1) {
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                        }
-                    } else {
-                        onComplete(
-                            selectedCountry,
-                            selectedPrimaryCurrency,
-                            selectedSecondaryCurrency,
-                            selectedLanguage,
-                            finalRole
-                        )
-                    }
-                },
+            // Botones inferiores 3D: Anterior / Siguiente Hoja o Abrir Mi Cuaderno
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                faceColor = FamiCoral,
-                lipColor = Lip3DCoral,
-                lipHeight = 5.dp,
-                cornerRadius = 14.dp,
-                contentPadding = PaddingValues(vertical = 13.dp, horizontal = 20.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val btnLabel = when {
-                    pagerState.currentPage == 0 -> strings.continueToGuide
-                    pagerState.currentPage == totalPages - 1 -> strings.openNotebook
-                    else -> strings.nextSheet
+                if (pagerState.currentPage > 0) {
+                    Tactile3DButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                            }
+                        },
+                        faceColor = PaperSheetWhite,
+                        lipColor = Lip3DPaper,
+                        lipHeight = 5.dp,
+                        cornerRadius = 14.dp,
+                        contentPadding = PaddingValues(vertical = 13.dp, horizontal = 16.dp)
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = FamiMidnight, modifier = Modifier.size(18.dp))
+                    }
                 }
-                Text(
-                    text = btnLabel,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 0.6.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = if (pagerState.currentPage == totalPages - 1) Icons.Default.Check else Icons.Default.ArrowForward,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
+
+                Tactile3DButton(
+                    onClick = {
+                        if (pagerState.currentPage < totalPages - 1) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                        } else {
+                            finishOnboarding()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    faceColor = FamiCoral,
+                    lipColor = Lip3DCoral,
+                    lipHeight = 5.dp,
+                    cornerRadius = 14.dp,
+                    contentPadding = PaddingValues(vertical = 13.dp, horizontal = 20.dp)
+                ) {
+                    val btnLabel = when {
+                        pagerState.currentPage == totalPages - 1 -> strings.openNotebook
+                        else -> strings.nextSheet
+                    }
+                    Text(
+                        text = btnLabel,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.6.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = if (pagerState.currentPage == totalPages - 1) Icons.Default.Check else Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
@@ -552,6 +1153,10 @@ fun OnboardingScreen(
                     userManuallyPickedCountry = true
                     selectedCountry = country
                     selectedPrimaryCurrency = country.localCurrency
+                    monthlyIncomeCurrency = country.localCurrency
+                    draftWallets = draftWallets.mapIndexed { idx, w ->
+                        if (idx == 0 && w.isLocal) w.copy(currency = country.localCurrency) else w
+                    }
                     showCountryDialog = false
                 }
             )
@@ -579,6 +1184,10 @@ fun OnboardingScreen(
                 onDismiss = { showPrimaryCurrencyDialog = false },
                 onSelectCurrency = { code ->
                     selectedPrimaryCurrency = code
+                    monthlyIncomeCurrency = code
+                    draftWallets = draftWallets.mapIndexed { idx, w ->
+                        if (idx == 0 && w.isLocal) w.copy(currency = code) else w
+                    }
                     showPrimaryCurrencyDialog = false
                 }
             )
@@ -598,8 +1207,42 @@ fun OnboardingScreen(
                 }
             )
         }
+
+        // Diálogo de Moneda para Ingreso Mensual
+        if (showIncomeCurrencyDialog) {
+            CurrencyPickerDialog(
+                title = "💵 Moneda del Ingreso Mensual",
+                selectedCurrencyCode = monthlyIncomeCurrency,
+                allowNone = false,
+                noneLabel = "",
+                onDismiss = { showIncomeCurrencyDialog = false },
+                onSelectCurrency = { code ->
+                    monthlyIncomeCurrency = code
+                    showIncomeCurrencyDialog = false
+                }
+            )
+        }
+
+        // Diálogo de Moneda para una Billetera específica
+        editingWalletCurrencyIdx?.let { wIdx ->
+            val currentCurr = draftWallets.getOrNull(wIdx)?.currency ?: selectedPrimaryCurrency
+            CurrencyPickerDialog(
+                title = "👛 Moneda de Billetera",
+                selectedCurrencyCode = currentCurr,
+                allowNone = false,
+                noneLabel = "",
+                onDismiss = { editingWalletCurrencyIdx = null },
+                onSelectCurrency = { code ->
+                    draftWallets = draftWallets.mapIndexed { i, w ->
+                        if (i == wIdx) w.copy(currency = code, isLocal = code.equals(selectedPrimaryCurrency, ignoreCase = true)) else w
+                    }
+                    editingWalletCurrencyIdx = null
+                }
+            )
+        }
     }
 }
+
 
 @Composable
 fun NotebookDropdownField(

@@ -166,12 +166,11 @@ object CountryCurrencyConfig {
     )
 
     val FAMILY_ROLES = listOf(
+        FamilyRoleOption("admin", "Administrador", "Administrator", "Administrador", "👑"),
+        FamilyRoleOption("member", "Miembro familiar", "Family Member", "Membro da Família", "🤝"),
+        FamilyRoleOption("child", "Hijo / Hija", "Son / Daughter", "Filho / Filha", "🧒"),
         FamilyRoleOption("mama", "Mamá", "Mom", "Mãe", "👩"),
-        FamilyRoleOption("papa", "Papá", "Dad", "Pai", "👨"),
-        FamilyRoleOption("pareja", "Esposo/a / Pareja", "Spouse / Partner", "Cônjuge / Parceiro(a)", "💑"),
-        FamilyRoleOption("hijo", "Hijo / Hija", "Son / Daughter", "Filho / Filha", "🧑"),
-        FamilyRoleOption("abuelo", "Abuelo / Abuela", "Grandparent", "Avô / Avó", "👵"),
-        FamilyRoleOption("admin", "Admin del Hogar", "Home Admin", "Admin da Casa", "🏠")
+        FamilyRoleOption("papa", "Papá", "Dad", "Pai", "👨")
     )
 
     fun detectSystemLanguageCode(): String {

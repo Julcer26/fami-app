@@ -80,6 +80,7 @@ class FamilyRepository {
                                 obj is RecurringPayment -> (obj as RecurringPayment).copy(id = key) as T
                                 obj is Goal -> (obj as Goal).copy(id = key) as T
                                 obj is Note -> (obj as Note).copy(id = key) as T
+                                obj is Wallet -> (obj as Wallet).copy(id = key) as T
                                 else -> obj
                             }
                             
@@ -117,6 +118,7 @@ class FamilyRepository {
     val allLogs: Flow<List<ActivityLog>> = observeList("activity_logs")
     val allGoals: Flow<List<Goal>> = observeList("goals")
     val allNotes: Flow<List<Note>> = observeList("notes")
+    val allWallets: Flow<List<Wallet>> = observeList("wallets")
     val allRecurringPayments: Flow<List<RecurringPayment>> = observeList("recurring_payments")
 
     suspend fun insertRecurringPayment(payment: RecurringPayment, user: String) {
@@ -447,6 +449,21 @@ class FamilyRepository {
         val targetId = if (note.id.isNotEmpty()) note.id else return
         notesRef.child(targetId).removeValue().await()
         insertLog(ActivityLog(tag = "NOTAS", message = "${user} eliminó la nota: '${note.title}'", user = user))
+    }
+
+    suspend fun insertWallet(wallet: Wallet, user: String) {
+        val walletsRef = getFamilyRef("wallets") ?: return
+        val pushRef = if (wallet.id.isEmpty()) walletsRef.push() else walletsRef.child(wallet.id)
+        val finalWallet = wallet.copy(id = pushRef.key ?: "")
+        pushRef.setValue(finalWallet).await()
+        insertLog(ActivityLog(tag = "FINANZAS", message = "$user actualizó la billetera '${finalWallet.name}' (${finalWallet.currency})", user = user))
+    }
+
+    suspend fun deleteWallet(wallet: Wallet, user: String) {
+        val walletsRef = getFamilyRef("wallets") ?: return
+        val targetId = if (wallet.id.isNotEmpty()) wallet.id else return
+        walletsRef.child(targetId).removeValue().await()
+        insertLog(ActivityLog(tag = "FINANZAS", message = "$user eliminó la billetera '${wallet.name}'", user = user))
     }
 
     private suspend fun insertLog(log: ActivityLog) {

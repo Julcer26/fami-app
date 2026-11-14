@@ -79,7 +79,31 @@ class FamilyViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.currency.CountryCurrencyConfig.detectSystemLanguageCode())
 
     val familyRole: StateFlow<String> = dataStoreManager.familyRoleFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Administrador")
+
+    val managementMode: StateFlow<String> = dataStoreManager.managementModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "familiar")
+
+    val familyAction: StateFlow<String> = dataStoreManager.familyActionFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "create")
+
+    val pendingFamilyName: StateFlow<String> = dataStoreManager.pendingFamilyNameFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val userAvatarId: StateFlow<String> = dataStoreManager.userAvatarIdFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "woman_1")
+
+    val monthlyIncomeAmount: StateFlow<Double> = dataStoreManager.monthlyIncomeAmountFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val monthlyIncomeCurrency: StateFlow<String> = dataStoreManager.monthlyIncomeCurrencyFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "USD")
+
+    val hasCompletedInAppTour: StateFlow<Boolean> = dataStoreManager.hasCompletedInAppTourFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val wallets: StateFlow<List<Wallet>> = repository.allWallets
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val viewInSecondary: StateFlow<Boolean> = dataStoreManager.viewInSecondaryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -111,7 +135,14 @@ class FamilyViewModel(
         primaryCurr: String,
         secondaryCurr: String,
         languageCode: String,
-        role: String
+        role: String,
+        managementMode: String = "familiar",
+        familyAction: String = "create",
+        familyName: String = "",
+        avatarId: String = "woman_1",
+        monthlyIncome: Double = 0.0,
+        monthlyIncomeCurr: String = primaryCurr,
+        initialWallets: List<Wallet> = emptyList()
     ) {
         viewModelScope.launch {
             dataStoreManager.setInitialConfiguration(
@@ -119,7 +150,14 @@ class FamilyViewModel(
                 primaryCurr = primaryCurr,
                 secondaryCurr = secondaryCurr,
                 languageCode = languageCode,
-                familyRole = role.trim()
+                familyRole = role.trim(),
+                managementMode = managementMode,
+                familyAction = familyAction,
+                familyName = familyName.trim(),
+                avatarId = avatarId,
+                monthlyIncomeAmount = monthlyIncome,
+                monthlyIncomeCurrency = monthlyIncomeCurr,
+                initialWallets = initialWallets
             )
             syncExchangeRateFor(country.code, primaryCurr, secondaryCurr)
         }
@@ -138,6 +176,44 @@ class FamilyViewModel(
             dataStoreManager.setFamilyRole(role.trim())
             syncExchangeRateFor(country.code, primaryCurr, secondaryCurr)
             notifyUser("Configuración actualizada: ${country.flag} $primaryCurr")
+        }
+    }
+
+    fun updateUserAvatar(avatarId: String) {
+        viewModelScope.launch {
+            dataStoreManager.setUserAvatarId(avatarId)
+            val user = _currentUser.value
+            if (user.isNotBlank()) {
+                val existing = profiles.value.find { it.name == user }
+                if (existing != null) {
+                    repository.insertProfile(existing.copy(avatarId = avatarId), user)
+                }
+            }
+            notifyUser("Avatar actualizado ✨")
+        }
+    }
+
+    fun completeInAppTour() {
+        viewModelScope.launch {
+            dataStoreManager.setInAppTourCompleted(true)
+        }
+    }
+
+    fun reopenInAppTour() {
+        viewModelScope.launch {
+            dataStoreManager.setInAppTourCompleted(false)
+        }
+    }
+
+    fun addOrEditWallet(wallet: Wallet) {
+        viewModelScope.launch {
+            repository.insertWallet(wallet.copy(ownerName = wallet.ownerName.ifBlank { _currentUser.value }), _currentUser.value)
+        }
+    }
+
+    fun deleteWallet(wallet: Wallet) {
+        viewModelScope.launch {
+            repository.deleteWallet(wallet, _currentUser.value)
         }
     }
 
@@ -316,7 +392,7 @@ class FamilyViewModel(
         }
     }
 
-    fun createFamily(email: String, pin: String, password: String) {
+    fun createFamily(email: String, pin: String, password: String, customFamilyName: String = "", customUserName: String = "") {
         viewModelScope.launch {
             try {
                 val authResult = com.google.firebase.auth.FirebaseAuth.getInstance()
@@ -324,7 +400,7 @@ class FamilyViewModel(
                 val uid = authResult.user?.uid ?: throw Exception("No se pudo obtener el UID de Firebase")
                 
                 val newFamilyId = UUID.randomUUID().toString().substring(0, 8).uppercase()
-                val userName = email.substringBefore("@")
+                val userName = customUserName.trim().ifBlank { email.substringBefore("@") }
                 
                 repository.registerUserMapping(uid, newFamilyId, userName)
                 repository.registerFamilyMember(newFamilyId, uid)
@@ -334,12 +410,13 @@ class FamilyViewModel(
                 repository.setFamilyId(newFamilyId)
                 
                 repository.populateDefaultsIfNeeded()
-                repository.insertProfile(UserProfile(userName, "#D0BCFF"), userName)
+                syncPendingNotebookSetup(userName = userName, colorHex = "#D0BCFF", familyNameOverride = customFamilyName)
                 
                 _currentUser.value = userName
                 _isAuthenticated.value = true
                 checkDefaultsAndSync()
-                notifyUser("Familia creada. Código: $newFamilyId")
+                val displayFam = customFamilyName.trim().ifBlank { pendingFamilyName.value.ifBlank { newFamilyId } }
+                notifyUser("Cuaderno '$displayFam' creado. Código: $newFamilyId")
             } catch (e: Exception) {
                 notifyUser("Error al crear familia: ${e.localizedMessage}")
             }
@@ -366,7 +443,7 @@ class FamilyViewModel(
                 _familyId.value = code
                 repository.setFamilyId(code)
 
-                repository.insertProfile(UserProfile(name.trim(), "#EFB8C8"), name.trim())
+                syncPendingNotebookSetup(userName = name.trim(), colorHex = "#EFB8C8")
                 _currentUser.value = name.trim()
                 _isAuthenticated.value = true
                 checkDefaultsAndSync()
@@ -374,6 +451,51 @@ class FamilyViewModel(
             } catch (e: Exception) {
                 notifyUser("Error al unirse: ${e.localizedMessage}")
             }
+        }
+    }
+
+    private suspend fun syncPendingNotebookSetup(
+        userName: String,
+        colorHex: String,
+        familyNameOverride: String = ""
+    ) {
+        val avatarId = dataStoreManager.userAvatarIdFlow.firstOrNull() ?: "woman_1"
+        val role = dataStoreManager.familyRoleFlow.firstOrNull() ?: "Administrador"
+        val mode = dataStoreManager.managementModeFlow.firstOrNull() ?: "familiar"
+        val famName = familyNameOverride.trim().ifBlank { dataStoreManager.pendingFamilyNameFlow.firstOrNull()?.trim().orEmpty() }
+        val monthlyInc = dataStoreManager.monthlyIncomeAmountFlow.firstOrNull() ?: 0.0
+        val monthlyIncCurr = dataStoreManager.monthlyIncomeCurrencyFlow.firstOrNull() ?: "USD"
+        val liveRate = dataStoreManager.liveExchangeRateFlow.firstOrNull() ?: 36.85
+        val walletsJson = dataStoreManager.pendingWalletsJsonFlow.firstOrNull() ?: "[]"
+
+        repository.insertProfile(
+            UserProfile(name = userName, colorHex = colorHex, avatarId = avatarId, role = role),
+            userName
+        )
+        if (famName.isNotBlank()) {
+            repository.insertSetting("family_name", famName, userName)
+        }
+        repository.insertSetting("management_mode", mode, userName)
+
+        if (monthlyInc > 0.0) {
+            val amountUsd = if (monthlyIncCurr.equals("USD", ignoreCase = true) || monthlyIncCurr.equals("EUR", ignoreCase = true)) {
+                monthlyInc
+            } else if (liveRate > 0.0) {
+                monthlyInc / liveRate
+            } else {
+                monthlyInc
+            }
+            repository.insertSetting("monthly_income_amount", String.format(java.util.Locale.US, "%.2f", monthlyInc), userName)
+            repository.insertSetting("monthly_income_currency", monthlyIncCurr, userName)
+            repository.insertSetting("total_limit_usd", String.format(java.util.Locale.US, "%.2f", amountUsd), userName)
+        }
+
+        val initialWallets = dataStoreManager.parseWalletsJson(walletsJson)
+        if (initialWallets.isNotEmpty()) {
+            initialWallets.forEach { w ->
+                repository.insertWallet(w.copy(ownerName = userName), userName)
+            }
+            dataStoreManager.clearPendingWallets()
         }
     }
 

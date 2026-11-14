@@ -49,12 +49,26 @@ private const val TERMS_URL = "https://somosfami.app/terms.html"
 @Composable
 fun AuthScreen(viewModel: FamilyViewModel) {
     val familyId by viewModel.familyId.collectAsStateWithLifecycle()
+    val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsStateWithLifecycle()
+    val familyAction by viewModel.familyAction.collectAsStateWithLifecycle()
+    val pendingFamilyName by viewModel.pendingFamilyName.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val userAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
+    val familyRole by viewModel.familyRole.collectAsStateWithLifecycle()
+    val selectedAvatar = remember(userAvatarId) { com.example.ui.AvatarCatalog.getById(userAvatarId) }
     val scrollState = rememberScrollState()
 
     // Si ya tiene una familia asociada localmente, va a la pantalla de LOGIN (desbloqueo rápido).
-    // Si no tiene familia, va al Onboarding/Selección (crear o unirse).
+    // Si acaba de terminar la creación paso a paso del cuaderno, va directo a crear o unirse.
     var currentMode by remember(familyId) {
-        mutableStateOf(if (familyId != null) "login" else "select")
+        mutableStateOf(
+            when {
+                familyId != null -> "login"
+                hasCompletedOnboarding && familyAction == "join" && managementMode == "familiar" -> "join_family"
+                hasCompletedOnboarding -> "create_family"
+                else -> "select"
+            }
+        )
     }
 
     Box(
@@ -87,7 +101,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
             // Logo Oficial de Fami (Carpeta Logos fami) + Mascota en marco de papel
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
@@ -114,9 +128,36 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                         )
                     }
                 }
+
+                // Insignia con Avatar elegido en el Onboarding
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = com.example.ui.theme.PaperStickyYellow,
+                    border = BorderStroke(1.3.dp, com.example.ui.theme.FamiMidnight)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = selectedAvatar.drawableRes),
+                            contentDescription = selectedAvatar.labelEs,
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                        )
+                        Text(
+                            text = "${if (managementMode == "individual") "👤 Individual" else "👨‍👩‍👧‍👦 Familiar"} • $familyRole",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = com.example.ui.theme.FamiMidnight
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             AnimatedContent(
                 targetState = currentMode,
@@ -138,6 +179,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     )
                     "create_family" -> CreateFamilyContent(
                         viewModel = viewModel,
+                        initialFamilyName = pendingFamilyName,
+                        managementMode = managementMode,
                         onBack = { currentMode = "select" },
                         onSwitchToLogin = { currentMode = "login_existing" }
                     )
@@ -365,7 +408,7 @@ private fun LoginContent(viewModel: FamilyViewModel, onReset: () -> Unit) {
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Desbloquear Nido",
+                text = "Desbloquear Fami",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -430,22 +473,26 @@ private fun LoginContent(viewModel: FamilyViewModel, onReset: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             TextButton(onClick = onReset) {
-                Text("Cambiar de nido o crear otro", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Cambiar de cuenta o crear otra", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
 // -------------------------------------------------------------
-// 3. CREAR NUEVO NIDO FAMILIAR
+// 3. CREAR NUEVO CUADERNO FAMI (FAMILIAR O INDIVIDUAL)
 // -------------------------------------------------------------
 @Composable
 private fun CreateFamilyContent(
     viewModel: FamilyViewModel,
+    initialFamilyName: String = "",
+    managementMode: String = "familiar",
     onBack: () -> Unit,
     onSwitchToLogin: () -> Unit
 ) {
     val context = LocalContext.current
+    var familyNameInput by remember(initialFamilyName) { mutableStateOf(initialFamilyName) }
+    var userNameInput by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
@@ -469,20 +516,46 @@ private fun CreateFamilyContent(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "Crea tu Nido Familiar",
+                        text = if (managementMode == "individual") "Crea tu Cuaderno Personal" else "Crea tu Hogar Fami",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Serás el administrador de este hogar",
+                        text = if (managementMode == "individual") "Tu cuenta privada multi-moneda en la nube" else "Serás el administrador de este hogar",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = familyNameInput,
+                onValueChange = { familyNameInput = it },
+                label = { Text(if (managementMode == "individual") "Nombre del Cuaderno" else "Nombre de la Familia / Hogar") },
+                placeholder = { Text(if (managementMode == "individual") "Mi Cuaderno Fami" else "Ej: Familia Pérez") },
+                leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = userNameInput,
+                onValueChange = { userNameInput = it },
+                label = { Text("Tu Nombre o Alias (Opcional)") },
+                placeholder = { Text("Ej: Mamá, Julio, Ana...") },
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedTextField(
                 value = email,
@@ -496,7 +569,7 @@ private fun CreateFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedTextField(
                 value = password,
@@ -533,7 +606,7 @@ private fun CreateFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Button(
                 onClick = {
@@ -544,7 +617,13 @@ private fun CreateFamilyContent(
                     } else if (pin.length != 5) {
                         Toast.makeText(context, "El PIN debe ser exactamente de 5 dígitos", Toast.LENGTH_SHORT).show()
                     } else {
-                        viewModel.createFamily(email.trim(), pin, password)
+                        viewModel.createFamily(
+                            email = email.trim(),
+                            pin = pin,
+                            password = password,
+                            customFamilyName = familyNameInput.trim(),
+                            customUserName = userNameInput.trim()
+                        )
                     }
                 },
                 modifier = Modifier
@@ -553,7 +632,7 @@ private fun CreateFamilyContent(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Crear Nido y Comenzar", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Abrir Cuaderno y Comenzar", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -571,7 +650,7 @@ private fun CreateFamilyContent(
 }
 
 // -------------------------------------------------------------
-// 4. UNIRSE A UN NIDO EXISTENTE MEDIANTE CÓDIGO
+// 4. UNIRSE A UN HOGAR EXISTENTE MEDIANTE CÓDIGO
 // -------------------------------------------------------------
 @Composable
 private fun JoinFamilyContent(viewModel: FamilyViewModel, onBack: () -> Unit) {
@@ -601,7 +680,7 @@ private fun JoinFamilyContent(viewModel: FamilyViewModel, onBack: () -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "Unirse a un Nido",
+                        text = "Unirse a un Hogar Fami",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -845,7 +924,7 @@ private fun LoginExistingFamilyContent(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Entrar a Nido", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Entrar a Fami", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -904,7 +983,7 @@ private fun showBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Uni
     )
 
     val promptInfo = BiometricPrompt.PromptInfo.Builder()
-        .setTitle("Desbloquear Nido")
+        .setTitle("Desbloquear Fami")
         .setSubtitle("Usa tu huella para acceder")
         .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
         .build()

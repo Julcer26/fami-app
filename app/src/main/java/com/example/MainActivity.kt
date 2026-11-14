@@ -341,13 +341,16 @@ fun MainScreen(viewModel: FamilyViewModel) {
     
     var showUpdateDialog by remember { mutableStateOf(false) }
     var updateUrl by remember { mutableStateOf("") }
+    var latestVersionCode by remember { mutableIntStateOf(0) }
+    var latestVersionName by remember { mutableStateOf("") }
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {
-        val currentVersionCode = com.example.BuildConfig.VERSION_CODE
-        val info = OtaUpdateManager.checkForUpdates(currentVersionCode)
-        if (info.isUpdateAvailable && info.downloadUrl.isNotEmpty() ){
+        val info = OtaUpdateManager.checkForUpdates(context)
+        if (info.isUpdateAvailable && info.downloadUrl.isNotEmpty()) {
             updateUrl = info.downloadUrl
+            latestVersionCode = info.latestVersionCode
+            latestVersionName = info.latestVersionName
             showUpdateDialog = true
         }
     }
@@ -478,6 +481,11 @@ fun MainScreen(viewModel: FamilyViewModel) {
     val secondaryCurrencyState by viewModel.secondaryCurrency.collectAsStateWithLifecycle()
     val appLanguageState by viewModel.appLanguage.collectAsStateWithLifecycle()
     val familyRoleState by viewModel.familyRole.collectAsStateWithLifecycle()
+    val managementModeState by viewModel.managementMode.collectAsStateWithLifecycle()
+    val familyActionState by viewModel.familyAction.collectAsStateWithLifecycle()
+    val pendingFamilyNameState by viewModel.pendingFamilyName.collectAsStateWithLifecycle()
+    val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
+    val hasCompletedInAppTour by viewModel.hasCompletedInAppTour.collectAsStateWithLifecycle()
 
     LaunchedEffect(appLanguageState) {
         if (appLanguageState.isNotBlank()) {
@@ -492,13 +500,24 @@ fun MainScreen(viewModel: FamilyViewModel) {
             initialSecondaryCurrency = secondaryCurrencyState,
             initialLanguage = appLanguageState,
             initialFamilyRole = familyRoleState,
-            onComplete = { selectedCountry, primaryCurr, secondaryCurr, langCode, role ->
+            initialManagementMode = managementModeState,
+            initialFamilyAction = familyActionState,
+            initialFamilyName = pendingFamilyNameState,
+            initialAvatarId = userAvatarIdState,
+            onComplete = { selectedCountry, primaryCurr, secondaryCurr, langCode, role, mgmtMode, famAction, famName, avatarId, incomeAmt, incomeCurr, initWallets ->
                 viewModel.applyInitialConfiguration(
                     country = selectedCountry,
                     primaryCurr = primaryCurr,
                     secondaryCurr = secondaryCurr,
                     languageCode = langCode,
-                    role = role
+                    role = role,
+                    managementMode = mgmtMode,
+                    familyAction = famAction,
+                    familyName = famName,
+                    avatarId = avatarId,
+                    monthlyIncome = incomeAmt,
+                    monthlyIncomeCurr = incomeCurr,
+                    initialWallets = initWallets
                 )
             }
         )
@@ -626,23 +645,38 @@ fun MainScreen(viewModel: FamilyViewModel) {
 
                 // Global Config Dialog as popup at the top
                 if (showConfigDialog) {
-                    ConfigDialog(viewModel = viewModel, onDismiss = { showConfigDialog = false })
+                    ConfigDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showConfigDialog = false },
+                        onOpenGuide = {
+                            showConfigDialog = false
+                            viewModel.reopenInAppTour()
+                        }
+                    )
                 }
                 
                 if (showUpdateDialog) {
                     AlertDialog(
-                        onDismissRequest = { showUpdateDialog = false },
-                        title = { Text("Actualización Disponible") },
-                        text = { Text("Hay una nueva versión de la aplicación disponible. ¿Deseas descargarla e instalarla ahora?") },
+                        onDismissRequest = {
+                            if (latestVersionCode > 0) {
+                                OtaUpdateManager.dismissUpdateForVersion(context, latestVersionCode)
+                            }
+                            showUpdateDialog = false
+                        },
+                        title = {
+                            Text(
+                                if (latestVersionName.isNotBlank()) "Actualización Disponible (v$latestVersionName)"
+                                else "Actualización Disponible"
+                            )
+                        },
+                        text = { Text("Hay una nueva versión de Fami disponible. ¿Deseas descargarla e instalarla ahora?") },
                         confirmButton = {
                             TextButton(onClick = {
                                 showUpdateDialog = false
                                 if (updateUrl.isNotEmpty() && !updateUrl.contains("play.google.com")) {
-                                    // Modo OTA directo (descarga e instala el APK automáticamente)
                                     android.widget.Toast.makeText(context, "Descargando actualización OTA...", android.widget.Toast.LENGTH_LONG).show()
-                                    OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl)
+                                    OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode)
                                 } else {
-                                    // Modo Google Play Store
                                     try {
                                         val playIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=${context.packageName}"))
                                         context.startActivity(playIntent)
@@ -656,7 +690,12 @@ fun MainScreen(viewModel: FamilyViewModel) {
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showUpdateDialog = false }) {
+                            TextButton(onClick = {
+                                if (latestVersionCode > 0) {
+                                    OtaUpdateManager.dismissUpdateForVersion(context, latestVersionCode)
+                                }
+                                showUpdateDialog = false
+                            }) {
                                 Text("Más tarde")
                             }
                         }
@@ -673,6 +712,14 @@ fun MainScreen(viewModel: FamilyViewModel) {
                 
                 ConfettiEffect(trigger = confettiTrigger, modifier = Modifier.fillMaxSize().zIndex(9999f))
                 }
+            }
+
+            if (!hasCompletedInAppTour) {
+                com.example.ui.InAppGuideOverlay(
+                    appLanguage = appLanguageState,
+                    onSwitchTab = { target -> currentTab = target },
+                    onDismiss = { viewModel.completeInAppTour() }
+                )
             }
         }
     }
@@ -915,12 +962,23 @@ fun DashboardTab(
     val chores by viewModel.chores.collectAsStateWithLifecycle()
     val shoppingItems by viewModel.shoppingItems.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val wallets by viewModel.wallets.collectAsStateWithLifecycle()
+    val userAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
+    val familyRole by viewModel.familyRole.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
     val activityLogs by viewModel.activityLogs.collectAsStateWithLifecycle()
     val isRegisteringNlp by viewModel.isRegisteringNlp.collectAsStateWithLifecycle()
     val nlpError by viewModel.nlpError.collectAsStateWithLifecycle()
 
     var nlpInputText by remember { mutableStateOf("") }
+    var showWalletDialog by remember { mutableStateOf(false) }
+    var editingWallet by remember { mutableStateOf<com.example.database.Wallet?>(null) }
+    var walletNameInput by remember { mutableStateOf("") }
+    var walletCurrencyInput by remember { mutableStateOf("USD") }
+    var walletBalanceInput by remember { mutableStateOf("") }
+    var showWalletCurrencyPicker by remember { mutableStateOf(false) }
 
     // --- AI & Sincronización State variables ---
     val coroutineScope = rememberCoroutineScope()
@@ -1075,31 +1133,48 @@ fun DashboardTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val avatarOpt = remember(userAvatarId) { com.example.ui.AvatarCatalog.getById(userAvatarId) }
+                    val customFamilyName = settings.find { it.key == "family_name" }?.value.orEmpty()
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
                         androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_mascot),
-                            contentDescription = "Fami Mascot",
+                            painter = androidx.compose.ui.res.painterResource(id = avatarOpt.drawableRes),
+                            contentDescription = avatarOpt.labelEs,
                             modifier = Modifier
                                 .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(1.8.dp, FamiMidnight, RoundedCornerShape(12.dp))
+                                .clip(CircleShape)
+                                .background(PaperSheetCream)
+                                .border(1.8.dp, FamiMidnight, CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             androidx.compose.foundation.Image(
                                 painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_logo_wide),
                                 contentDescription = "Logo Oficial Fami",
-                                modifier = Modifier.height(22.dp)
+                                modifier = Modifier.height(20.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (currentUser.isNotBlank()) "Cuaderno de $currentUser" else "Cuaderno Familiar Fami",
+                                text = when {
+                                    customFamilyName.isNotBlank() -> customFamilyName
+                                    currentUser.isNotBlank() -> "Cuaderno de $currentUser"
+                                    else -> "Cuaderno Familiar Fami"
+                                },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
-                                color = FamiMidnight
+                                color = FamiMidnight,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${if (managementMode == "individual") "👤 Personal" else "🏡 Familiar"} • $familyRole",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FamiCoralDeep,
+                                maxLines = 1
                             )
                         }
                     }
@@ -1231,7 +1306,7 @@ fun DashboardTab(
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
                 sheetColor = PaperSheetWhite,
-                showRuledLines = true,
+                showRuledLines = false,
                 showMarginLine = true,
                 showSpiralTop = false
             ) {
@@ -1452,17 +1527,153 @@ fun DashboardTab(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    com.example.ui.RuledNotebookText(
                         text = when {
                             spentPercentage > 100 -> "⚠️ Excediste la hoja mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
                             spentPercentage >= 85 -> "📌 Atención Fami: Has ejecutado el $spentPercentage% de tu hoja mensual"
                             else -> "✅ Cuaderno al día: $spentPercentage% del presupuesto utilizado"
                         },
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = FamiMidnight
+                        color = FamiMidnight,
+                        lineHeight = 22.sp
                     )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // 3B. BILLETERAS MULTI-MONEDA SIMULTÁNEAS (Moneda Local + Divisas)
+        item {
+            val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
+            val primaryCurrencyCode by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+            val countryInfo = remember(selectedCountryCode) {
+                com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
+            }
+            val defaultLocalCurr = primaryCurrencyCode.ifBlank { countryInfo.localCurrency }
+
+            com.example.ui.NotebookPaperSheet(
+                modifier = Modifier.fillMaxWidth(),
+                sheetColor = PaperSheetWhite,
+                showRuledLines = false,
+                showMarginLine = true,
+                showSpiralTop = false
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "👛 MIS BILLETERAS MULTI-MONEDA",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = FamiMidnight
+                            )
+                            Text(
+                                text = "Moneda local y extranjera al mismo tiempo",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = FamiNavyMuted
+                            )
+                        }
+
+                        com.example.ui.Tactile3DButton(
+                            onClick = {
+                                editingWallet = null
+                                walletNameInput = ""
+                                walletCurrencyInput = if (wallets.any { it.currency.equals(defaultLocalCurr, ignoreCase = true) }) "USD" else defaultLocalCurr
+                                walletBalanceInput = ""
+                                showWalletDialog = true
+                            },
+                            faceColor = PaperStickyMint,
+                            lipColor = Lip3DMint,
+                            cornerRadius = 10.dp,
+                            lipHeight = 2.5.dp,
+                            contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = FamiMidnight, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Billetera", fontSize = 10.sp, fontWeight = FontWeight.Black, color = FamiMidnight)
+                        }
+                    }
+
+                    if (wallets.isEmpty()) {
+                        com.example.ui.RuledNotebookText(
+                            text = "Toca '+ Billetera' para llevar tus cuentas en $defaultLocalCurr, USD o EUR simultáneamente.",
+                            fontSize = 11.5.sp,
+                            color = FamiNavyMuted,
+                            lineHeight = 22.sp
+                        )
+                    } else {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(wallets, key = { it.id.ifEmpty { "${it.name}_${it.currency}" } }) { w ->
+                                val sym = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(w.currency)
+                                val bgColor = if (w.currency.equals(defaultLocalCurr, ignoreCase = true)) PaperStickyPeach else PaperStickyYellow
+                                Surface(
+                                    onClick = {
+                                        editingWallet = w
+                                        walletNameInput = w.name
+                                        walletCurrencyInput = w.currency
+                                        walletBalanceInput = if (w.balance == 0.0) "" else w.balance.toString()
+                                        showWalletDialog = true
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = bgColor,
+                                    border = BorderStroke(1.5.dp, FamiMidnight),
+                                    modifier = Modifier.widthIn(min = 132.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = w.currency,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = FamiCoralDeep
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Editar",
+                                                tint = FamiMidnight.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = w.name,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = FamiMidnight,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = if (showBalance) "$sym ${String.format(Locale.US, "%,.2f", w.balance)}" else "••••",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = FamiMidnight
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(14.dp))
@@ -1725,328 +1936,19 @@ fun DashboardTab(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
-        // COMPLETE MONTHLY CALENDAR GRID WIDGET
+        // CALENDARIO FÍSICO ESTILO PAPEL CON ESPIRALES Y ANIMACIÓN DE PASO DE HOJA
         item {
-            var calendarMonth by remember(selectedMonth) { 
-                mutableStateOf(Calendar.getInstance().apply {
-                    set(Calendar.YEAR, selectedMonth.get(Calendar.YEAR))
-                    set(Calendar.MONTH, selectedMonth.get(Calendar.MONTH))
-                }) 
-            }
-            var selectedDayCal by remember(selectedMonth) { 
-                mutableStateOf(Calendar.getInstance().apply {
-                    set(Calendar.YEAR, selectedMonth.get(Calendar.YEAR))
-                    set(Calendar.MONTH, selectedMonth.get(Calendar.MONTH))
-                }) 
-            }
-
-            val year = calendarMonth.get(Calendar.YEAR)
-            val month = calendarMonth.get(Calendar.MONTH)
-            val monthLabel = getMonthNameSpanish(month)
-
-            val firstDayOfMonth = (calendarMonth.clone() as Calendar).apply {
-                set(Calendar.DAY_OF_MONTH, 1)
-            }
-            val firstDayOfWeek = firstDayOfMonth.get(Calendar.DAY_OF_WEEK)
-            val emptyDaysBefore = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
-            val maxDaysInMonth = calendarMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-            PremiumCard(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp) ){
-                Column(modifier = Modifier.padding(16.dp) ){
-                    // Header controls of calendar
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "CALENDARIO REGISTRO COMPLETO",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 0.5.sp
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    calendarMonth = (calendarMonth.clone() as Calendar).apply {
-                                        add(Calendar.MONTH, -1)
-                                    }
-                                },
-                                modifier = Modifier.size(28.dp) ){
-                                Icon(Icons.Default.ChevronLeft, contentDescription = "Mes anterior", tint = MaterialTheme.colorScheme.primary)
-                            }
-                            Text(
-                                text = "$monthLabel $year",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                            IconButton(
-                                onClick = {
-                                    calendarMonth = (calendarMonth.clone() as Calendar).apply {
-                                        add(Calendar.MONTH, 1)
-                                    }
-                                },
-                                modifier = Modifier.size(28.dp) ){
-                                Icon(Icons.Default.ChevronRight, contentDescription = "Mes siguiente", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Column Label Headers
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do").forEach { wDay ->
-                            Text(
-                                text = wDay,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = SubtitleText,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Dynamic days grid cells
-                    val totalCells = emptyDaysBefore + maxDaysInMonth
-                    val rows = (0 until totalCells).chunked(7)
-
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp) ){
-                        rows.forEach { rowIdxs ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                (0 until 7).forEach { col ->
-                                    val cellIndex = rowIdxs.getOrNull(col)
-                                    if (cellIndex == null || cellIndex < emptyDaysBefore) {
-                                        Box(modifier = Modifier.weight(1f).aspectRatio(1f))
-                                    } else {
-                                        val dayNum = cellIndex - emptyDaysBefore + 1
-                                        val cellCal = (calendarMonth.clone() as Calendar).apply {
-                                            set(Calendar.DAY_OF_MONTH, dayNum)
-                                        }
-
-                                        val isToday = isSameDay(System.currentTimeMillis(), cellCal)
-                                        val isSelected = isSameDay(selectedDayCal.timeInMillis, cellCal)
-
-                                        val dayTransactions = userTransactions.filter { 
-                                            val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
-                                            isSameDay(filterDate, cellCal) 
-                                        }
-
-                                        val dayCompletedChores = chores.filter { it.isCompleted && it.completedDate != null && isSameDay(it.completedDate, cellCal) }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .aspectRatio(1f)
-                                                .padding(2.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(
-                                                    when {
-                                                        isSelected -> MaterialTheme.colorScheme.primary
-                                                        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                        else -> MaterialTheme.colorScheme.surface
-                                                    }
-                                                )
-                                                .scaleClickable { selectedDayCal = cellCal
-                                                }
-                                                .border(
-                                                    width = if (isToday) 1.5.dp else if (isSelected) 1.dp else 0.5.dp,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary else if (isToday) MaterialTheme.colorScheme.primary else OutlineGrey.copy(alpha = 0.4f),
-                                                    shape = RoundedCornerShape(12.dp)
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center,
-                                                modifier = Modifier.fillMaxSize() ){
-                                                Text(
-                                                    text = "$dayNum",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                    color = when {
-                                                        isSelected -> Color.White
-                                                        isToday -> MaterialTheme.colorScheme.primary
-                                                        else -> MaterialTheme.colorScheme.onSurface
-                                                    }
-                                                )
-                                                
-                                                // Category dots + chore indicators
-                                                if (dayTransactions.isNotEmpty() || dayCompletedChores.isNotEmpty() ){
-                                                    Row(
-                                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.padding(top = 2.dp) ){
-                                                        dayTransactions.take(2).forEach { tx ->
-                                                            val catColorHex = categories.find { it.categoryName.equals(tx.category, ignoreCase = true) }?.colorHex ?: "#6750A4"
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .size(4.dp)
-                                                                    .clip(CircleShape)
-                                                                    .background(if (isSelected) Color.White else catColorHex.toColor())
-                                                            )
-                                                        }
-                                                        if (dayCompletedChores.isNotEmpty() ){
-                                                            Icon(
-                                                                imageVector = Icons.Default.Check,
-                                                                contentDescription = null,
-                                                                tint = if (isSelected) Color.White else Color(0xFF10B981),
-                                                                modifier = Modifier.size(6.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Selected Day detailed records
-                    val selectedDateTimeLabel = SimpleDateFormat("dd 'de' MMMM, yyyy", Locale("es")).format(selectedDayCal.time)
-                    val dayTx = userTransactions.filter { 
-                        val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
-                        isSameDay(filterDate, selectedDayCal) 
-                    }
-                    val dayLogs = activityLogs.filter { isSameDay(it.timestamp, selectedDayCal) }
-                    val dayCompletedChores = chores.filter { it.isCompleted && it.completedDate != null && isSameDay(it.completedDate, selectedDayCal) }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    androidx.compose.material3.HorizontalDivider(color = OutlineGrey.copy(alpha = 0.3f))
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
-                    Text(
-                         text = "DETALLE DE ACTIVIDAD: ${selectedDateTimeLabel.uppercase()}",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (dayTx.isEmpty() && dayLogs.isEmpty() && dayCompletedChores.isEmpty() ){
-                        Text(
-                            text = "No hay financiamientos ni actividades registradas en este día.",
-                            fontSize = 11.sp,
-                            color = SubtitleText,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp) ){
-                            // Render completed chores first (Adaptativo a Modo Claro / Oscuro)
-                            dayCompletedChores.forEach { chore ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = Color(0xFF10B981).copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.30f))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp).fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = "Completada",
-                                                tint = Color(0xFF10B981),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column(modifier = Modifier.weight(1f) ){
-                                                Text(chore.title, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                                Text("Tarea • Asignado: ${chore.assignedTo} • Prioridad: ${chore.priority}", fontSize = 9.sp, color = SubtitleText, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                            }
-                                        }
-                                        Text(
-                                            text = "COMPLETADA",
-                                            fontSize = 8.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF10B981)
-                                        )
-                                    }
-                                }
-                            }
-
-                            dayTx.forEach { tx ->
-                                val symbol = if (tx.currency == "USD") "$" else "Bs"
-                                val prefix = if (tx.isIncome) "+" else "-"
-                                val amountColor = if (tx.isIncome) Color(0xFF2E7D32) else AlertRed
-                                val assocColor = if (tx.isIncome) "#2E7D32" else (categories.find { it.categoryName.equals(tx.category, ignoreCase = true) }?.colorHex ?: "#6750A4")
-
-                                PremiumCard(
-                                    modifier = Modifier.fillMaxWidth() ){
-                                    Row(
-                                        modifier = Modifier.padding(10.dp).fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier.size(20.dp).clip(CircleShape).background(assocColor.toColor())
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column(modifier = Modifier.weight(1f) ){
-                                                Text(tx.description, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                                Text("Categoría: ${tx.category} • Por: ${tx.registeredBy}", fontSize = 8.sp, color = SubtitleText, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                            }
-                                        }
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = "$prefix ${tx.originalAmount} $symbol",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = amountColor
-                                            )
-                                            if (tx.currency != "USD") {
-                                                Text(
-                                                    text = "(${String.format("%.2f", tx.amount)} $)",
-                                                    fontSize = 9.sp,
-                                                    color = SubtitleText,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            dayLogs.take(3).forEach { log ->
-                                PremiumCard(
-                                    modifier = Modifier.fillMaxWidth() ){
-                                    Row(
-                                        modifier = Modifier.padding(8.dp).fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp) ){
-                                            Text(log.tag, fontSize = 7.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                        }
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(log.message, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            com.example.ui.PhysicalPaperCalendar(
+                selectedMonth = selectedMonth,
+                transactions = userTransactions,
+                chores = chores,
+                categories = categories,
+                activityLogs = activityLogs,
+                appLanguage = appLanguage,
+                isSameDay = { ts, cal -> isSameDay(ts, cal) },
+                toColor = { hex -> hex.toColor() },
+                getMonthName = { m -> getMonthNameSpanish(m) }
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -2100,6 +2002,109 @@ fun DashboardTab(
             showAddRecurringDialog = false
         }
     )
+
+    if (showWalletDialog) {
+        val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
+        val primaryCurrencyCode by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+        val localCurr = primaryCurrencyCode.ifBlank {
+            com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode).localCurrency
+        }
+        AlertDialog(
+            onDismissRequest = { showWalletDialog = false },
+            containerColor = PaperSheetWhite,
+            titleContentColor = FamiMidnight,
+            textContentColor = FamiMidnight,
+            title = {
+                Text(
+                    text = if (editingWallet == null) "Nueva Billetera Multi-Moneda" else "Editar Billetera",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    color = FamiMidnight
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = walletNameInput,
+                        onValueChange = { walletNameInput = it },
+                        label = { Text("Nombre (Ej. Efectivo, Banco, Zelle)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                    )
+                    com.example.ui.NotebookDropdownField(
+                        label = "Moneda de la Billetera",
+                        value = "$walletCurrencyInput (${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(walletCurrencyInput)})",
+                        subtitle = "Toca para cambiar entre moneda local o divisa",
+                        onClick = { showWalletCurrencyPicker = true }
+                    )
+                    OutlinedTextField(
+                        value = walletBalanceInput,
+                        onValueChange = { walletBalanceInput = it },
+                        label = { Text("Saldo inicial / actual ($walletCurrencyInput)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (editingWallet != null) {
+                        TextButton(onClick = {
+                            viewModel.deleteWallet(editingWallet!!)
+                            showWalletDialog = false
+                            editingWallet = null
+                        }) {
+                            Text("Eliminar", color = FamiAlertRed, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    TextButton(onClick = { showWalletDialog = false }) {
+                        Text("Cancelar", color = FamiNavyMuted)
+                    }
+                }
+            },
+            confirmButton = {
+                com.example.ui.Tactile3DButton(
+                    onClick = {
+                        val cleanName = walletNameInput.trim().ifBlank { "Billetera $walletCurrencyInput" }
+                        val parsedBal = walletBalanceInput.replace(",", ".").toDoubleOrNull() ?: 0.0
+                        val walletToSave = (editingWallet ?: com.example.database.Wallet()).copy(
+                            name = cleanName,
+                            currency = walletCurrencyInput,
+                            balance = parsedBal,
+                            isLocal = walletCurrencyInput.equals(localCurr, ignoreCase = true),
+                            ownerName = editingWallet?.ownerName?.ifBlank { currentUser } ?: currentUser
+                        )
+                        viewModel.addOrEditWallet(walletToSave)
+                        showWalletDialog = false
+                        editingWallet = null
+                    },
+                    faceColor = FamiCoral,
+                    lipColor = Lip3DCoral,
+                    cornerRadius = 10.dp,
+                    lipHeight = 3.dp,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text("Guardar", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showWalletCurrencyPicker) {
+        com.example.ui.CurrencyPickerDialog(
+            title = "Moneda de la Billetera",
+            selectedCurrencyCode = walletCurrencyInput,
+            allowNone = false,
+            noneLabel = "",
+            onDismiss = { showWalletCurrencyPicker = false },
+            onSelectCurrency = { code ->
+                walletCurrencyInput = code
+                showWalletCurrencyPicker = false
+            }
+        )
+    }
 
     if (showConfirmScanDialog) {
         androidx.compose.ui.window.Dialog(
@@ -3461,32 +3466,34 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         MaterialTheme.colorScheme.surface
                     }
 
-                    Box {
-                        PremiumCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            colors = CardDefaults.elevatedCardColors(containerColor = cardBgColor),
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                        com.example.ui.NotebookPaperSheet(
+                            modifier = Modifier.fillMaxWidth(),
+                            sheetColor = if (chore.isCompleted) PaperSheetCream else PaperSheetWhite,
+                            showRuledLines = false,
+                            showMarginLine = true,
+                            showSpiralTop = false,
                             onClick = {
                                 editingChore = chore
                                 isEditingChore = true
                                 taskTitle = chore.title
                                 taskDesc = chore.description
+                                taskCategorySelected = chore.category
                                 taskAssignee = chore.assignedTo
                                 taskPrioritySelected = chore.priority
+                                taskIsPrivate = chore.isPrivate
                                 showChoreDialog = true
                             }
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                    .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Checkbox rounded toggle with soft ring and check mark
-                                val checkboxBg = if (chore.isCompleted) Color(0xFF10B981) else Color.Transparent
-                                val checkboxBorderColor = if (chore.isCompleted) Color(0xFF10B981) else priorityColor
-                                val checkIconTint = Color.White
+                                val checkboxBg = if (chore.isCompleted) FamiEmerald else Color.Transparent
+                                val checkboxBorderColor = if (chore.isCompleted) FamiEmerald else priorityColor
 
                                 Box(
                                     modifier = Modifier
@@ -3501,7 +3508,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Desmarcar",
-                                            tint = checkIconTint,
+                                            tint = Color.White,
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }
@@ -3509,92 +3516,94 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
                                 Spacer(modifier = Modifier.width(12.dp))
 
-                                Column(modifier = Modifier.weight(1f) ){
+                                Column(modifier = Modifier.weight(1f)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
+                                        com.example.ui.RuledNotebookText(
                                             text = chore.title,
-                                            fontSize = 15.sp,
+                                            fontSize = 14.5.sp,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = if (chore.isCompleted) SubtitleText.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-                                            style = androidx.compose.ui.text.TextStyle(
-                                                textDecoration = if (chore.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
-                                            ),
+                                            color = if (chore.isCompleted) FamiNavyMuted.copy(alpha = 0.65f) else FamiMidnight,
+                                            lineHeight = 24.sp,
+                                            textDecoration = if (chore.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
                                             modifier = Modifier.weight(1f)
                                         )
-                                        
+
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        
+
                                         // Priority badge tag
-                                        val priorityBg = when (chore.priority.lowercase() ){
+                                        val priorityBg = when (chore.priority.lowercase()) {
                                             "alto" -> Color(0xFFFEE2E2)
                                             "medio" -> Color(0xFFFFEDD5)
                                             else -> Color(0xFFCCFBF1)
                                         }
-                                        val priorityTextCol = when (chore.priority.lowercase() ){
+                                        val priorityTextCol = when (chore.priority.lowercase()) {
                                             "alto" -> Color(0xFFEF4444)
                                             "medio" -> Color(0xFFF97316)
                                             else -> Color(0xFF0D9488)
                                         }
                                         Box(
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .clip(RoundedCornerShape(10.dp))
                                                 .background(if (chore.isCompleted) OutlineGrey.copy(alpha = 0.15f) else priorityBg)
-                                                .padding(horizontal = 8.dp, vertical = 4.dp) ){
+                                                .border(1.dp, FamiMidnight.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
                                             Text(
                                                 text = chore.priority.uppercase(),
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = if (chore.isCompleted) SubtitleText.copy(alpha = 0.6f) else priorityTextCol,
+                                                color = if (chore.isCompleted) FamiNavyMuted.copy(alpha = 0.6f) else priorityTextCol,
                                                 letterSpacing = 0.5.sp
                                             )
                                         }
                                     }
-                                    if (chore.description.isNotBlank() ){
-                                        Text(
+                                    if (chore.description.isNotBlank()) {
+                                        com.example.ui.RuledNotebookText(
                                             text = chore.description,
                                             fontSize = 12.sp,
-                                            color = if (chore.isCompleted) SubtitleText.copy(alpha = 0.5f) else SubtitleText.copy(alpha = 0.9f),
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(top = 4.dp),
-                                            lineHeight = 16.sp
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (chore.isCompleted) FamiNavyMuted.copy(alpha = 0.55f) else FamiNavyMuted,
+                                            maxLines = 3,
+                                            lineHeight = 22.sp,
+                                            modifier = Modifier.padding(top = 2.dp)
                                         )
                                     }
-                                    
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp) ){
-                                        // Assignee profile initials bubble
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
                                         val initialChar = chore.assignedTo.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
                                         Box(
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                                .background(PaperStickyPeach)
+                                                .border(1.dp, FamiMidnight, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = initialChar,
                                                 fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
+                                                fontWeight = FontWeight.Black,
+                                                color = FamiMidnight
                                             )
                                         }
                                         Text(
                                             text = "Asignado a ${chore.assignedTo}",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = SubtitleText
+                                            color = FamiNavyMuted
                                         )
                                         Text(
                                             text = " • ${chore.category}",
                                             fontSize = 11.sp,
-                                            color = SubtitleText
+                                            color = FamiNavyMuted
                                         )
                                         Spacer(modifier = Modifier.weight(1f))
                                         IconButton(
@@ -3611,11 +3620,11 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             },
                                             modifier = Modifier
                                                 .size(34.dp)
-                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), CircleShape)
+                                                .background(PaperSheetCream, CircleShape)
                                         ) {
-                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = FamiMidnight, modifier = Modifier.size(16.dp))
                                         }
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         DeleteIconButton(
                                             modifier = Modifier
                                                 .size(34.dp)
@@ -4087,12 +4096,13 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 
                 val accentColor = if (item.isBought) OutlineGrey.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
 
-                Box {
-                    PremiumCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = cardBgColor),
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                    com.example.ui.NotebookPaperSheet(
+                        modifier = Modifier.fillMaxWidth(),
+                        sheetColor = if (item.isBought) PaperSheetCream else PaperSheetWhite,
+                        showRuledLines = false,
+                        showMarginLine = true,
+                        showSpiralTop = false,
                         onClick = {
                             editingItem = item
                             editName = item.name
@@ -4104,13 +4114,12 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                                .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Toggle Status Bought circle Checkmark
-                            val checkboxBg = if (item.isBought) Color(0xFF10B981) else Color.Transparent
-                            val checkboxBorderColor = if (item.isBought) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
-                            val checkIconTint = Color.White
+                            val checkboxBg = if (item.isBought) FamiEmerald else Color.Transparent
+                            val checkboxBorderColor = if (item.isBought) FamiEmerald else FamiCoral
 
                             Box(
                                 modifier = Modifier
@@ -4125,7 +4134,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Desmarcar",
-                                        tint = checkIconTint,
+                                        tint = Color.White,
                                         modifier = Modifier.size(12.dp)
                                     )
                                 }
@@ -4133,43 +4142,42 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            Column(modifier = Modifier.weight(1f) ){
-                                Text(
+                            Column(modifier = Modifier.weight(1f)) {
+                                com.example.ui.RuledNotebookText(
                                     text = item.name,
-                                    fontSize = 15.sp,
+                                    fontSize = 14.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (item.isBought) SubtitleText.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    style = androidx.compose.ui.text.TextStyle(
-                                        textDecoration = if (item.isBought) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
-                                    )
+                                    color = if (item.isBought) FamiNavyMuted.copy(alpha = 0.65f) else FamiMidnight,
+                                    maxLines = 2,
+                                    lineHeight = 24.sp,
+                                    textDecoration = if (item.isBought) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp) ){
-                                    // Creator initials avatar bubble
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
                                     val initialChar = item.addedBy.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
                                     Box(
                                         modifier = Modifier
                                             .size(20.dp)
                                             .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+                                            .background(PaperStickyMint)
+                                            .border(1.dp, FamiMidnight, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = initialChar,
                                             fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.secondary
+                                            fontWeight = FontWeight.Black,
+                                            color = FamiMidnight
                                         )
                                     }
                                     Text(
                                         text = "Por ${item.addedBy}",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = SubtitleText
+                                        color = FamiNavyMuted
                                     )
                                 }
                             }
@@ -4179,26 +4187,29 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             // Controls container Row
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp) ){
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 // Unified Quantity Pill
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                        .border(1.dp, OutlineGrey.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 2.dp, vertical = 1.dp) ){
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(PaperStickyYellow)
+                                        .border(1.2.dp, FamiMidnight, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                                ) {
                                     IconButton(
                                         onClick = {
                                             val currentQtyNum = item.quantity.toIntOrNull() ?: 1
                                             val nextQtyNum = if (currentQtyNum > 1) currentQtyNum - 1 else 1
                                             viewModel.editShoppingItem(item.copy(quantity = nextQtyNum.toString()))
                                         },
-                                        modifier = Modifier.size(22.dp) ){
+                                        modifier = Modifier.size(22.dp)
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Default.Remove,
                                             contentDescription = "Disminuir",
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = FamiMidnight,
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }
@@ -4206,8 +4217,8 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     Text(
                                         text = item.quantity,
                                         fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Black,
+                                        color = FamiMidnight,
                                         modifier = Modifier.padding(horizontal = 6.dp)
                                     )
 
@@ -4217,11 +4228,12 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             val nextQtyNum = currentQtyNum + 1
                                             viewModel.editShoppingItem(item.copy(quantity = nextQtyNum.toString()))
                                         },
-                                        modifier = Modifier.size(22.dp) ){
+                                        modifier = Modifier.size(22.dp)
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = "Aumentar",
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = FamiMidnight,
                                             modifier = Modifier.size(12.dp)
                                         )
                                     }
@@ -4236,9 +4248,9 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     },
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f), CircleShape)
+                                        .background(PaperSheetCream, CircleShape)
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = FamiMidnight, modifier = Modifier.size(15.dp))
                                 }
                                 DeleteIconButton(
                                     modifier = Modifier
@@ -4563,10 +4575,12 @@ fun ConfigMainContent(
     onEditProfileClick: (UserProfile) -> Unit,
     onDeleteProfileClick: (UserProfile) -> Unit,
     viewModel: FamilyViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenGuide: () -> Unit = {}
 ) {
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
+    val currentAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -4574,6 +4588,100 @@ fun ConfigMainContent(
         verticalArrangement = Arrangement.spacedBy(12.dp) ){
         if (selectedCategory == 0) {
             // --- GENERAL CATEGORY ---
+            // --- MI AVATAR FAMI (12 AVATARES NANO BANANA) ---
+            item {
+                com.example.ui.NotebookPaperSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    sheetColor = PaperSheetWhite,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🧑 MI AVATAR DE CUENTA FAMI",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiMidnight
+                        )
+                        Text(
+                            text = "Elige tu personaje (mujer, hombre, niño o niña):",
+                            fontSize = 11.sp,
+                            color = FamiNavyMuted
+                        )
+                        com.example.ui.AvatarCatalog.ALL.chunked(4).forEach { rowAvatars ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowAvatars.forEach { av ->
+                                    val isChosen = av.id == currentAvatarId
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(if (isChosen) PaperStickyYellow else PaperSheetCream)
+                                            .border(
+                                                width = if (isChosen) 2.2.dp else 1.2.dp,
+                                                color = if (isChosen) FamiCoral else FamiMidnight.copy(alpha = 0.45f),
+                                                shape = RoundedCornerShape(12.dp)
+                                            )
+                                            .clickable { viewModel.updateUserAvatar(av.id) }
+                                            .padding(6.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        androidx.compose.foundation.Image(
+                                            painter = androidx.compose.ui.res.painterResource(id = av.drawableRes),
+                                            contentDescription = av.labelEs,
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .clip(CircleShape)
+                                                .border(1.2.dp, FamiMidnight, CircleShape),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                        )
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = av.labelEs,
+                                            fontSize = 8.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = FamiMidnight,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- GUÍA INTERACTIVA DE OPCIONES ---
+            item {
+                com.example.ui.Tactile3DButton(
+                    onClick = onOpenGuide,
+                    modifier = Modifier.fillMaxWidth(),
+                    faceColor = PaperStickyMint,
+                    lipColor = Lip3DMint,
+                    cornerRadius = 14.dp,
+                    lipHeight = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Icon(Icons.Default.HelpOutline, contentDescription = null, tint = FamiMidnight, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Ver Guía Interactiva de Opciones",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        color = FamiMidnight
+                    )
+                }
+            }
+
             // --- THEME SWAP SECTION ---
             item {
                 Card(
@@ -4994,7 +5102,7 @@ fun ConfigMainContent(
 }
 
 @Composable
-fun ConfigTab(viewModel: FamilyViewModel) {
+fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val activityLogs by viewModel.activityLogs.collectAsStateWithLifecycle()
@@ -5076,7 +5184,8 @@ fun ConfigTab(viewModel: FamilyViewModel) {
                             showProfileCreatorDialog = true
                         },
                         onDeleteProfileClick = { p -> viewModel.deleteProfile(p) },
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onOpenGuide = onOpenGuide
                     )
                 }
             }
@@ -5133,7 +5242,8 @@ fun ConfigTab(viewModel: FamilyViewModel) {
                             showProfileCreatorDialog = true
                         },
                         onDeleteProfileClick = { p -> viewModel.deleteProfile(p) },
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onOpenGuide = onOpenGuide
                     )
                 }
             }
@@ -5216,7 +5326,11 @@ fun ConfigTab(viewModel: FamilyViewModel) {
 
 // --- POPUP DIALOG FOR SETTINGS/CONFIGURATION ---
 @Composable
-fun ConfigDialog(viewModel: FamilyViewModel, onDismiss: () -> Unit) {
+fun ConfigDialog(
+    viewModel: FamilyViewModel,
+    onDismiss: () -> Unit,
+    onOpenGuide: () -> Unit = {}
+) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss
     ) {
@@ -5256,7 +5370,7 @@ fun ConfigDialog(viewModel: FamilyViewModel, onDismiss: () -> Unit) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth() ){
-                    ConfigTab(viewModel = viewModel)
+                    ConfigTab(viewModel = viewModel, onOpenGuide = onOpenGuide)
                 }
             }
         }
@@ -5520,63 +5634,74 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 }
             } else {
                 items(notes) { note ->
-                    val cardBgColor = if (note.isCompleted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
-                    PremiumCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = cardBgColor),
-                        onClick = {
-                            editingNote = note
-                            noteTitleInput = note.title
-                            noteContentInput = note.content
-                            showAddNoteDialog = true
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val checkboxBg = if (note.isCompleted) Color(0xFF10B981) else Color.Transparent
-                            val checkboxBorderColor = if (note.isCompleted) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
-
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .background(checkboxBg)
-                                    .border(2.dp, checkboxBorderColor, CircleShape)
-                                    .clickable { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (note.isCompleted) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Desmarcar",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                        com.example.ui.NotebookPaperSheet(
+                            modifier = Modifier.fillMaxWidth(),
+                            sheetColor = if (note.isCompleted) PaperSheetCream else PaperStickyYellow.copy(alpha = 0.35f),
+                            showRuledLines = false,
+                            showMarginLine = true,
+                            showSpiralTop = false,
+                            onClick = {
+                                editingNote = note
+                                noteTitleInput = note.title
+                                noteContentInput = note.content
+                                showAddNoteDialog = true
                             }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                val checkboxBg = if (note.isCompleted) FamiEmerald else Color.Transparent
+                                val checkboxBorderColor = if (note.isCompleted) FamiEmerald else FamiCoral
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 3.dp)
+                                        .size(22.dp)
+                                        .clip(CircleShape)
+                                        .background(checkboxBg)
+                                        .border(2.dp, checkboxBorderColor, CircleShape)
+                                        .clickable { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (note.isCompleted) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Desmarcar",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
 
-                            Column(modifier = Modifier.weight(1f) ){
-                                Text(
-                                    text = note.title, 
-                                    fontWeight = FontWeight.ExtraBold, 
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    textDecoration = if (note.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                                    color = if (note.isCompleted) SubtitleText.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(note.content, fontSize = 13.sp, color = if (note.isCompleted) SubtitleText.copy(alpha = 0.6f) else SubtitleText)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Por ${note.createdBy}", fontSize = 11.sp, color = SubtitleText)
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    com.example.ui.RuledNotebookText(
+                                        text = note.title,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 14.5.sp,
+                                        maxLines = 2,
+                                        lineHeight = 24.sp,
+                                        textDecoration = if (note.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                                        color = if (note.isCompleted) FamiNavyMuted.copy(alpha = 0.65f) else FamiMidnight
+                                    )
+                                    if (note.content.isNotBlank()) {
+                                        com.example.ui.RuledNotebookText(
+                                            text = note.content,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            lineHeight = 24.sp,
+                                            minRuledLines = 2,
+                                            color = if (note.isCompleted) FamiNavyMuted.copy(alpha = 0.55f) else FamiMidnight
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("Por ${note.createdBy}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = FamiNavyMuted)
+                                }
                             }
                         }
                     }

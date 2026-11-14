@@ -74,7 +74,19 @@ data class ActivityLog(
 
 data class UserProfile(
     var name: String = "",
-    val colorHex: String = ""
+    val colorHex: String = "",
+    val avatarId: String = "",
+    val role: String = ""
+)
+
+data class Wallet(
+    var id: String = "",
+    val name: String = "",
+    val currency: String = "USD",
+    val balance: Double = 0.0,
+    @get:PropertyName("isLocal") @set:PropertyName("isLocal")
+    var isLocal: Boolean = true,
+    val ownerName: String = ""
 )
 
 data class AppSetting(
