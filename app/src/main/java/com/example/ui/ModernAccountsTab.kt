@@ -90,8 +90,11 @@ fun ModernAccountsTab(
     val monthlyIncomeAmount by viewModel.monthlyIncomeAmount.collectAsStateWithLifecycle()
     val monthlyIncomeCurrency by viewModel.monthlyIncomeCurrency.collectAsStateWithLifecycle()
     val primaryCurrency by viewModel.primaryCurrency.collectAsStateWithLifecycle()
+    val secondaryCurrency by viewModel.secondaryCurrency.collectAsStateWithLifecycle()
     val countryCode by viewModel.countryCode.collectAsStateWithLifecycle()
     val liveExchangeRate by viewModel.liveExchangeRate.collectAsStateWithLifecycle()
+    val secondaryExchangeRate by viewModel.secondaryExchangeRate.collectAsStateWithLifecycle()
+    val walletRatesToUsd by viewModel.walletRatesToUsd.collectAsStateWithLifecycle()
 
     val localCurrency = remember(primaryCurrency, countryCode) {
         primaryCurrency.ifBlank { CountryCurrencyConfig.getCountryByCode(countryCode).localCurrency }
@@ -105,6 +108,7 @@ fun ModernAccountsTab(
 
     // Estados de Navegación y Filtros Rápidos
     var activeSection by remember { mutableStateOf("gastos") } // "gastos" | "categorias"
+    var selectedTypeFilter by remember { mutableStateOf("todos") } // "todos" | "gastos" | "ingresos" | "transferencias"
     var selectedCategoryFilter by remember { mutableStateOf("Todas") }
     var searchQuery by remember { mutableStateOf("") }
     var showSearchBar by remember { mutableStateOf(false) }
@@ -166,9 +170,15 @@ fun ModernAccountsTab(
         }.sortedByDescending { if (it.balanceDate > 0L) it.balanceDate else it.date }
     }
 
-    // Filtrado en tiempo real por Categoría + Búsqueda
-    val filteredTransactions = remember(monthTransactions, selectedCategoryFilter, searchQuery) {
+    // Filtrado en tiempo real por Tipo + Categoría + Búsqueda
+    val filteredTransactions = remember(monthTransactions, selectedTypeFilter, selectedCategoryFilter, searchQuery) {
         monthTransactions.filter { tx ->
+            val matchesType = when (selectedTypeFilter) {
+                "gastos" -> !tx.isIncome && !tx.isTransfer
+                "ingresos" -> tx.isIncome && !tx.isTransfer
+                "transferencias" -> tx.isTransfer
+                else -> true
+            }
             val matchesCat = selectedCategoryFilter == "Todas" ||
                 tx.category.equals(selectedCategoryFilter, ignoreCase = true) ||
                 tx.items.any { it.category.equals(selectedCategoryFilter, ignoreCase = true) }
@@ -176,7 +186,7 @@ fun ModernAccountsTab(
                 tx.description.contains(searchQuery, ignoreCase = true) ||
                 tx.category.contains(searchQuery, ignoreCase = true) ||
                 tx.registeredBy.contains(searchQuery, ignoreCase = true)
-            matchesCat && matchesQuery
+            matchesType && matchesCat && matchesQuery
         }
     }
 
@@ -197,6 +207,19 @@ fun ModernAccountsTab(
     }
     val filteredSpentUsd = remember(filteredTransactions) {
         filteredTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
+    }
+    val totalWalletsLocal = remember(
+        wallets, localCurrency, bcvRate, secondaryCurrency, secondaryExchangeRate, walletRatesToUsd
+    ) {
+        viewModel.computeTotalWalletsInCurrency(
+            targetCurrency = localCurrency,
+            walletList = wallets,
+            primaryCurr = localCurrency,
+            primaryRateToUsd = bcvRate,
+            secondaryCurr = secondaryCurrency,
+            secondaryRateToUsd = secondaryExchangeRate,
+            extraRatesToUsd = walletRatesToUsd
+        )
     }
 
     // Análisis con IA
@@ -250,15 +273,95 @@ fun ModernAccountsTab(
             contentPadding = PaddingValues(top = 8.dp, bottom = 160.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Selector de Mes Cuaderno
+            // 0. Cabecera Finanzas Fami con acción rápida
             item {
-                ModernMonthSelector(
-                    selectedMonth = selectedMonth,
-                    onMonthChange = { viewModel.updateSelectedMonth(it) }
+                ModernTabHeader(
+                    title = "Finanzas Fami",
+                    subtitle = "Ingresos, billeteras multi-moneda y presupuestos",
+                    actionText = "Movimiento",
+                    onActionClick = {
+                        editingTransaction = null
+                        showTxSheet = true
+                    }
                 )
             }
 
-            // 1B. Tarjeta de Ingreso Mensual Base (Configurable en Cuentas)
+            // 1. Selector de Mes Cuaderno + Resumen Consolidado en moneda preferida
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ModernMonthSelector(
+                        selectedMonth = selectedMonth,
+                        onMonthChange = { viewModel.updateSelectedMonth(it) }
+                    )
+
+                    val localSym = CountryCurrencyConfig.getCurrencySymbol(localCurrency)
+                    val mult = if (!localCurrency.equals("USD", ignoreCase = true) && bcvRate > 0.0) bcvRate else 1.0
+                    val incomeLocal = totalIncomeUsd * mult
+                    val spentLocal = totalSpentUsd * mult
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = paper.stickyMint,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.4.dp, paper.border)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
+                                Text("INGRESOS ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiEmerald)
+                                Text(
+                                    text = "$localSym${String.format(Locale.US, "%,.0f", incomeLocal)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = paper.stickyPeach,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.4.dp, paper.border)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
+                                Text("GASTOS ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiCoralDeep)
+                                Text(
+                                    text = "$localSym${String.format(Locale.US, "%,.0f", spentLocal)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiCoral,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = paper.stickyYellow,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.4.dp, paper.border)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
+                                Text("BILLETERAS ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                Text(
+                                    text = "$localSym${String.format(Locale.US, "%,.0f", totalWalletsLocal)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 1B. Tarjeta de Ingreso Mensual Base (Configurable en Finanzas)
             item {
                 MonthlyIncomeAccountCard(
                     monthlyIncomeAmount = monthlyIncomeAmount,
@@ -415,6 +518,40 @@ fun ModernAccountsTab(
                             )
                         }
 
+                        // Filtros rápidos por tipo de movimiento (Todos / Gastos / Ingresos / Transferencias)
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(vertical = 1.dp)
+                        ) {
+                            items(
+                                listOf(
+                                    "todos" to "📒 Todos",
+                                    "gastos" to "💸 Gastos",
+                                    "ingresos" to "💵 Ingresos",
+                                    "transferencias" to "🔄 Transferencias"
+                                )
+                            ) { (typeId, typeLabel) ->
+                                val isTypeSelected = selectedTypeFilter == typeId
+                                Surface(
+                                    onClick = { selectedTypeFilter = typeId },
+                                    shape = CircleShape,
+                                    color = if (isTypeSelected) FamiCoral.copy(alpha = 0.16f) else paper.sheetCream,
+                                    border = BorderStroke(
+                                        1.2.dp,
+                                        if (isTypeSelected) FamiCoral else paper.border.copy(alpha = 0.4f)
+                                    )
+                                ) {
+                                    Text(
+                                        text = typeLabel,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isTypeSelected) FontWeight.Black else FontWeight.Bold,
+                                        color = if (isTypeSelected) FamiCoralDeep else paper.ink,
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+
                         // Carrusel horizontal de Chips de Categoría
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -467,7 +604,7 @@ fun ModernAccountsTab(
                         }
 
                         // Banner de filtro activo
-                        if (selectedCategoryFilter != "Todas" || searchQuery.isNotBlank()) {
+                        if (selectedTypeFilter != "todos" || selectedCategoryFilter != "Todas" || searchQuery.isNotBlank()) {
                             StickyNoteSheet(
                                 modifier = Modifier.fillMaxWidth(),
                                 noteColor = paper.stickyYellow,
@@ -482,7 +619,7 @@ fun ModernAccountsTab(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Filtro: ${filteredTransactions.size} reg. • Total: $${String.format(Locale.US, "%.2f", filteredSpentUsd)} USD",
+                                        text = "Filtro: ${filteredTransactions.size} reg. • Gastos: $${String.format(Locale.US, "%.2f", filteredSpentUsd)} USD",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink
@@ -493,6 +630,7 @@ fun ModernAccountsTab(
                                         fontWeight = FontWeight.Black,
                                         color = FamiCoral,
                                         modifier = Modifier.clickable {
+                                            selectedTypeFilter = "todos"
                                             selectedCategoryFilter = "Todas"
                                             searchQuery = ""
                                         }
@@ -542,7 +680,7 @@ fun ModernAccountsTab(
                         EmptyStateCard(
                             emoji = "🧾",
                             title = "Sin movimientos en esta hoja",
-                            subtitle = "Anota un gasto o ingreso tocando '+ Nuevo Registro' o escanea una factura."
+                            subtitle = "Anota un gasto o ingreso tocando '+ Movimiento' arriba o escanea una factura."
                         )
                     }
                 } else {
@@ -1256,7 +1394,7 @@ private fun AccountsWalletsSectionCard(
 
             if (wallets.isEmpty()) {
                 RuledNotebookText(
-                    text = "Toca '+ Billetera' para llevar tus cuentas en $defaultLocalCurrency, USD o EUR simultáneamente.",
+                    text = "Toca '+ Billetera' para llevar tus finanzas en $defaultLocalCurrency, USD o EUR simultáneamente.",
                     fontSize = 11.5.sp,
                     color = paper.inkMuted,
                     lineHeight = 24.sp

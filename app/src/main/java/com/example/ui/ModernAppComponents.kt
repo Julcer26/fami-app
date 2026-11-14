@@ -61,14 +61,21 @@ fun ModernTabHeader(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_fami_mascot),
-                    contentDescription = "Mascota Fami",
+                Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(1.5.dp, paper.border, RoundedCornerShape(12.dp))
-                )
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(paper.stickyYellow.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_fami_mascot),
+                        contentDescription = "Mascota Fami",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(2.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -295,10 +302,7 @@ fun ModernEmptyState(
             Image(
                 painter = painterResource(id = R.drawable.fami_sticker_love),
                 contentDescription = "Fami Sticker",
-                modifier = Modifier
-                    .size(92.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .border(1.5.dp, paper.border, RoundedCornerShape(18.dp))
+                modifier = Modifier.size(104.dp)
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(

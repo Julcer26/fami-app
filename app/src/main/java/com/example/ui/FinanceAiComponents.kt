@@ -121,10 +121,7 @@ fun FinanceAiHeroCard(
                 Image(
                     painter = painterResource(id = R.drawable.fami_sticker_idea),
                     contentDescription = "Fami Mentor IA",
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .border(1.5.dp, paper.border, RoundedCornerShape(14.dp))
+                    modifier = Modifier.size(68.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -144,7 +141,7 @@ fun FinanceAiHeroCard(
                         )
                     } else {
                         Text(
-                            text = "¡Revisemos las cuentas del cuaderno!",
+                            text = "¡Revisemos tus finanzas del cuaderno!",
                             fontSize = 15.5.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
@@ -255,21 +252,17 @@ fun FinanceAiBottomSheet(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(FamiCoral, FamiCoralLight)
-                                )
-                            )
-                            .border(1.4.dp, paper.border, RoundedCornerShape(14.dp))
-                            .padding(4.dp),
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(paper.stickyYellow.copy(alpha = 0.65f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_fami_mascot),
                             contentDescription = "Fami IA",
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(2.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))

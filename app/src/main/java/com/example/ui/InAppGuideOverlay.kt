@@ -62,7 +62,7 @@ fun InAppGuideOverlay(
                 InAppTourStep("1 OF 6 • NOTEBOOK", "Month Sheet & Balance", "View your consolidated available balance in your preferred currency, summing all wallets.", "Tap the currency pill inside the sheet to switch between primary and secondary currency.", "inicio", "Top bar & Sheet 1: Notebook", true, R.drawable.fami_notebook_hero),
                 InAppTourStep("2 OF 6 • AI & QUICK NOTE", "Write, Speak or Scan", "Type or tap the Mic button to dictate your expense and press Send, or use Scan / Gallery below.", "Pick the target wallet directly in the yellow sticky note.", "inicio", "Quick Note: Mic, Send, Scan & Gallery", false, R.drawable.fami_sticker_idea),
                 InAppTourStep("3 OF 6 • CALENDAR", "Physical Spiral Calendar", "Swipe left/right or tap arrows to turn pages and inspect transactions & completed chores per day.", "Tap any day to see all notes recorded on that date.", "inicio", "Calendar section inside Notebook", false, R.drawable.fami_onboarding_2),
-                InAppTourStep("4 OF 6 • ACCOUNTS", "Wallets, Income & Budgets", "Create & edit your multi-currency wallets, transfer between them, manage monthly income, and export CSV.", "Your wallets sum automatically into the available balance at Home.", "cuentas", "Bottom Tab 2: Accounts", false, R.drawable.fami_onboarding_3),
+                InAppTourStep("4 OF 6 • FINANCES", "Wallets, Income & Budgets", "Create & edit your multi-currency wallets, transfer between them, manage monthly income, and export CSV.", "Your wallets sum automatically into the available balance at Home.", "cuentas", "Bottom Tab 2: Finances", false, R.drawable.fami_onboarding_3),
                 InAppTourStep("5 OF 6 • CHORES, MARKET & GOALS", "Household Lists & Notes", "Assign home chores, share shopping lists, save toward goals, and write ruled notebook notes.", "Switch tabs at the bottom 3D bar anytime.", "metas", "Bottom Tabs 3–5: Chores • Market • Piggy Bank", false, R.drawable.fami_sticker_piggy),
                 InAppTourStep("6 OF 6 • SETTINGS", "Security, Avatar & Family Code", "Open Settings (gear icon) to switch Huella/PIN unlock, Dark Mode, language, or invite family.", "You can replay this guide anytime from Settings.", "inicio", "Top-right Gear Icon (⚙️ Settings)", true, R.drawable.ic_fami_mascot)
             )
@@ -70,7 +70,7 @@ fun InAppGuideOverlay(
                 InAppTourStep("1 DE 6 • CADERNO", "Folha do Mês e Saldo", "Veja seu saldo disponível consolidado na sua moeda preferida, somando todas as suas carteiras.", "Toque no botão de moeda na folha para alternar entre moeda principal e secundária.", "inicio", "Topo e Aba 1: Caderno", true, R.drawable.fami_notebook_hero),
                 InAppTourStep("2 DE 6 • FAMI IA", "Escreva, Fale ou Escaneie", "Digite ou toque no Microfone para ditar seu gasto e envie, ou use Escanear / Galeria logo abaixo.", "Escolha a carteira na própria nota amarela.", "inicio", "Nota Rápida: Microfone, Enviar, Escanear e Galeria", false, R.drawable.fami_sticker_idea),
                 InAppTourStep("3 DE 6 • CALENDÁRIO", "Calendário Físico em Espiral", "Deslize ou toque nas setas para virar a página e ver gastos e tarefas concluídas por dia.", "Toque em qualquer dia para ver detalhes anotados.", "inicio", "Seção Calendário no Caderno", false, R.drawable.fami_onboarding_2),
-                InAppTourStep("4 DE 6 • CONTAS", "Carteiras, Renda e Orçamentos", "Crie e edite suas carteiras multi-moeda, transfira saldos, gerencie renda mensal e exporte CSV.", "A soma das suas carteiras aparece como saldo disponível no Início.", "cuentas", "Barra Inferior Aba 2: Contas", false, R.drawable.fami_onboarding_3),
+                InAppTourStep("4 DE 6 • FINANÇAS", "Carteiras, Renda e Orçamentos", "Crie e edite suas carteiras multi-moeda, transfira saldos, gerencie renda mensal e exporte CSV.", "A soma das suas carteiras aparece como saldo disponível no Início.", "cuentas", "Barra Inferior Aba 2: Finanças", false, R.drawable.fami_onboarding_3),
                 InAppTourStep("5 DE 6 • TAREFAS, MERCADO E METAS", "Casa, Compras e Caderneta", "Organize tarefas da casa, lista de mercado, metas de economia e notas em folhas pautadas.", "Alterne pelas abas 3D inferiores quando quiser.", "metas", "Abas 3–5: Tarefas • Mercado • Cofrinho", false, R.drawable.fami_sticker_piggy),
                 InAppTourStep("6 DE 6 • AJUSTES", "Segurança, Avatar e Código", "Toque na engrenagem (⚙️) para escolher Digital/PIN, Modo Escuro, idioma ou copiar o Código Familiar.", "Reabra este guia em Ajustes a qualquer momento.", "inicio", "Ícone de Engrenagem no Topo (⚙️)", true, R.drawable.ic_fami_mascot)
             )
@@ -78,7 +78,7 @@ fun InAppGuideOverlay(
                 InAppTourStep("1 DE 6 • INICIO", "Hoja del Mes y Saldo Total", "Aquí ves tu saldo disponible consolidado en tu moneda de preferencia, sumando todas tus billeteras.", "Usa el botón de cambio de moneda dentro de la hoja si deseas ver la otra moneda.", "inicio", "Hoja del Mes en Cuaderno", true, R.drawable.fami_notebook_hero),
                 InAppTourStep("2 DE 6 • FAMI IA", "Escribe, Habla o Escanea", "Escribe o toca el Micrófono para dictar tu gasto y pulsa Enviar, o usa Escanear / Galería debajo.", "Elige la billetera donde se registrará tu movimiento.", "inicio", "Nota Rápida: Voz, Enviar, Escanear y Galería", false, R.drawable.fami_sticker_idea),
                 InAppTourStep("3 DE 6 • CALENDARIO", "Calendario Físico con Espirales", "Desliza la hoja o usa las flechas para pasar de mes y toca cualquier día para ver tus gastos y tareas de esa fecha.", "Las marcas de colores indican movimientos y tareas listas.", "inicio", "Sección Calendario dentro de Cuaderno", false, R.drawable.fami_onboarding_2),
-                InAppTourStep("4 DE 6 • CUENTAS", "Mis Billeteras, Ingresos y Presupuesto", "Crea y edita tus billeteras multi-moneda, transfiere entre ellas, edita tu ingreso mensual y exporta a CSV.", "La suma de tus billeteras refleja tu saldo disponible al inicio.", "cuentas", "Barra Inferior • Pestaña 2: Cuentas", false, R.drawable.fami_onboarding_3),
+                InAppTourStep("4 DE 6 • FINANZAS", "Mis Billeteras, Ingresos y Presupuesto", "Crea y edita tus billeteras multi-moneda, transfiere entre ellas, edita tu ingreso mensual y exporta a CSV.", "La suma de tus billeteras refleja tu saldo disponible al inicio.", "cuentas", "Barra Inferior • Pestaña 2: Finanzas", false, R.drawable.fami_onboarding_3),
                 InAppTourStep("5 DE 6 • TAREAS, MERCADO Y METAS", "Hogar, Compras y Libreta de Notas", "En la barra inferior 3D navega entre Tareas del hogar, Lista de Compras y Alcancía / Libreta con notas sobre renglones.", "Marca tareas listas para celebrar logros en familia.", "metas", "Barra Inferior • Pestañas 3–5: Tareas • Mercado • Alcancía", false, R.drawable.fami_sticker_piggy),
                 InAppTourStep("6 DE 6 • AJUSTES", "Huella/PIN, Avatar y Código Familiar", "Toca el ícono de engranaje (⚙️) para elegir ingreso con Huella o PIN, cambiar tema oscuro, avatar o copiar tu Código Familiar.", "Puedes volver a ver esta guía desde Ajustes cuando gustes.", "inicio", "Ícono de Engrenaje arriba a la derecha (⚙️)", true, R.drawable.ic_fami_mascot)
             )
@@ -200,11 +200,9 @@ fun InAppGuideOverlay(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(84.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(paper.sheetCream)
-                            .border(1.8.dp, paper.border, RoundedCornerShape(16.dp))
-                            .padding(4.dp),
+                            .size(92.dp)
+                            .clip(CircleShape)
+                            .background(paper.stickyYellow.copy(alpha = 0.48f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
@@ -212,7 +210,7 @@ fun InAppGuideOverlay(
                             contentDescription = step.title,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(12.dp)),
+                                .padding(4.dp),
                             contentScale = ContentScale.Fit
                         )
                     }

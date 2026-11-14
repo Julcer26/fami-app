@@ -4,7 +4,7 @@
 
 ## 📱 Datos Técnicos de la Entrega
 - **App Name:** Fami
-- **Package ID:** `app.somosfami` (Completamente independiente de Nido)
+- **Package ID:** `app.somosfami`
 - **Versión:** 1.0.0 (Build 1)
 - **Firma:** Keystore oficial de producción Fami (`fami-release-key.jks`, alias `fami`, Target SDK 35)
 - **Dominio Oficial:** [somosfami.app](https://somosfami.app)

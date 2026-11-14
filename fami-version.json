@@ -1,6 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 9,
-  "latestVersionName": "3.6.0",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.6.apk"
+  "latestVersionCode": 10,
+  "latestVersionName": "3.7.0",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.7.apk",
+  "changelog": "v3.7.0: Correo oficial hola@somosfami.app, soporte con Google Sheets, ícono oficial con logo 'fami', mascotas transparentes sin recuadros, rediseño de Alcancía y Metas, y pestaña Finanzas mejorada."
 }

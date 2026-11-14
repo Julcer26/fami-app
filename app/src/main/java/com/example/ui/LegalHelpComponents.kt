@@ -36,7 +36,7 @@ import com.example.BuildConfig
 import com.example.ui.theme.*
 import com.example.viewmodel.FamilyViewModel
 
-private const val SUPPORT_EMAIL = "soporte.nidoapp@gmail.com"
+private const val SUPPORT_EMAIL = "hola@somosfami.app"
 
 fun openSafeExternalUrl(context: Context, url: String) {
     try {
@@ -313,7 +313,7 @@ fun HelpSupportContent(
     var feedbackSuccess by remember { mutableStateOf<String?>(null) }
     var feedbackError by remember { mutableStateOf<String?>(null) }
 
-    val sections = listOf("General", "Inicio", "Cuentas", "Tareas/Compras", "Metas y Notas", "Modo Oscuro", "Otro")
+    val sections = listOf("General", "Inicio", "Finanzas", "Tareas/Compras", "Metas y Notas", "Modo Oscuro", "Otro")
     val deviceSummary = remember {
         "Fami v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) • Android ${Build.VERSION.RELEASE} (${Build.MANUFACTURER} ${Build.MODEL})"
     }
@@ -343,7 +343,7 @@ fun HelpSupportContent(
                         color = paper.ink
                     )
                     Text(
-                        text = "¿Encontraste una falla o tienes una idea? Envíanos tu reporte o sugerencia.",
+                        text = "¿Encontraste una falla o tienes una idea? Envíanos tu reporte aquí o a $SUPPORT_EMAIL.",
                         fontSize = 11.sp,
                         color = paper.inkMuted
                     )

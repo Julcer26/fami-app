@@ -19,6 +19,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,8 +49,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.platform.LocalContext
@@ -1433,7 +1437,7 @@ fun DashboardTab(
                     }
 
                     val secondaryDisplayText = when {
-                        wallets.isEmpty() -> "Agrega tus billeteras en Cuentas para reflejar tu saldo"
+                        wallets.isEmpty() -> "Agrega tus billeteras en Finanzas para reflejar tu saldo"
                         otherCurrency != null && totalWalletsOther != null -> {
                             val otherSymbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(otherCurrency)
                             "Suma de ${wallets.size} billetera(s) • ≈ $otherSymbol ${String.format(Locale.US, "%,.2f", totalWalletsOther)} $otherCurrency"
@@ -1473,22 +1477,29 @@ fun DashboardTab(
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
-                        // Sticker Polaroid de la Mascota Fami con su Cuaderno y Alcancía (Nano Banana)
+                        // Mascota Fami flotando limpiamente sobre halo suave del cuaderno
                         Box(
                             modifier = Modifier
-                                .size(78.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(paper.sheetCream)
-                                .border(1.8.dp, paper.border, RoundedCornerShape(16.dp))
-                                .padding(3.dp),
+                                .size(84.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            paper.stickyYellow.copy(alpha = 0.72f),
+                                            paper.stickyYellow.copy(alpha = 0.14f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             androidx.compose.foundation.Image(
                                 painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_notebook_hero),
                                 contentDescription = "Fami Guía Financiera",
+                                contentScale = ContentScale.Fit,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clip(RoundedCornerShape(13.dp))
+                                    .padding(3.dp)
                             )
                         }
                     }
@@ -1606,14 +1617,22 @@ fun DashboardTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_idea),
-                                contentDescription = "Plan Fami IA",
+                            Box(
                                 modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .border(1.5.dp, paper.border, RoundedCornerShape(14.dp))
-                            )
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .background(paper.sheet.copy(alpha = 0.55f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_idea),
+                                    contentDescription = "Plan Fami IA",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(2.dp)
+                                )
+                            }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
@@ -4217,6 +4236,24 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 .groupBy { it.currency.ifBlank { appPrimaryCurrency }.uppercase() }
                 .mapValues { (_, list) -> list.sumOf { it.targetAmount ?: 0.0 } }
 
+            val pricedGoals = goals.filter { (it.targetAmount ?: 0.0) > 0.0 }
+            val overallProgress = if (pricedGoals.isEmpty()) {
+                if (goals.isNotEmpty()) goals.count { it.isCompleted }.toFloat() / goals.size.toFloat() else 0f
+            } else {
+                pricedGoals.map { g ->
+                    val t = g.targetAmount ?: 1.0
+                    val s = if (g.isCompleted && g.savedAmount <= 0.0) t else g.savedAmount
+                    (s / t).toFloat().coerceIn(0f, 1f)
+                }.average().toFloat()
+            }
+            val animatedOverallProgress by animateFloatAsState(
+                targetValue = overallProgress.coerceIn(0f, 1f),
+                animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
+                label = "overallGoalsRing"
+            )
+            val completedCount = goals.count { it.isCompleted }
+            val activeCount = goals.count { !it.isCompleted }
+
             val piggySummaryText = when {
                 savedByCurr.isNotEmpty() -> "Ahorrado: " + savedByCurr.entries.joinToString(" • ") { (curr, total) ->
                     "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(curr)}${String.format(Locale.US, "%,.0f", total)} $curr"
@@ -4232,55 +4269,182 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 noteColor = paper.stickyPeach,
                 tapeColor = FamiCoral.copy(alpha = 0.65f)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            colors = listOf(
+                                                paper.sheet.copy(alpha = 0.85f),
+                                                paper.sheet.copy(alpha = 0.25f),
+                                                Color.Transparent
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
+                                    contentDescription = "Alcancía Fami",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(2.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "ALCANCÍA FAMILIAR",
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = FamiCoralDeep,
+                                    letterSpacing = 0.8.sp
+                                )
+                                Text(
+                                    text = if (goals.isEmpty()) "Tu primer ahorro" else "$completedCount cumplidas • $activeCount activas",
+                                    fontSize = 15.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = piggySummaryText,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = paper.inkMuted,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Anillo de progreso circular de metas con monto
+                        val overallPct = (overallProgress * 100f).roundToInt().coerceIn(0, 100)
+                        val ringColor = if (overallPct >= 100) FamiEmerald else FamiCoral
+                        val trackColor = paper.sheet.copy(alpha = 0.85f)
                         Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(paper.sheet)
-                                .border(1.8.dp, paper.border, RoundedCornerShape(14.dp))
-                                .padding(3.dp),
+                            modifier = Modifier.size(62.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
-                                contentDescription = "Alcancía Fami",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(10.dp)),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Fit
-                            )
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val strokeWidth = 7.dp.toPx()
+                                drawArc(
+                                    color = trackColor,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f,
+                                    useCenter = false,
+                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                )
+                                if (animatedOverallProgress > 0f) {
+                                    drawArc(
+                                        color = ringColor,
+                                        startAngle = -90f,
+                                        sweepAngle = 360f * animatedOverallProgress,
+                                        useCenter = false,
+                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                    )
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "$overallPct%",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                                Text(
+                                    text = "avance",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = paper.inkMuted
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "🐷 ALCANCÍA FAMILIAR FAMI",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Black,
-                                color = FamiCoral,
-                                letterSpacing = 0.8.sp
-                            )
-                            Text(
-                                text = "${goals.count { it.isCompleted }} cumplidas • ${goals.count { !it.isCompleted }} en curso",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                color = paper.ink
-                            )
-                            Text(
-                                text = piggySummaryText,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = paper.inkMuted,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                    }
+
+                    // Fichas KPI compactas del ahorro familiar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = paper.sheet.copy(alpha = 0.88f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.45f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text("🎯", fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$activeCount en curso",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = paper.stickyMint.copy(alpha = 0.92f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.45f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text("🏆", fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$completedCount cumplidas",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = paper.stickyYellow.copy(alpha = 0.92f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.45f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text("📝", fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${notes.count { !it.isCompleted }} notitas",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                            }
                         }
                     }
                 }
@@ -4338,6 +4502,22 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     val effectiveSaved = if (goal.isCompleted && goal.savedAmount <= 0.0 && hasTarget) target else goal.savedAmount
                     val pct = if (hasTarget) ((effectiveSaved / target) * 100.0).roundToInt().coerceIn(0, 100) else 0
                     val remaining = (target - effectiveSaved).coerceAtLeast(0.0)
+                    val animatedGoalFraction by animateFloatAsState(
+                        targetValue = (pct / 100f).coerceIn(0f, 1f),
+                        animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing),
+                        label = "goalBar_${goal.id}"
+                    )
+                    val lowerTitle = goal.title.lowercase()
+                    val (catEmoji, catLabel) = when {
+                        listOf("casa", "hogar", "apartamento", "renta", "mueble", "cocina", "reparaci").any { it in lowerTitle } -> "🏠" to "Hogar"
+                        listOf("viaje", "vacaci", "vuelo", "playa", "hotel", "pasaje", "maleta").any { it in lowerTitle } -> "✈️" to "Viaje"
+                        listOf("emergencia", "salud", "médico", "medico", "seguro", "fondo", "respaldo").any { it in lowerTitle } -> "🛟" to "Respaldo"
+                        listOf("carro", "auto", "vehículo", "vehiculo", "moto", "caucho", "repuesto").any { it in lowerTitle } -> "🚗" to "Vehículo"
+                        listOf("estudio", "universidad", "colegio", "curso", "libro", "escuela", "laptop").any { it in lowerTitle } -> "🎓" to "Estudio"
+                        listOf("regalo", "cumple", "navidad", "fiesta", "boda", "aniversario").any { it in lowerTitle } -> "🎁" to "Especial"
+                        listOf("deuda", "pago", "tarjeta", "banco", "crédito", "credito").any { it in lowerTitle } -> "💳" to "Deuda"
+                        else -> "🎯" to "Meta"
+                    }
 
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                         com.example.ui.NotebookPaperSheet(
@@ -4359,8 +4539,83 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)
+                                    .padding(start = 28.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                // Fila superior: Categoría + Privacidad + Estado/%
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Surface(
+                                            color = paper.stickyPeach.copy(alpha = 0.75f),
+                                            shape = RoundedCornerShape(8.dp),
+                                            border = BorderStroke(1.dp, paper.border.copy(alpha = 0.35f))
+                                        ) {
+                                            Text(
+                                                text = "$catEmoji $catLabel",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = paper.ink,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+                                            )
+                                        }
+                                        if (goal.isPrivate) {
+                                            Surface(
+                                                color = paper.sheetCream,
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = BorderStroke(1.dp, paper.border.copy(alpha = 0.3f))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Lock,
+                                                        contentDescription = "Privado",
+                                                        tint = paper.inkMuted,
+                                                        modifier = Modifier.size(10.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text(
+                                                        text = "Solo yo",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = paper.inkMuted
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (hasTarget || goal.isCompleted) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (goal.isCompleted) FamiEmerald.copy(alpha = 0.16f) else paper.stickyYellow)
+                                                .border(
+                                                    1.dp,
+                                                    if (goal.isCompleted) FamiEmerald.copy(alpha = 0.55f) else paper.border.copy(alpha = 0.45f),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                                        ) {
+                                            Text(
+                                                text = if (goal.isCompleted) "¡Cumplida!" else "$pct% • $goalCurr",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (goal.isCompleted) FamiEmerald else paper.ink
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Título + Check táctil + Autor
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
@@ -4370,7 +4625,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
                                     Box(
                                         modifier = Modifier
-                                            .size(22.dp)
+                                            .size(24.dp)
                                             .clip(CircleShape)
                                             .background(checkboxBg)
                                             .border(2.dp, checkboxBorderColor, CircleShape)
@@ -4382,7 +4637,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Desmarcar",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(12.dp)
+                                                modifier = Modifier.size(13.dp)
                                             )
                                         }
                                     }
@@ -4390,48 +4645,17 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     Spacer(modifier = Modifier.width(12.dp))
 
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            com.example.ui.RuledNotebookText(
-                                                text = goal.title,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 14.5.sp,
-                                                maxLines = 2,
-                                                lineHeight = 22.sp,
-                                                textDecoration = if (goal.isCompleted) TextDecoration.LineThrough else null,
-                                                color = if (goal.isCompleted) paper.inkMuted else paper.ink,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            if (goal.isPrivate) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Lock,
-                                                    contentDescription = "Privado",
-                                                    tint = paper.inkMuted,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            }
-                                            if (hasTarget) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(if (goal.isCompleted) FamiEmerald.copy(alpha = 0.16f) else paper.stickyYellow)
-                                                        .border(1.dp, paper.border.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
-                                                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "$pct% • $goalCurr",
-                                                        fontSize = 9.5.sp,
-                                                        fontWeight = FontWeight.Black,
-                                                        color = if (goal.isCompleted) FamiEmerald else paper.ink
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(6.dp))
-
+                                        com.example.ui.RuledNotebookText(
+                                            text = goal.title,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp,
+                                            maxLines = 2,
+                                            lineHeight = 22.sp,
+                                            textDecoration = if (goal.isCompleted) TextDecoration.LineThrough else null,
+                                            color = if (goal.isCompleted) paper.inkMuted else paper.ink,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -4454,13 +4678,11 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 }
 
                                 if (hasTarget) {
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    // Barra de progreso estilo papel
+                                    // Barra de progreso con marcadores de hitos (25%, 50%, 75%)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(9.dp)
+                                            .height(11.dp)
                                             .clip(CircleShape)
                                             .background(paper.sheetCream)
                                             .border(1.dp, paper.border.copy(alpha = 0.35f), CircleShape)
@@ -4468,53 +4690,112 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxHeight()
-                                                .fillMaxWidth(fraction = (pct / 100f).coerceIn(0f, 1f))
+                                                .fillMaxWidth(fraction = animatedGoalFraction)
                                                 .clip(CircleShape)
                                                 .background(if (goal.isCompleted || pct >= 100) FamiEmerald else FamiCoral)
                                         )
+                                        // Marcadores visuales de hitos
+                                        Row(modifier = Modifier.fillMaxSize()) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(paper.border.copy(alpha = 0.22f)))
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(paper.border.copy(alpha = 0.22f)))
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(paper.border.copy(alpha = 0.22f)))
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
                                     }
 
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    // Ficha numérica limpia: Ahorrado | Falta | Objetivo
+                                    Surface(
+                                        color = paper.sheetCream.copy(alpha = 0.72f),
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, paper.border.copy(alpha = 0.28f)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("AHORRADO", fontSize = 8.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                                Text(
+                                                    text = "$goalSym${String.format(Locale.US, "%,.0f", effectiveSaved)}",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = FamiEmerald
+                                                )
+                                            }
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text("FALTA", fontSize = 8.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                                Text(
+                                                    text = if (goal.isCompleted || remaining <= 0.0) "${goalSym}0" else "$goalSym${String.format(Locale.US, "%,.0f", remaining)}",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (goal.isCompleted || remaining <= 0.0) FamiEmerald else FamiCoralDeep
+                                                )
+                                            }
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                horizontalAlignment = Alignment.End
+                                            ) {
+                                                Text("OBJETIVO", fontSize = 8.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                                Text(
+                                                    text = "$goalSym${String.format(Locale.US, "%,.0f", target)}",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = paper.ink
+                                                )
+                                            }
+                                        }
+                                    }
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Ahorrado: $goalSym${String.format(Locale.US, "%,.2f", effectiveSaved)} / $goalSym${String.format(Locale.US, "%,.2f", target)}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = paper.ink
-                                            )
-                                            if (!goal.isCompleted && remaining > 0.0) {
-                                                Text(
-                                                    text = "Faltan $goalSym${String.format(Locale.US, "%,.2f", remaining)} $goalCurr",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = paper.inkMuted
-                                                )
-                                            }
-                                        }
+                                        Text(
+                                            text = when {
+                                                goal.isCompleted -> "🎉 ¡Meta lograda!"
+                                                pct >= 75 -> "🔥 ¡Casi la alcanzas!"
+                                                pct >= 40 -> "💪 Vas por buen camino"
+                                                else -> "🌱 Cada abono suma"
+                                            },
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = paper.inkMuted
+                                        )
                                         if (!goal.isCompleted) {
                                             com.example.ui.Tactile3DButton(
                                                 onClick = {
                                                     goalToDeposit = goal
                                                     depositAmountInput = ""
                                                 },
-                                                faceColor = paper.stickyYellow,
-                                                lipColor = Lip3DGold,
+                                                faceColor = FamiEmerald,
+                                                lipColor = Lip3DEmerald,
                                                 borderColor = paper.border,
-                                                cornerRadius = 10.dp,
-                                                lipHeight = 2.5.dp,
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                                                cornerRadius = 11.dp,
+                                                lipHeight = 3.dp,
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                             ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
-                                                    text = "+ Ahorrar",
-                                                    fontSize = 10.5.sp,
+                                                    text = "Abonar",
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Black,
-                                                    color = paper.ink
+                                                    color = Color.White
                                                 )
                                             }
                                         }
@@ -4691,6 +4972,44 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             unfocusedTextColor = paper.ink
                         )
                     )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "🏠 Hogar" to "Fondo para el hogar: ",
+                            "✈️ Viaje" to "Viaje familiar: ",
+                            "🛟 Emergencia" to "Fondo de emergencia: ",
+                            "🚗 Vehículo" to "Vehículo: ",
+                            "🎓 Estudio" to "Estudios: ",
+                            "🎁 Regalo" to "Regalo especial: "
+                        ).forEach { (chipLabel, prefix) ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(paper.stickyPeach.copy(alpha = 0.8f))
+                                    .border(1.dp, paper.border.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        if (goalTitleInput.isBlank()) {
+                                            goalTitleInput = prefix
+                                        } else if (!goalTitleInput.contains(prefix.trim(), ignoreCase = true)) {
+                                            goalTitleInput = "$prefix${goalTitleInput.trim()}"
+                                        }
+                                    }
+                                    .padding(horizontal = 9.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = chipLabel,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = paper.ink
+                                )
+                            }
+                        }
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

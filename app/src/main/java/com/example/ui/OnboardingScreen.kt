@@ -323,19 +323,19 @@ fun OnboardingScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(155.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(paper.sheetCream)
-                                        .border(1.8.dp, paper.border, RoundedCornerShape(16.dp))
-                                        .padding(6.dp),
+                                        .height(155.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(134.dp)
+                                            .clip(CircleShape)
+                                            .background(paper.stickyYellow.copy(alpha = 0.42f))
+                                    )
                                     Image(
                                         painter = painterResource(id = R.drawable.fami_onboarding_1),
                                         contentDescription = "Mascota Fami",
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(12.dp)),
+                                        modifier = Modifier.fillMaxHeight().padding(vertical = 4.dp),
                                         contentScale = ContentScale.Fit
                                     )
                                 }
@@ -443,16 +443,17 @@ fun OnboardingScreen(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(64.dp)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(paper.sheetCream)
-                                            .border(1.6.dp, paper.border, RoundedCornerShape(14.dp))
-                                            .padding(4.dp)
+                                            .size(68.dp)
+                                            .clip(CircleShape)
+                                            .background(paper.stickyMint.copy(alpha = 0.55f)),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Image(
                                             painter = painterResource(id = R.drawable.fami_onboarding_2),
                                             contentDescription = "Monedas Fami",
-                                            modifier = Modifier.fillMaxSize(),
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(3.dp),
                                             contentScale = ContentScale.Fit
                                         )
                                     }

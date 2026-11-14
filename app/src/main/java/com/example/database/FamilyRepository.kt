@@ -550,7 +550,10 @@ class FamilyRepository {
         user: String
     ) {
         val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val familyId = _familyId.value ?: ""
+        val ticketId = "FAM-${System.currentTimeMillis().toString().takeLast(6)}"
         val payload = mapOf(
+            "id" to ticketId,
             "type" to type,
             "section" to section,
             "subject" to subject,
@@ -558,6 +561,7 @@ class FamilyRepository {
             "appVersion" to appVersion,
             "deviceInfo" to deviceInfo,
             "user" to user,
+            "familyId" to familyId,
             "timestamp" to System.currentTimeMillis()
         )
         if (!uid.isNullOrBlank()) {
@@ -565,6 +569,30 @@ class FamilyRepository {
                 .child("users").child(uid).child("support_tickets").push().setValue(payload).await()
         }
         getFamilyRef("support_tickets")?.push()?.setValue(payload)?.await()
+
+        // Sincronización opcional con Google Sheets (hoja 'Fami - Soporte y Sugerencias') vía Apps Script
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val webhookSnap = db.child("config").child("support_sheet_webhook").get().await()
+                val webhookUrl = webhookSnap.getValue(String::class.java)?.trim().orEmpty()
+                if (webhookUrl.startsWith("https://")) {
+                    val conn = (java.net.URL(webhookUrl).openConnection() as java.net.HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 7000
+                        readTimeout = 7000
+                        doOutput = true
+                        setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                    }
+                    val jsonBody = org.json.JSONObject(payload).toString()
+                    conn.outputStream.use { os ->
+                        os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                    }
+                    conn.responseCode
+                    conn.disconnect()
+                }
+            }
+        }
+
         insertLog(
             ActivityLog(
                 tag = "SOPORTE",
