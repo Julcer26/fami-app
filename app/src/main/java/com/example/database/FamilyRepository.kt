@@ -55,6 +55,22 @@ class FamilyRepository {
         return snapshot.exists()
     }
 
+    suspend fun registerFcmToken(token: String, userName: String) {
+        if (token.isBlank() || userName.isBlank()) return
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val fid = _familyId.value ?: return
+        val payload = mapOf(
+            "token" to token,
+            "userName" to userName,
+            "normalizedName" to com.example.notifications.TaskNotificationHelper.normalizeAlias(userName),
+            "uid" to uid,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        runCatching {
+            db.child("families").child(fid).child("fcm_tokens").child(uid).setValue(payload).await()
+        }
+    }
+
     private fun getFamilyRef(childNode: String): com.google.firebase.database.DatabaseReference? {
         val fid = _familyId.value ?: return null
         return db.child("families").child(fid).child(childNode)

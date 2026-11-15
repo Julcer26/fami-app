@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 11,
-  "latestVersionName": "3.7.1",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.7.1.apk",
-  "changelog": "v3.7.1: Envío directo de fallas y sugerencias por correo a hola@somosfami.app (con <queries> Android 11+ y URI mailto codificado)."
+  "latestVersionCode": 12,
+  "latestVersionName": "3.8.0",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.8.apk",
+  "changelog": "v3.8.0: Notificaciones push al asignar tareas (por persona o Todos) y nueva guía interactiva tipo Spotlight señalando cada botón y sección real."
 }

@@ -15,8 +15,8 @@ android {
     applicationId = "app.somosfami"
     minSdk = 24
     targetSdk = 35
-    versionCode = 11
-    versionName = "3.7.1"
+    versionCode = 12
+    versionName = "3.8.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -103,6 +103,8 @@ dependencies {
   implementation("com.google.firebase:firebase-database")
   implementation("com.google.firebase:firebase-auth")
   implementation("com.google.firebase:firebase-storage")
+  implementation("com.google.firebase:firebase-messaging")
+  implementation("androidx.work:work-runtime-ktx:2.10.0")
   implementation("com.google.android.gms:play-services-auth:21.3.0")
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)

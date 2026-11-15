@@ -16,6 +16,8 @@ val Context.dataStore by preferencesDataStore(name = "user_prefs")
 
 class DataStoreManager(private val context: Context) {
 
+    val appContext: Context = context.applicationContext
+
     companion object {
         val FAMILY_ID = stringPreferencesKey("family_id")
         val USER_NAME = stringPreferencesKey("user_name")

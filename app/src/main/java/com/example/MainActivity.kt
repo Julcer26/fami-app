@@ -28,8 +28,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -104,6 +106,7 @@ class MainActivity : FragmentActivity() {
     var onImagePicked: ((Uri?) -> Unit)? = null
     var onPhotoTaken: ((Boolean) -> Unit)? = null
     var onPermissionResult: ((Boolean) -> Unit)? = null
+    private val pendingOpenTabState = mutableStateOf<String?>(null)
 
     val imagePickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent() ){ uri ->
         onImagePicked?.invoke(uri)
@@ -117,8 +120,24 @@ class MainActivity : FragmentActivity() {
         onPermissionResult?.invoke(isGranted)
     }
 
+    private fun handleNotificationIntent(intent: Intent?) {
+        val targetTab = (intent?.getStringExtra("open_tab") ?: intent?.getStringExtra("tab"))?.trim()
+        if (!targetTab.isNullOrBlank()) {
+            pendingOpenTabState.value = targetTab
+            intent?.removeExtra("open_tab")
+            intent?.removeExtra("tab")
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleNotificationIntent(intent)
         enableEdgeToEdge()
         setContent {
             val context = LocalContext.current
@@ -127,6 +146,7 @@ class MainActivity : FragmentActivity() {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
             val isDarkThemeSetting by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val pendingOpenTab by pendingOpenTabState
 
             if (!view.isInEditMode) {
                 SideEffect {
@@ -138,7 +158,11 @@ class MainActivity : FragmentActivity() {
             }
 
             MyApplicationTheme(darkTheme = isDarkThemeSetting) {
-                MainScreen(viewModel)
+                MainScreen(
+                    viewModel = viewModel,
+                    pendingOpenTab = pendingOpenTab,
+                    onConsumeOpenTab = { pendingOpenTabState.value = null }
+                )
             }
         }
     }
@@ -350,7 +374,11 @@ fun ConfettiEffect(
 }
 
 @Composable
-fun MainScreen(viewModel: FamilyViewModel) {
+fun MainScreen(
+    viewModel: FamilyViewModel,
+    pendingOpenTab: String? = null,
+    onConsumeOpenTab: () -> Unit = {}
+) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val topNotification by viewModel.topNotification.collectAsStateWithLifecycle()
     val confettiTrigger by viewModel.confettiTrigger.collectAsStateWithLifecycle()
@@ -560,6 +588,39 @@ fun MainScreen(viewModel: FamilyViewModel) {
         }
     } else {
         val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+        val tourRegistry = com.example.ui.rememberTourTargetRegistry()
+        val dashboardListState = rememberLazyListState()
+        val notifPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                viewModel.syncFcmTokenAndWorker()
+            }
+        }
+
+        LaunchedEffect(pendingOpenTab) {
+            if (!pendingOpenTab.isNullOrBlank()) {
+                currentTab = pendingOpenTab
+                onConsumeOpenTab()
+            }
+        }
+
+        LaunchedEffect(isAuthenticated, currentUser, hasCompletedInAppTour) {
+            if (isAuthenticated && currentUser.isNotBlank()) {
+                viewModel.syncFcmTokenAndWorker()
+                if (hasCompletedInAppTour && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val hasNotifPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    if (!hasNotifPerm) {
+                        notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            }
+        }
+
+        CompositionLocalProvider(com.example.ui.LocalTourRegistry provides tourRegistry) {
         Box(modifier = Modifier.fillMaxSize() ){
                         
             Scaffold(
@@ -612,6 +673,7 @@ fun MainScreen(viewModel: FamilyViewModel) {
                     when (tab) {
                         "inicio" -> DashboardTab(
                             viewModel = viewModel,
+                            listState = dashboardListState,
                             onOpenConfig = { showConfigDialog = true },
                             isScanningDirect = isScanningDirect,
                             errorMessageScan = errorMessageScan,
@@ -754,9 +816,11 @@ fun MainScreen(viewModel: FamilyViewModel) {
                 com.example.ui.InAppGuideOverlay(
                     appLanguage = appLanguageState,
                     onSwitchTab = { target -> currentTab = target },
+                    onEnsureDashboardScroll = { idx -> dashboardListState.animateScrollToItem(idx) },
                     onDismiss = { viewModel.completeInAppTour() }
                 )
             }
+        }
         }
     }
 }
@@ -813,7 +877,9 @@ fun FamilyBottomNavigation(
                     val selected = currentTab == tabId
                     com.example.ui.Tactile3DButton(
                         onClick = { onTabSelected(tabId) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .tourTarget("tab_$tabId"),
                         faceColor = if (selected) FamiCoral else paper.sheetCream,
                         lipColor = if (selected) Lip3DCoral else paper.lipPaper,
                         borderColor = paper.border,
@@ -963,6 +1029,7 @@ fun MonthSelector(
 @Composable
 fun DashboardTab(
     viewModel: FamilyViewModel,
+    listState: LazyListState = rememberLazyListState(),
     onOpenConfig: () -> Unit,
     isScanningDirect: Boolean,
     errorMessageScan: String?,
@@ -1094,6 +1161,7 @@ fun DashboardTab(
     val spentPercentage = if (baseLimitUsd > 0) (totalSpentUsd / baseLimitUsd * 100).roundToInt() else 0
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
@@ -1271,6 +1339,7 @@ fun DashboardTab(
                         // Botón 3D de Ajustes
                         com.example.ui.Tactile3DButton(
                             onClick = onOpenConfig,
+                            modifier = Modifier.tourTarget("btn_settings"),
                             faceColor = paper.sheetCream,
                             lipColor = paper.lipPaper,
                             borderColor = paper.border,
@@ -1340,6 +1409,11 @@ fun DashboardTab(
                         .fillMaxWidth()
                         .padding(start = 28.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .tourTarget("balance_sheet")
+                    ) {
                     // Cabecera de Hoja, Cambio Rápido de Moneda y Tasa de Referencia
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1502,6 +1576,7 @@ fun DashboardTab(
                                     .padding(3.dp)
                             )
                         }
+                    }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1671,6 +1746,11 @@ fun DashboardTab(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .tourTarget("quick_note_actions")
+                    ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1822,6 +1902,7 @@ fun DashboardTab(
                             Text("GALERÍA", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
                         }
                     }
+                    }
 
                     if (isScanningDirect) {
                         Spacer(modifier = Modifier.height(10.dp))
@@ -1933,17 +2014,23 @@ fun DashboardTab(
 
         // CALENDARIO FÍSICO ESTILO PAPEL CON ESPIRALES Y ANIMACIÓN DE PASO DE HOJA
         item {
-            com.example.ui.PhysicalPaperCalendar(
-                selectedMonth = selectedMonth,
-                transactions = userTransactions,
-                chores = chores,
-                categories = categories,
-                activityLogs = activityLogs,
-                appLanguage = appLanguage,
-                isSameDay = { ts, cal -> isSameDay(ts, cal) },
-                toColor = { hex -> hex.toColor() },
-                getMonthName = { m -> getMonthNameSpanish(m) }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tourTarget("calendar_section")
+            ) {
+                com.example.ui.PhysicalPaperCalendar(
+                    selectedMonth = selectedMonth,
+                    transactions = userTransactions,
+                    chores = chores,
+                    categories = categories,
+                    activityLogs = activityLogs,
+                    appLanguage = appLanguage,
+                    isSameDay = { ts, cal -> isSameDay(ts, cal) },
+                    toColor = { hex -> hex.toColor() },
+                    getMonthName = { m -> getMonthNameSpanish(m) }
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
         }
 

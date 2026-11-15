@@ -522,6 +522,49 @@ class FamilyViewModel(
                 }
             }
         }
+
+        // Observador en tiempo real de nuevas tareas asignadas al usuario actual o a "Todos"
+        viewModelScope.launch {
+            combine(isAuthenticated, familyId, currentUser) { auth, fid, user ->
+                Triple(auth, fid, user)
+            }.flatMapLatest { (auth, fid, user) ->
+                if (auth && !fid.isNullOrBlank() && user.isNotBlank()) {
+                    repository.allChores.map { list -> Triple(fid, user, list) }
+                } else {
+                    emptyFlow()
+                }
+            }.collect { (fid, user, choreList) ->
+                val ctx = dataStoreManager.appContext
+                if (!com.example.notifications.TaskNotificationHelper.isFamilySeeded(ctx, fid)) {
+                    com.example.notifications.TaskNotificationHelper.markFamilySeeded(
+                        ctx,
+                        fid,
+                        choreList.map { it.id }
+                    )
+                } else {
+                    choreList.forEach { chore ->
+                        if (com.example.notifications.TaskNotificationHelper.isChoreTargetedToUser(chore, user) &&
+                            !com.example.notifications.TaskNotificationHelper.hasNotifiedChore(ctx, chore.id)
+                        ) {
+                            com.example.notifications.TaskNotificationHelper.showTaskNotification(
+                                context = ctx,
+                                choreId = chore.id,
+                                title = chore.title,
+                                assignedTo = chore.assignedTo,
+                                createdBy = chore.createdBy,
+                                priority = chore.priority
+                            )
+                            val targetTag = if (com.example.notifications.TaskNotificationHelper.isAssignedToAll(chore.assignedTo)) {
+                                "para Todos"
+                            } else {
+                                "para ti"
+                            }
+                            notifyUser("📌 Nueva tarea $targetTag: ${chore.title}")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun isValidEmailFormat(email: String): Boolean {
@@ -1071,7 +1114,27 @@ class FamilyViewModel(
         }
     }
 
+    fun syncFcmTokenAndWorker() {
+        val ctx = dataStoreManager.appContext
+        com.example.notifications.TaskNotificationHelper.ensureChannel(ctx)
+        runCatching { com.example.notifications.ChoreSyncWorker.schedule(ctx) }
+        val userName = _currentUser.value
+        val fid = _familyId.value
+        if (userName.isBlank() || fid.isNullOrBlank()) return
+        runCatching {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                .addOnSuccessListener { token ->
+                    if (!token.isNullOrBlank()) {
+                        viewModelScope.launch {
+                            repository.registerFcmToken(token, _currentUser.value)
+                        }
+                    }
+                }
+        }
+    }
+
     private fun checkDefaultsAndSync() {
+        syncFcmTokenAndWorker()
         viewModelScope.launch {
             try {
                 syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value)
@@ -1185,6 +1248,7 @@ class FamilyViewModel(
                         userName = cleanName,
                         pin = dataStoreManager.userPinFlow.firstOrNull() ?: ""
                     )
+                    syncFcmTokenAndWorker()
                 }
             }
         }
