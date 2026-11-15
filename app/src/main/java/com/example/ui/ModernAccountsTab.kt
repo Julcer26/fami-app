@@ -1235,9 +1235,7 @@ private fun MonthlyIncomeAccountCard(
         sheetColor = paper.stickyMint,
         borderColor = paper.border,
         shadowColor = paper.shadow3D,
-        ruleColor = paper.ruleLine.copy(alpha = 0.58f),
-        marginColor = paper.marginLine.copy(alpha = 0.42f),
-        showRuledLines = false,
+        showRuledLines = true,
         showMarginLine = false,
         showSpiralTop = false
     ) {
@@ -1328,9 +1326,7 @@ private fun AccountsWalletsSectionCard(
         sheetColor = paper.sheet,
         borderColor = paper.border,
         shadowColor = paper.shadow3D,
-        ruleColor = paper.ruleLine.copy(alpha = 0.58f),
-        marginColor = paper.marginLine.copy(alpha = 0.42f),
-        showRuledLines = false,
+        showRuledLines = true,
         showMarginLine = true,
         showSpiralTop = false
     ) {
@@ -1491,8 +1487,6 @@ private fun MasterFinancialHeroCard(
         sheetColor = paper.sheet,
         borderColor = paper.border,
         shadowColor = paper.shadow3D,
-        ruleColor = paper.ruleLine.copy(alpha = 0.58f),
-        marginColor = paper.marginLine.copy(alpha = 0.42f),
         showRuledLines = true,
         showMarginLine = true,
         showSpiralTop = true

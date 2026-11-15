@@ -110,37 +110,56 @@ fun NotebookSpiralStrip(
     borderColor: Color = FamiTheme.paper.border,
     holeShadowColor: Color = FamiTheme.paper.ruleLine
 ) {
+    val isDark = FamiTheme.paper.isDark
+    val holeCavityColor = if (isDark) Color(0xFF050816) else FamiMidnight
+    val highlightColor = if (isDark) FamiCoralLight.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.65f)
+
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(18.dp)
+            .height(20.dp)
     ) {
         val spacing = size.width / (ringCount + 1)
         for (i in 1..ringCount) {
             val cx = spacing * i
-            // Sombra del hueco perforado
+            val holeCenter = Offset(cx, size.height * 0.70f)
+            // Bisel exterior de la perforación en el papel
             drawCircle(
                 color = holeShadowColor,
-                radius = 4.6.dp.toPx(),
-                center = Offset(cx, size.height * 0.68f)
+                radius = 4.8.dp.toPx(),
+                center = holeCenter
             )
-            // Hueco perforado
+            // Hueco perforado profundo (deja ver la mesa/pasta oscura debajo)
             drawCircle(
-                color = borderColor,
-                radius = 3.8.dp.toPx(),
-                center = Offset(cx, size.height * 0.68f)
+                color = holeCavityColor,
+                radius = 3.9.dp.toPx(),
+                center = holeCenter
             )
-            // Anillo metálico doble aro
+            drawCircle(
+                color = borderColor.copy(alpha = 0.75f),
+                radius = 3.9.dp.toPx(),
+                center = holeCenter,
+                style = Stroke(width = 0.9.dp.toPx())
+            )
+            // Anillo metálico doble aro con brillo
+            val ringTopLeft = Offset(cx - 2.4.dp.toPx(), 1.dp.toPx())
+            val ringSize = Size(4.8.dp.toPx(), size.height * 0.70f)
             drawRoundRect(
                 color = ringColor,
-                topLeft = Offset(cx - 2.3.dp.toPx(), 0f),
-                size = Size(4.6.dp.toPx(), size.height * 0.72f),
+                topLeft = ringTopLeft,
+                size = ringSize,
                 cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+            )
+            drawLine(
+                color = highlightColor,
+                start = Offset(cx - 0.8.dp.toPx(), 2.5.dp.toPx()),
+                end = Offset(cx - 0.8.dp.toPx(), size.height * 0.60f),
+                strokeWidth = 1.1.dp.toPx()
             )
             drawRoundRect(
                 color = borderColor,
-                topLeft = Offset(cx - 2.3.dp.toPx(), 0f),
-                size = Size(4.6.dp.toPx(), size.height * 0.72f),
+                topLeft = ringTopLeft,
+                size = ringSize,
                 cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
                 style = Stroke(width = 1.dp.toPx())
             )
@@ -164,7 +183,7 @@ fun RuledNotebookText(
     maxLines: Int = Int.MAX_VALUE,
     minRuledLines: Int = 1,
     textDecoration: TextDecoration? = null,
-    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = 0.78f),
+    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = if (FamiTheme.paper.isDark) 0.92f else 0.78f),
     drawLines: Boolean = true
 ) {
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -229,7 +248,7 @@ fun RuledNotebookText(
 }
 
 /**
- * NOTEBOOK PAPER SHEET — Hoja de Papel Plano con Renglones, Margen Coral y Sombra 3D
+ * NOTEBOOK PAPER SHEET — Hoja de Papel Plano con Renglones, Margen Coral, Hojas Apiladas y Sombra 3D
  */
 @Composable
 fun NotebookPaperSheet(
@@ -238,8 +257,8 @@ fun NotebookPaperSheet(
     paperColor: Color = sheetColor,
     borderColor: Color = FamiTheme.paper.border,
     shadowColor: Color = FamiTheme.paper.shadow3D,
-    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = 0.58f),
-    marginColor: Color = FamiTheme.paper.marginLine.copy(alpha = 0.42f),
+    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = if (FamiTheme.paper.isDark) 0.85f else 0.62f),
+    marginColor: Color = FamiTheme.paper.marginLine.copy(alpha = if (FamiTheme.paper.isDark) 0.72f else 0.45f),
     cornerRadius: Dp = 18.dp,
     showRuledLines: Boolean = true,
     showMarginLine: Boolean = true,
@@ -249,6 +268,7 @@ fun NotebookPaperSheet(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val paper = FamiTheme.paper
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressOffset by animateDpAsState(
@@ -265,24 +285,41 @@ fun NotebookPaperSheet(
     } else Modifier
 
     val resolvedPaperColor = if (paperColor.alpha < 1f) {
-        androidx.compose.ui.graphics.Color(
-            red = paperColor.red * paperColor.alpha + FamiTheme.paper.sheet.red * (1f - paperColor.alpha),
-            green = paperColor.green * paperColor.alpha + FamiTheme.paper.sheet.green * (1f - paperColor.alpha),
-            blue = paperColor.blue * paperColor.alpha + FamiTheme.paper.sheet.blue * (1f - paperColor.alpha),
+        Color(
+            red = paperColor.red * paperColor.alpha + paper.sheet.red * (1f - paperColor.alpha),
+            green = paperColor.green * paperColor.alpha + paper.sheet.green * (1f - paperColor.alpha),
+            blue = paperColor.blue * paperColor.alpha + paper.sheet.blue * (1f - paperColor.alpha),
             alpha = 1f
         )
     } else paperColor
 
+    val stackedSheetColor = paper.sheetCream
+
     Box(
         modifier = modifier
-            .padding(bottom = 4.dp, end = 3.dp)
+            .padding(bottom = 6.dp, end = 4.dp)
             .drawBehind {
                 val r = cornerRadius.toPx()
+                // Sombra dura 3D sobre el escritorio
                 drawRoundRect(
                     color = shadowColor,
-                    topLeft = Offset(3.dp.toPx(), 4.dp.toPx()),
+                    topLeft = Offset(4.5.dp.toPx(), 5.5.dp.toPx()),
                     size = Size(size.width, size.height),
                     cornerRadius = CornerRadius(r, r)
+                )
+                // Hoja inferior apilada (efecto taco de cuaderno real)
+                drawRoundRect(
+                    color = stackedSheetColor,
+                    topLeft = Offset(2.2.dp.toPx(), 2.8.dp.toPx()),
+                    size = Size(size.width, size.height),
+                    cornerRadius = CornerRadius(r, r)
+                )
+                drawRoundRect(
+                    color = borderColor.copy(alpha = 0.85f),
+                    topLeft = Offset(2.2.dp.toPx(), 2.8.dp.toPx()),
+                    size = Size(size.width, size.height),
+                    cornerRadius = CornerRadius(r, r),
+                    style = Stroke(width = 1.3.dp.toPx())
                 )
             }
             .offset(x = pressOffset * 0.6f, y = pressOffset)
@@ -293,7 +330,7 @@ fun NotebookPaperSheet(
             .drawBehind {
                 if (showRuledLines) {
                     val step = lineSpacing.toPx()
-                    val spiralExtra = if (showSpiralTop) 18.dp.toPx() else 0f
+                    val spiralExtra = if (showSpiralTop) 20.dp.toPx() else 0f
                     var y = spiralExtra + firstLineOffset.toPx()
                     while (y < size.height - 8.dp.toPx()) {
                         drawLine(
@@ -326,7 +363,7 @@ fun NotebookPaperSheet(
 }
 
 /**
- * STICKY NOTE SHEET — Nota Adhesiva Plana con Cinta Adhesiva Superior y Relieve 3D
+ * STICKY NOTE SHEET — Nota Adhesiva Plana con Cinta Adhesiva Superior, Renglones Tenues y Relieve 3D
  */
 @Composable
 fun StickyNoteSheet(
@@ -338,6 +375,7 @@ fun StickyNoteSheet(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val paper = FamiTheme.paper
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressOffset by animateDpAsState(
@@ -354,21 +392,27 @@ fun StickyNoteSheet(
 
     val resolvedNoteColor = if (noteColor.alpha < 1f) {
         Color(
-            red = noteColor.red * noteColor.alpha + FamiTheme.paper.sheet.red * (1f - noteColor.alpha),
-            green = noteColor.green * noteColor.alpha + FamiTheme.paper.sheet.green * (1f - noteColor.alpha),
-            blue = noteColor.blue * noteColor.alpha + FamiTheme.paper.sheet.blue * (1f - noteColor.alpha),
+            red = noteColor.red * noteColor.alpha + paper.sheet.red * (1f - noteColor.alpha),
+            green = noteColor.green * noteColor.alpha + paper.sheet.green * (1f - noteColor.alpha),
+            blue = noteColor.blue * noteColor.alpha + paper.sheet.blue * (1f - noteColor.alpha),
             alpha = 1f
         )
     } else noteColor
 
+    val subtleRuleColor = if (paper.isDark) {
+        Color.White.copy(alpha = 0.06f)
+    } else {
+        paper.ruleLine.copy(alpha = 0.45f)
+    }
+
     Box(
         modifier = modifier
-            .padding(top = 6.dp, bottom = 4.dp, end = 3.dp)
+            .padding(top = 6.dp, bottom = 5.dp, end = 3.dp)
             .drawBehind {
                 val r = 16.dp.toPx()
                 drawRoundRect(
                     color = shadowColor,
-                    topLeft = Offset(3.dp.toPx(), 4.dp.toPx()),
+                    topLeft = Offset(3.5.dp.toPx(), 4.5.dp.toPx()),
                     size = Size(size.width, size.height),
                     cornerRadius = CornerRadius(r, r)
                 )
@@ -378,14 +422,27 @@ fun StickyNoteSheet(
             .background(resolvedNoteColor)
             .border(1.8.dp, borderColor, RoundedCornerShape(16.dp))
             .then(clickMod)
+            .drawBehind {
+                val step = 22.dp.toPx()
+                var y = 32.dp.toPx()
+                while (y < size.height - 8.dp.toPx()) {
+                    drawLine(
+                        color = subtleRuleColor,
+                        start = Offset(10.dp.toPx(), y),
+                        end = Offset(size.width - 10.dp.toPx(), y),
+                        strokeWidth = 0.9.dp.toPx()
+                    )
+                    y += step
+                }
+            }
     ) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .width(76.dp)
+                .width(78.dp)
                 .height(12.dp)
                 .background(tapeColor)
-                .border(0.8.dp, borderColor.copy(alpha = 0.4f))
+                .border(0.9.dp, borderColor.copy(alpha = 0.55f))
         )
         Column(
             modifier = Modifier

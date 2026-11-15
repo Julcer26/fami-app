@@ -50,21 +50,21 @@ val FamiGoldContainer = Color(0xFFFFF5D6)
 val FamiAlertRed = Color(0xFFD93829)       // Rojo sello alerta / Gastos
 val FamiAlertRedBg = Color(0xFFFDE8E6)
 
-// Modo Cuaderno Nocturno Oficial — Azul Oscuro Fami (#080B1E / #101535 / #19204A)
-val DarkDeskBg = Color(0xFF080C22)         // Escritorio Azul Medianoche Profundo
-val DarkPaperSheet = Color(0xFF101535)     // Hoja principal en Tinta Azul Marino Oficial
-val DarkPaperCream = Color(0xFF171E48)     // Hoja secundaria / tarjetas elevadas azul índigo
-val DarkPaperRuler = Color(0xFF253166)     // Renglones azul cobalto sutil
-val DarkPaperBorder = Color(0xFF344385)    // Borde nítido azul cobalto sobre marino
-val DarkInk = Color(0xFFF4F6FF)            // Tinta clara marfil azulado
-val DarkInkMuted = Color(0xFFA7B4DC)       // Tinta secundaria lavanda suave
-val DarkStickyYellow = Color(0xFF282542)   // Notita ámbar nocturno sobre marino
-val DarkStickyPeach = Color(0xFF2D1F3B)    // Notita coral/durazno nocturno sobre marino
-val DarkStickyMint = Color(0xFF122D42)     // Notita menta/turquesa nocturno sobre marino
-val DarkStickySky = Color(0xFF162754)      // Notita azul cielo nocturno
-val DarkStickyLavender = Color(0xFF231E4C) // Notita lavanda nocturna
-val DarkAlertRedBg = Color(0xFF35192B)     // Fondo de alerta vino sobre marino
-val Lip3DPaperDark = Color(0xFF0A0F28)     // Labio 3D azul abisal
+// Modo Cuaderno Nocturno Oficial — Papel Azul Noche con Renglones y Notitas Cálidas
+val DarkDeskBg = Color(0xFF060919)         // Pasta / Escritorio Azul Abisal Profundo
+val DarkPaperSheet = Color(0xFF121A3A)     // Hoja principal de papel nocturno azul marino
+val DarkPaperCream = Color(0xFF1B2550)     // Hoja secundaria / lomo apilado índigo
+val DarkPaperRuler = Color(0xFF2E3F7F)     // Renglones horizontales azul cobalto visibles
+val DarkPaperBorder = Color(0xFF4357A3)    // Borde nítido de hoja nocturna
+val DarkInk = Color(0xFFF6F7FF)            // Tinta clara marfil luminoso
+val DarkInkMuted = Color(0xFFB4C0E8)       // Tinta secundaria azul acero claro
+val DarkStickyYellow = Color(0xFF332917)   // Notita adhesiva ámbar/dorado cálido nocturno
+val DarkStickyPeach = Color(0xFF382026)    // Notita adhesiva terracota/durazno nocturno
+val DarkStickyMint = Color(0xFF11312F)     // Notita adhesiva menta/esmeralda contable nocturno
+val DarkStickySky = Color(0xFF152A4F)      // Notita adhesiva azul cielo nocturno
+val DarkStickyLavender = Color(0xFF29204B) // Notita adhesiva lavanda nocturna
+val DarkAlertRedBg = Color(0xFF3D1824)     // Fondo de alerta carmesí nocturno
+val Lip3DPaperDark = Color(0xFF0A1026)     // Labio 3D de papel nocturno
 
 val DarkBackground = DarkDeskBg
 val DarkSurface = DarkPaperSheet

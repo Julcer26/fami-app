@@ -19,10 +19,10 @@ class TourTargetRegistry {
         if (rect.width <= 1f || rect.height <= 1f) return
         val prev = _targets[id]
         if (prev == null ||
-            abs(prev.left - rect.left) > 1.5f ||
-            abs(prev.top - rect.top) > 1.5f ||
-            abs(prev.right - rect.right) > 1.5f ||
-            abs(prev.bottom - rect.bottom) > 1.5f
+            abs(prev.left - rect.left) > 3f ||
+            abs(prev.top - rect.top) > 3f ||
+            abs(prev.right - rect.right) > 3f ||
+            abs(prev.bottom - rect.bottom) > 3f
         ) {
             _targets[id] = rect
         }

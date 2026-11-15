@@ -1,12 +1,19 @@
 package com.example.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateRectAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -66,10 +73,10 @@ private data class CoachMarkStep(
 )
 
 /**
- * GUÍA INTERACTIVA TIPO SPOTLIGHT COACH-MARK — Fami v3.8
+ * GUÍA INTERACTIVA TIPO SPOTLIGHT COACH-MARK — Fami v3.8.1
  * Recorta dinámicamente la zona real del botón o sección explicada sin taparla,
- * dibuja un aro pulsante sobre el control real y ubica el globo explicativo con flecha
- * apuntando directamente al elemento.
+ * mantiene transiciones de 60fps sin saltos al cambiar de pestaña o posición, y
+ * presenta a la mascota oficial Fami (robot cobre con cuaderno) señalando cada función.
  */
 @Composable
 fun InAppGuideOverlay(
@@ -118,11 +125,45 @@ fun InAppGuideOverlay(
     var currentIndex by remember { mutableIntStateOf(0) }
     val step = steps[currentIndex]
 
+    var containerSize by remember { mutableStateOf(Size.Zero) }
+    var bubbleHeightPx by remember { mutableIntStateOf(with(density) { 196.dp.roundToPx() }) }
+
+    val fallbackRect = remember(containerSize, step.targetTab, step.targetId) {
+        val w = containerSize.width.takeIf { it > 0f } ?: 1080f
+        val h = containerSize.height.takeIf { it > 0f } ?: 2200f
+        when (step.targetId) {
+            "btn_settings" -> Rect(w - 190f, 110f, w - 40f, 230f)
+            "tab_cuentas", "tab_tareas", "tab_compras", "tab_metas" -> Rect(w * 0.2f, h - 220f, w * 0.8f, h - 60f)
+            else -> Rect(w * 0.06f, h * 0.22f, w * 0.94f, h * 0.44f)
+        }
+    }
+
+    // Mantiene el último Rect válido mientras la lista o pestaña termina de posicionarse,
+    // evitando saltos bruscos hacia el centro de la pantalla entre pasos.
+    val rawTarget = registry?.get(step.targetId)
+    var settledTargetRect by remember { mutableStateOf<Rect?>(null) }
+
+    LaunchedEffect(rawTarget) {
+        if (rawTarget != null) {
+            settledTargetRect = rawTarget
+        }
+    }
+
     LaunchedEffect(currentIndex) {
         onSwitchTab(step.targetTab)
         if (step.targetTab == "inicio" && step.scrollIndex != null) {
-            delay(180)
+            // Posicionamiento rápido sin bloquear el hilo de animación
+            delay(35)
             onEnsureDashboardScroll(step.scrollIndex)
+            delay(45)
+        } else {
+            delay(45)
+        }
+        val measured = registry?.get(step.targetId)
+        if (measured != null) {
+            settledTargetRect = measured
+        } else if (settledTargetRect == null) {
+            settledTargetRect = fallbackRect
         }
     }
 
@@ -142,34 +183,24 @@ fun InAppGuideOverlay(
         else -> "¡Listo!"
     }
 
-    var containerSize by remember { mutableStateOf(Size.Zero) }
-    var bubbleHeightPx by remember { mutableIntStateOf(with(density) { 186.dp.roundToPx() }) }
-
     val pulseTransition = rememberInfiniteTransition(label = "SpotlightPulse")
     val pulseProgress by pulseTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1100, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Pulse"
     )
 
-    val rawTarget = registry?.get(step.targetId)
-    val fallbackRect = remember(containerSize, step.targetTab, step.targetId) {
-        val w = containerSize.width.takeIf { it > 0f } ?: 1080f
-        val h = containerSize.height.takeIf { it > 0f } ?: 2200f
-        when (step.targetId) {
-            "btn_settings" -> Rect(w - 190f, 110f, w - 40f, 230f)
-            "tab_cuentas", "tab_tareas", "tab_compras", "tab_metas" -> Rect(w * 0.2f, h - 220f, w * 0.8f, h - 60f)
-            else -> Rect(w * 0.08f, h * 0.24f, w * 0.92f, h * 0.44f)
-        }
-    }
-    val desiredRect = rawTarget ?: fallbackRect
+    val desiredRect = rawTarget ?: settledTargetRect ?: fallbackRect
     val animatedTargetRect by animateRectAsState(
         targetValue = desiredRect,
-        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "SpotlightRect"
     )
 
@@ -192,8 +223,10 @@ fun InAppGuideOverlay(
     val safeTop = statusTopPx + marginPx
     val safeBottom = (screenH - navBottomPx - marginPx).coerceAtLeast(safeTop + 200f)
 
-    val spaceAbove = (spotlightRect.top - gapPx) - safeTop
-    val spaceBelow = safeBottom - (spotlightRect.bottom + gapPx)
+    val targetTopForBubble = desiredRect.top - padPx
+    val targetBottomForBubble = desiredRect.bottom + padPx
+    val spaceAbove = (targetTopForBubble - gapPx) - safeTop
+    val spaceBelow = safeBottom - (targetBottomForBubble + gapPx)
     val placeBelow = if (spaceBelow >= bubbleHeightPx + arrowHeightPx) {
         true
     } else if (spaceAbove >= bubbleHeightPx + arrowHeightPx) {
@@ -202,13 +235,22 @@ fun InAppGuideOverlay(
         spaceBelow >= spaceAbove
     }
 
-    val bubbleTopPx = if (placeBelow) {
-        (spotlightRect.bottom + gapPx).coerceAtMost((safeBottom - bubbleHeightPx).coerceAtLeast(safeTop))
+    val rawBubbleTopPx = if (placeBelow) {
+        (targetBottomForBubble + gapPx).coerceAtMost((safeBottom - bubbleHeightPx).coerceAtLeast(safeTop))
     } else {
-        (spotlightRect.top - gapPx - bubbleHeightPx).coerceAtLeast(safeTop)
+        (targetTopForBubble - gapPx - bubbleHeightPx).coerceAtLeast(safeTop)
     }
 
-    val bubbleHorizontalPadPx = with(density) { 16.dp.toPx() }
+    val animatedBubbleTopPx by animateFloatAsState(
+        targetValue = rawBubbleTopPx,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "BubbleTopPx"
+    )
+
+    val bubbleHorizontalPadPx = with(density) { 14.dp.toPx() }
     val bubbleWidthPx = (screenW - bubbleHorizontalPadPx * 2f).coerceAtLeast(200f)
     val arrowCenterX = spotlightRect.center.x.coerceIn(
         bubbleHorizontalPadPx + with(density) { 28.dp.toPx() },
@@ -222,7 +264,6 @@ fun InAppGuideOverlay(
             .onSizeChanged { containerSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .pointerInput(currentIndex, spotlightRect) {
                 detectTapGestures { offset ->
-                    // Si toca dentro del foco resaltado, avanza al siguiente paso intuitivamente
                     if (spotlightRect.contains(offset)) {
                         if (currentIndex < steps.lastIndex) {
                             currentIndex++
@@ -240,7 +281,7 @@ fun InAppGuideOverlay(
                 .fillMaxSize()
                 .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         ) {
-            drawRect(color = Color(0xFF0A0F1F).copy(alpha = 0.78f))
+            drawRect(color = Color(0xFF060A18).copy(alpha = 0.78f))
 
             val spotSize = Size(
                 (spotlightRect.width).coerceAtLeast(16f),
@@ -259,7 +300,7 @@ fun InAppGuideOverlay(
             // Halo exterior pulsante
             val expand = (3.dp + (5.dp * pulseProgress)).toPx()
             drawRoundRect(
-                color = FamiCoral.copy(alpha = 0.45f * (1f - pulseProgress * 0.55f)),
+                color = FamiCoral.copy(alpha = 0.48f * (1f - pulseProgress * 0.55f)),
                 topLeft = Offset(spotlightRect.left - expand, spotlightRect.top - expand),
                 size = Size(spotSize.width + expand * 2f, spotSize.height + expand * 2f),
                 cornerRadius = CornerRadius(22.dp.toPx(), 22.dp.toPx()),
@@ -276,12 +317,12 @@ fun InAppGuideOverlay(
             )
         }
 
-        // 2. Flecha triangular dibujada en Canvas apuntando desde la burbuja hacia el botón real
+        // 2. Flecha triangular apuntando desde el globo Coach-Mark hacia el elemento real
         Canvas(modifier = Modifier.fillMaxSize()) {
             val halfW = 11.dp.toPx()
             val arrowH = arrowHeightPx
-            val tipY = if (placeBelow) bubbleTopPx - arrowH + 2f else bubbleTopPx + bubbleHeightPx + arrowH - 2f
-            val baseY = if (placeBelow) bubbleTopPx + 2f else bubbleTopPx + bubbleHeightPx - 2f
+            val tipY = if (placeBelow) animatedBubbleTopPx - arrowH + 2f else animatedBubbleTopPx + bubbleHeightPx + arrowH - 2f
+            val baseY = if (placeBelow) animatedBubbleTopPx + 2f else animatedBubbleTopPx + bubbleHeightPx - 2f
 
             val path = Path().apply {
                 moveTo(arrowCenterX, tipY)
@@ -303,20 +344,20 @@ fun InAppGuideOverlay(
             )
         }
 
-        // 3. Globo Coach-Mark compacto (no tapa toda la pantalla ni el elemento señalado)
+        // 3. Globo Coach-Mark tipo hoja de cuaderno con la mascota oficial Fami Robot
         Surface(
             modifier = Modifier
-                .offset { IntOffset(bubbleHorizontalPadPx.roundToInt(), bubbleTopPx.roundToInt()) }
+                .offset { IntOffset(bubbleHorizontalPadPx.roundToInt(), animatedBubbleTopPx.roundToInt()) }
                 .width(with(density) { bubbleWidthPx.toDp() })
                 .onSizeChanged { bubbleHeightPx = it.height }
-                .shadow(14.dp, RoundedCornerShape(18.dp))
+                .shadow(16.dp, RoundedCornerShape(20.dp))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {}
                 ),
             color = paper.sheet,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(20.dp),
             border = BorderStroke(2.2.dp, paper.border)
         ) {
             Column(
@@ -335,7 +376,7 @@ fun InAppGuideOverlay(
                         border = BorderStroke(1.2.dp, paper.border)
                     ) {
                         Text(
-                            text = "🧭 ${step.badge}",
+                            text = "🤖 GUÍA FAMI • ${step.badge}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink,
@@ -365,18 +406,23 @@ fun InAppGuideOverlay(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Mascota oficial Fami Robot (ajustada con Nano Banana sosteniendo cuaderno y señalando)
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(paper.stickyYellow.copy(alpha = 0.45f)),
+                            .size(66.dp)
+                            .graphicsLayer {
+                                translationY = (pulseProgress - 0.5f) * 5f
+                            }
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(paper.sheetCream)
+                            .border(1.5.dp, paper.border, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.fami_guide_pointer),
-                            contentDescription = "Fami Guía",
+                            contentDescription = "Mascota Oficial Fami Guía",
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(2.dp),
@@ -384,21 +430,30 @@ fun InAppGuideOverlay(
                         )
                     }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = step.title,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            color = paper.ink
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = step.description,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = paper.inkMuted,
-                            lineHeight = 16.5.sp
-                        )
+                    AnimatedContent(
+                        targetState = step,
+                        transitionSpec = {
+                            fadeIn(tween(150)) togetherWith fadeOut(tween(110))
+                        },
+                        modifier = Modifier.weight(1f),
+                        label = "GuideStepText"
+                    ) { activeStep ->
+                        Column {
+                            Text(
+                                text = activeStep.title,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = activeStep.description,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = paper.inkMuted,
+                                lineHeight = 16.5.sp
+                            )
+                        }
                     }
                 }
 

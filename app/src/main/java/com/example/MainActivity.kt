@@ -620,7 +620,9 @@ fun MainScreen(
             }
         }
 
-        CompositionLocalProvider(com.example.ui.LocalTourRegistry provides tourRegistry) {
+        CompositionLocalProvider(
+            com.example.ui.LocalTourRegistry provides (if (!hasCompletedInAppTour) tourRegistry else null)
+        ) {
         Box(modifier = Modifier.fillMaxSize() ){
                         
             Scaffold(
@@ -816,7 +818,7 @@ fun MainScreen(
                 com.example.ui.InAppGuideOverlay(
                     appLanguage = appLanguageState,
                     onSwitchTab = { target -> currentTab = target },
-                    onEnsureDashboardScroll = { idx -> dashboardListState.animateScrollToItem(idx) },
+                    onEnsureDashboardScroll = { idx -> dashboardListState.scrollToItem(idx) },
                     onDismiss = { viewModel.completeInAppTour() }
                 )
             }
@@ -916,6 +918,7 @@ fun FamilyBottomNavigation(
 // Floating notification bar
 @Composable
 fun BoxScope.TopNotificationBanner(message: String, onDismiss: () -> Unit) {
+    val paper = FamiTheme.paper
     // Auto dismiss after 3.5 seconds
     LaunchedEffect(message) {
         kotlinx.coroutines.delay(3500)
@@ -928,21 +931,21 @@ fun BoxScope.TopNotificationBanner(message: String, onDismiss: () -> Unit) {
             .align(Alignment.TopCenter)
             .padding(16.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(AlertRedBg)
-            .border(1.dp, AlertRed.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+            .background(paper.alertBg)
+            .border(1.5.dp, AlertRed.copy(alpha = 0.65f), RoundedCornerShape(16.dp))
             .clickable { onDismiss() }
             .padding(16.dp) ){
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = "Alerta",
-                tint = AlertRed,
+                tint = if (paper.isDark) FamiCoralLight else AlertRed,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = message,
-                color = AlertRed,
+                color = if (paper.isDark) paper.ink else AlertRed,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1.0f)
@@ -953,7 +956,7 @@ fun BoxScope.TopNotificationBanner(message: String, onDismiss: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Cerrar",
-                    tint = AlertRed,
+                    tint = if (paper.isDark) FamiCoralLight else AlertRed,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -1400,7 +1403,7 @@ fun DashboardTab(
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
                 sheetColor = paper.sheet,
-                showRuledLines = false,
+                showRuledLines = true,
                 showMarginLine = true,
                 showSpiralTop = false
             ) {
@@ -1738,7 +1741,19 @@ fun DashboardTab(
                                     selected = isSelected,
                                     onClick = { selectedNlpWalletId = w.id },
                                     label = { Text("👛 ${w.name} (${w.currency})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = FamiCoral,
+                                        selectedLabelColor = Color.White,
+                                        containerColor = paper.sheet,
+                                        labelColor = paper.ink
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isSelected,
+                                        borderColor = paper.border.copy(alpha = 0.7f),
+                                        selectedBorderColor = paper.border
+                                    )
                                 )
                             }
                         }
@@ -1890,7 +1905,7 @@ fun DashboardTab(
                         com.example.ui.Tactile3DButton(
                             onClick = { onLaunchGallery() },
                             modifier = Modifier.weight(1f),
-                            faceColor = FamiMidnight,
+                            faceColor = if (paper.isDark) Color(0xFF233269) else FamiMidnight,
                             lipColor = paper.lipNavy,
                             borderColor = paper.border,
                             cornerRadius = 12.dp,
@@ -3177,7 +3192,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         com.example.ui.NotebookPaperSheet(
                             modifier = Modifier.fillMaxWidth(),
                             sheetColor = if (chore.isCompleted) paper.sheetCream else paper.sheet,
-                            showRuledLines = false,
+                            showRuledLines = true,
                             showMarginLine = true,
                             showSpiralTop = false,
                             onClick = {
@@ -3836,7 +3851,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     com.example.ui.NotebookPaperSheet(
                         modifier = Modifier.fillMaxWidth(),
                         sheetColor = if (item.isBought) paper.sheetCream else paper.sheet,
-                        showRuledLines = false,
+                        showRuledLines = true,
                         showMarginLine = true,
                         showSpiralTop = false,
                         onClick = {
@@ -4610,7 +4625,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         com.example.ui.NotebookPaperSheet(
                             modifier = Modifier.fillMaxWidth(),
                             sheetColor = if (goal.isCompleted) paper.stickyMint else paper.sheet,
-                            showRuledLines = false,
+                            showRuledLines = true,
                             showMarginLine = true,
                             showSpiralTop = false,
                             onClick = {

@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 12,
-  "latestVersionName": "3.8.0",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.8.apk",
-  "changelog": "v3.8.0: Notificaciones push al asignar tareas (por persona o Todos) y nueva guía interactiva tipo Spotlight señalando cada botón y sección real."
+  "latestVersionCode": 13,
+  "latestVersionName": "3.8.1",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.8.1.apk",
+  "changelog": "v3.8.1: Modo Cuaderno Nocturno rediseñado con hojas apiladas, renglones visibles y notitas adhesivas cálidas; guía interactiva fluida a 60fps con la mascota oficial Fami Robot."
 }

@@ -610,7 +610,7 @@ fun OnboardingScreen(
                                             selectedRole = "Administrador"
                                         },
                                         modifier = Modifier.weight(1f),
-                                        faceColor = if (isInd) FamiMidnight else paper.sheetCream,
+                                        faceColor = if (isInd) (if (paper.isDark) Color(0xFF25356E) else FamiMidnight) else paper.sheetCream,
                                         lipColor = if (isInd) paper.lipNavy else paper.lipPaper,
                                         lipHeight = 3.5.dp,
                                         cornerRadius = 12.dp,
