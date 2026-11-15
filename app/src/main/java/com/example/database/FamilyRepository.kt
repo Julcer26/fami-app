@@ -540,6 +540,17 @@ class FamilyRepository {
         insertLog(ActivityLog(tag = "NOTAS", message = "${user} eliminó la nota: '${note.title}'", user = user))
     }
 
+    data class SupportTicketResult(
+        val ticketId: String,
+        val webhookDelivered: Boolean
+    )
+
+    companion object {
+        // URL de Google Apps Script (Web App) de la hoja "Fami - Soporte y Sugerencias".
+        // También puede sobreescribirse dinámicamente en Firebase RTDB (/config/support_sheet_webhook).
+        private const val DEFAULT_SUPPORT_WEBHOOK_URL = ""
+    }
+
     suspend fun submitSupportTicket(
         type: String,
         section: String,
@@ -548,8 +559,10 @@ class FamilyRepository {
         appVersion: String,
         deviceInfo: String,
         user: String
-    ) {
-        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    ): SupportTicketResult {
+        val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val uid = currentFirebaseUser?.uid
+        val userEmail = currentFirebaseUser?.email.orEmpty()
         val familyId = _familyId.value ?: ""
         val ticketId = "FAM-${System.currentTimeMillis().toString().takeLast(6)}"
         val payload = mapOf(
@@ -561,6 +574,7 @@ class FamilyRepository {
             "appVersion" to appVersion,
             "deviceInfo" to deviceInfo,
             "user" to user,
+            "userEmail" to userEmail,
             "familyId" to familyId,
             "timestamp" to System.currentTimeMillis()
         )
@@ -570,27 +584,43 @@ class FamilyRepository {
         }
         getFamilyRef("support_tickets")?.push()?.setValue(payload)?.await()
 
-        // Sincronización opcional con Google Sheets (hoja 'Fami - Soporte y Sugerencias') vía Apps Script
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // Sincronización con Google Sheets + Correo (hola@somosfami.app) vía Apps Script
+        val webhookDelivered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
-                val webhookSnap = db.child("config").child("support_sheet_webhook").get().await()
-                val webhookUrl = webhookSnap.getValue(String::class.java)?.trim().orEmpty()
-                if (webhookUrl.startsWith("https://")) {
-                    val conn = (java.net.URL(webhookUrl).openConnection() as java.net.HttpURLConnection).apply {
-                        requestMethod = "POST"
-                        connectTimeout = 7000
-                        readTimeout = 7000
-                        doOutput = true
-                        setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                    }
+                val globalHook = runCatching {
+                    db.child("config").child("support_sheet_webhook").get().await()
+                        .getValue(String::class.java)?.trim().orEmpty()
+                }.getOrDefault("")
+                val familyHook = if (globalHook.isBlank()) {
+                    runCatching {
+                        getFamilyRef("support_sheet_webhook")?.get()?.await()
+                            ?.getValue(String::class.java)?.trim().orEmpty()
+                    }.getOrDefault("")
+                } else ""
+                val webhookUrl = listOf(globalHook, familyHook, DEFAULT_SUPPORT_WEBHOOK_URL)
+                    .firstOrNull { it.startsWith("https://") }
+                    .orEmpty()
+                if (webhookUrl.isNotBlank()) {
+                    val client = okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
+                        .followRedirects(true)
+                        .followSslRedirects(true)
+                        .build()
                     val jsonBody = org.json.JSONObject(payload).toString()
-                    conn.outputStream.use { os ->
-                        os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                    val mediaType = with(okhttp3.MediaType.Companion) { "application/json; charset=utf-8".toMediaType() }
+                    val body = with(okhttp3.RequestBody.Companion) { jsonBody.toRequestBody(mediaType) }
+                    val req = okhttp3.Request.Builder()
+                        .url(webhookUrl)
+                        .post(body)
+                        .build()
+                    client.newCall(req).execute().use { resp ->
+                        resp.isSuccessful
                     }
-                    conn.responseCode
-                    conn.disconnect()
+                } else {
+                    false
                 }
-            }
+            }.getOrDefault(false)
         }
 
         insertLog(
@@ -600,6 +630,7 @@ class FamilyRepository {
                 user = user
             )
         )
+        return SupportTicketResult(ticketId = ticketId, webhookDelivered = webhookDelivered)
     }
 
     suspend fun insertWallet(wallet: Wallet, user: String) {

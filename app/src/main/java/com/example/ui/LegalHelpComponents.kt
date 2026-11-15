@@ -509,6 +509,38 @@ fun HelpSupportContent(
                     }
                 }
 
+                fun openSupportEmailApp(ticketId: String? = null): Boolean {
+                    val sub = subjectInput.trim().ifBlank { "$ticketType en $affectedSection" }
+                    val idSuffix = ticketId?.let { " #$it" }.orEmpty()
+                    val fullSubject = "[Fami $ticketType$idSuffix] $sub"
+                    val body = buildString {
+                        if (!ticketId.isNullOrBlank()) append("Ticket: #$ticketId\n")
+                        append("Tipo: $ticketType\n")
+                        append("Sección: $affectedSection\n")
+                        append("Detalle:\n${descriptionInput.trim()}\n\n")
+                        append("---\n$deviceSummary")
+                    }
+                    val mailtoUri = Uri.parse(
+                        "mailto:$SUPPORT_EMAIL?subject=${Uri.encode(fullSubject)}&body=${Uri.encode(body)}"
+                    )
+                    val sendToIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
+                        putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+                        putExtra(Intent.EXTRA_SUBJECT, fullSubject)
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    return try {
+                        context.startActivity(Intent.createChooser(sendToIntent, "Enviar reporte a $SUPPORT_EMAIL"))
+                        true
+                    } catch (_: Exception) {
+                        Toast.makeText(
+                            context,
+                            "No hay app de correo configurada. Usa 'Copiar' y escríbenos a $SUPPORT_EMAIL.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        false
+                    }
+                }
+
                 Tactile3DButton(
                     onClick = {
                         val sub = subjectInput.trim()
@@ -528,15 +560,29 @@ fun HelpSupportContent(
                                 description = desc,
                                 appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                                 deviceInfo = deviceSummary,
-                                onSuccess = {
+                                onSuccess = { result ->
                                     isSubmitting = false
-                                    feedbackSuccess = "$ticketType registrada correctamente. ¡Gracias por ayudarnos a mejorar Fami!"
-                                    subjectInput = ""
-                                    descriptionInput = ""
+                                    if (result.webhookDelivered) {
+                                        feedbackSuccess = "Reporte #${result.ticketId} enviado a $SUPPORT_EMAIL. ¡Gracias por ayudarnos a mejorar Fami!"
+                                        subjectInput = ""
+                                        descriptionInput = ""
+                                    } else {
+                                        val opened = openSupportEmailApp(result.ticketId)
+                                        if (opened) {
+                                            feedbackSuccess = "Reporte #${result.ticketId} preparado para enviar a $SUPPORT_EMAIL."
+                                        } else {
+                                            feedbackError = "No se encontró app de correo. Toca 'Copiar' y envíalo a $SUPPORT_EMAIL."
+                                        }
+                                    }
                                 },
-                                onError = { err ->
+                                onError = {
                                     isSubmitting = false
-                                    feedbackError = err
+                                    val opened = openSupportEmailApp()
+                                    if (opened) {
+                                        feedbackSuccess = "Correo preparado para enviar directamente a $SUPPORT_EMAIL."
+                                    } else {
+                                        feedbackError = "No se encontró app de correo. Toca 'Copiar' y envíalo a $SUPPORT_EMAIL."
+                                    }
                                 }
                             )
                         }
@@ -548,10 +594,10 @@ fun HelpSupportContent(
                     lipHeight = 3.5.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Email, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isSubmitting) "Enviando..." else "Enviar al Soporte Fami",
+                        text = if (isSubmitting) "Preparando correo..." else "Enviar a $SUPPORT_EMAIL",
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Black,
                         color = Color.White
@@ -563,43 +609,21 @@ fun HelpSupportContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
-                        onClick = {
-                            val sub = subjectInput.trim().ifBlank { "$ticketType en $affectedSection" }
-                            val body = buildString {
-                                append("Tipo: $ticketType\n")
-                                append("Sección: $affectedSection\n")
-                                append("Detalle:\n${descriptionInput.trim()}\n\n")
-                                append("---\n$deviceSummary")
-                            }
-                            try {
-                                val mailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = Uri.parse("mailto:$SUPPORT_EMAIL")
-                                    putExtra(Intent.EXTRA_SUBJECT, "[Fami $ticketType] $sub")
-                                    putExtra(Intent.EXTRA_TEXT, body)
-                                }
-                                context.startActivity(mailIntent)
-                            } catch (_: Exception) {
-                                Toast.makeText(
-                                    context,
-                                    "No hay app de correo configurada. Usa 'Copiar' o envía directo arriba.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        },
+                        onClick = { openSupportEmailApp() },
                         border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.55f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.Email, contentDescription = null, tint = paper.ink, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(5.dp))
-                        Text("Por Correo", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = paper.ink)
+                        Text("Abrir Correo", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     }
 
                     OutlinedButton(
                         onClick = {
-                            val clipText = "[$ticketType - $affectedSection]\n${subjectInput.trim()}\n${descriptionInput.trim()}\n$deviceSummary"
+                            val clipText = "Para: $SUPPORT_EMAIL\n[$ticketType - $affectedSection]\n${subjectInput.trim()}\n${descriptionInput.trim()}\n$deviceSummary"
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             cm.setPrimaryClip(ClipData.newPlainText("Soporte Fami", clipText))
-                            Toast.makeText(context, "Texto de soporte copiado", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Reporte copiado para $SUPPORT_EMAIL", Toast.LENGTH_SHORT).show()
                         },
                         border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.55f)),
                         modifier = Modifier.weight(1f)

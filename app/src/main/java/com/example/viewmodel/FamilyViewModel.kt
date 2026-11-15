@@ -1400,12 +1400,12 @@ class FamilyViewModel(
         description: String,
         appVersion: String,
         deviceInfo: String,
-        onSuccess: () -> Unit,
+        onSuccess: (com.example.database.FamilyRepository.SupportTicketResult) -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
             try {
-                repository.submitSupportTicket(
+                val result = repository.submitSupportTicket(
                     type = type,
                     section = section,
                     subject = subject,
@@ -1414,8 +1414,13 @@ class FamilyViewModel(
                     deviceInfo = deviceInfo,
                     user = _currentUser.value.ifBlank { "Usuario Fami" }
                 )
-                notifyUser("¡Gracias! Tu mensaje fue registrado para el equipo Fami.")
-                onSuccess()
+                val msg = if (result.webhookDelivered) {
+                    "¡Gracias! Reporte #${result.ticketId} enviado a Soporte Fami."
+                } else {
+                    "Reporte #${result.ticketId} guardado. Puedes enviarlo por correo abajo."
+                }
+                notifyUser(msg)
+                onSuccess(result)
             } catch (e: Exception) {
                 onError(e.localizedMessage ?: "No se pudo enviar el reporte en este momento.")
             }
