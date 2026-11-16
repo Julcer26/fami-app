@@ -3,6 +3,10 @@ name: Build Android APK & OTA
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - 'public/**'
+      - 'design-system/**'
   workflow_dispatch:
 
 jobs:

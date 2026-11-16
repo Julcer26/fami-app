@@ -1,311 +1,2167 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fami - Tu Asesor Financiero Familiar con IA | somosfami.app</title>
-    <meta name="description" content="Fami es la app de finanzas familiares que une a tu hogar: escaneo de facturas con IA, control multi-país y multi-moneda con tasas oficiales en vivo y sincronización en tiempo real.">
-    <meta property="og:title" content="Fami - Finanzas Familiares Inteligentes">
-    <meta property="og:description" content="Toma el control financiero de tu hogar con Fami y su IA integrada.">
-    <meta property="og:image" content="https://raw.githubusercontent.com/Julcer26/fami-app/main/app/src/main/res/drawable/fami_onboarding_1.png">
-    <meta property="og:url" content="https://somosfami.app">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #E54629;
-            --primary-light: #F57656;
-            --midnight: #101535;
-            --midnight-dark: #0B0E24;
-            --surface: #151B42;
-            --surface-elevated: #1D2456;
-            --border: #28316B;
-            --text-main: #FFFFFF;
-            --text-muted: #9DA8D1;
-            --emerald: #00D09C;
-            --gold: #FFB800;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--midnight);
-            color: var(--text-main);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 24px 32px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: white;
-            font-weight: 800;
-            font-size: 1.5rem;
-        }
-        .logo-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: var(--surface-elevated);
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            margin-left: 24px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            transition: color 0.2s;
-        }
-        .nav-links a:hover { color: var(--primary-light); }
-        .hero {
-            max-width: 1200px;
-            margin: 40px auto 80px;
-            padding: 0 32px;
-            display: grid;
-            grid-template-columns: 1.1fr 0.9fr;
-            gap: 60px;
-            align-items: center;
-        }
-        .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(229, 70, 41, 0.15);
-            border: 1px solid rgba(229, 70, 41, 0.4);
-            padding: 6px 16px;
-            border-radius: 999px;
-            color: var(--primary-light);
-            font-weight: 700;
-            font-size: 0.85rem;
-            margin-bottom: 20px;
-            letter-spacing: 0.5px;
-        }
-        .hero h1 {
-            font-size: 3.2rem;
-            font-weight: 800;
-            line-height: 1.15;
-            margin-bottom: 20px;
-            letter-spacing: -0.02em;
-        }
-        .hero h1 span {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero p {
-            color: var(--text-muted);
-            font-size: 1.15rem;
-            line-height: 1.7;
-            margin-bottom: 36px;
-        }
-        .cta-group {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .btn-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: white;
-            padding: 16px 32px;
-            border-radius: 14px;
-            font-weight: 700;
-            font-size: 1rem;
-            text-decoration: none;
-            box-shadow: 0 10px 25px -5px rgba(229, 70, 41, 0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px -5px rgba(229, 70, 41, 0.5);
-        }
-        .btn-secondary {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: white;
-            padding: 16px 28px;
-            border-radius: 14px;
-            font-weight: 600;
-            font-size: 1rem;
-            text-decoration: none;
-            transition: background 0.2s;
-        }
-        .btn-secondary:hover { background: var(--surface-elevated); }
-        .hero-img-box {
-            position: relative;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            padding: 24px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-            text-align: center;
-        }
-        .hero-img-box img {
-            width: 100%;
-            height: auto;
-            border-radius: 18px;
-            display: block;
-        }
-        .features {
-            max-width: 1200px;
-            margin: 60px auto 100px;
-            padding: 0 32px;
-        }
-        .section-header {
-            text-align: center;
-            max-width: 650px;
-            margin: 0 auto 50px;
-        }
-        .section-header h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 12px; }
-        .section-header p { color: var(--text-muted); font-size: 1rem; }
-        .grid-features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 24px;
-        }
-        .feature-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 32px 24px;
-            transition: transform 0.2s, border-color 0.2s;
-        }
-        .feature-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--primary);
-        }
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 16px;
-            display: inline-block;
-        }
-        .feature-card h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
-        .feature-card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
-        .social-bar {
-            text-align: center;
-            padding: 40px 24px;
-            background: var(--midnight-dark);
-            border-top: 1px solid var(--border);
-        }
-        .social-tag {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--primary-light);
-            margin-bottom: 8px;
-        }
-        footer {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: var(--text-muted);
-            font-size: 0.88rem;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-        footer a { color: var(--text-muted); text-decoration: none; margin-left: 16px; }
-        footer a:hover { color: white; }
-        @media (max-width: 900px) {
-            .hero { grid-template-columns: 1fr; gap: 40px; text-align: center; }
-            .hero h1 { font-size: 2.4rem; }
-            .cta-group { justify-content: center; }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fami — Finanzas Familiares con IA, Multi-Moneda y Widget en 1 Toque | somosfami.app</title>
+  <meta name="description" content="Fami es la app de finanzas familiares y personales con estética de libreta en papel, inteligencia artificial Gemini, soporte multi-moneda (USD, VES/BCV, EUR, COP, USDT), logos bancarios oficiales y widget de escritorio en 1 toque." />
+  <meta name="keywords" content="Fami, somosfami, finanzas familiares, app de gastos con IA, control de gastos Venezuela BCV, billetera multi-moneda, escaner de facturas IA, Banesco, Mercantil, Zelle, Binance, finanzas en pareja" />
+  <meta name="author" content="Fami App (@hola.fami)" />
+  <meta name="theme-color" content="#FAF5EA" />
+  <link rel="canonical" href="https://somosfami.app/" />
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://somosfami.app/" />
+  <meta property="og:title" content="Fami — Tu libreta financiera inteligente para el hogar" />
+  <meta property="og:description" content="Registra gastos desde el widget en 1 toque por voz, foto de factura o texto. Multi-moneda con tasa BCV automática, logos oficiales de tus bancos y sincronización familiar en tiempo real." />
+  <meta property="og:image" content="https://somosfami.app/assets/fami_notebook_hero.png" />
+  <meta property="og:locale" content="es_LA" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Fami — Finanzas Familiares con IA y Widget en 1 Toque" />
+  <meta name="twitter:description" content="Anota gastos como en una nota adhesiva: voz directa, escáner IA de recibos, 26+ bancos oficiales y tasa BCV automática." />
+  <meta name="twitter:image" content="https://somosfami.app/assets/fami_notebook_hero.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="assets/fami-icon-color.svg" />
+  <link rel="apple-touch-icon" href="assets/fami-icon-color.svg" />
+
+  <!-- Google Fonts: Plus Jakarta Sans,Caveat, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- JSON-LD Structured Data for SEO & AI Answer Engines (AEO) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Fami",
+        "alternateName": "Somos Fami",
+        "url": "https://somosfami.app/",
+        "operatingSystem": "Android 8.0+",
+        "applicationCategory": "FinanceApplication",
+        "description": "Aplicación de finanzas familiares y personales con inteligencia artificial Gemini, widget de registro rápido en 1 toque (escritura flotante, voz, cámara y galería), soporte multi-moneda con tasa BCV automática y organización del hogar.",
+        "downloadUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.3.apk",
+        "softwareVersion": "3.9.3",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Widget de pantalla de inicio tipo nota adhesiva con apertura directa para Voz, Escáner de cámara y Galería",
+          "Reconocimiento de facturas y recibos con IA (desglose de productos e impuestos)",
+          "Billeteras multi-moneda (USD, VES, EUR, COP, CLP, MXN, ARS, PEN, BRL, PAB, USDT) con tasa BCV y bancos centrales",
+          "Logos oficiales de más de 26 bancos y billeteras (Banesco, Mercantil, BDV, Provincial, BNC, Bancamiga, Zelle, Binance, PayPal, Zinli, Wally, Bancolombia, Nequi, Nu y más)",
+          "Presupuesto compartido en familia, lista de compras inteligente, calendario y tareas del hogar con puntos"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "¿Qué es Fami y cómo funciona su widget de nota rápida?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Fami es una aplicación Android de finanzas personales y familiares diseñada como una libreta de papel inteligente. Su widget de pantalla de inicio te permite elegir tu billetera con su logo bancario oficial y registrar movimientos al instante: abre una nota flotante si eliges escribir, o activa directamente el micrófono, la cámara o la galería con un solo toque."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Cómo maneja Fami las tasas de cambio como el BCV y múltiples monedas?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Fami sincroniza tasas oficiales de referencia (incluyendo la tasa del Banco Central de Venezuela BCV en bolívares y tasas internacionales en USD, EUR, COP y USDT). Puedes mantener billeteras en distintas divisas y registrar gastos en cualquier moneda viendo el equivalente consolidado de tu patrimonio familiar en tiempo real."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué bancos y billeteras tienen logo oficial integrado en Fami?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Al escribir el nombre de tu banco al crear una billetera, Fami detecta y asigna automáticamente el logo oficial de entidades de Venezuela (Banesco, Mercantil, BDV, BBVA Provincial, BNC, Bancamiga, Banplus, Bancaribe), Panamá (Banesco Panamá, Banco General, Yappy), EE. UU. (Zelle, BofA, Chase, Wells Fargo), Colombia (Bancolombia, Nequi) y plataformas globales (Binance, PayPal, Zinli, Wally, Nu, Mercado Pago, Wise y Revolut)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Cómo se instala y actualiza Fami en Android?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Puedes descargar el instalador oficial APK directamente desde somosfami.app. Una vez instalada, Fami incluye un sistema de actualización automática (OTA) integrado dentro de la aplicación que te avisa cuando hay una nueva versión disponible y la instala sin perder tus datos ni configuraciones."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    :root {
+      /* Light Mode: Warm Cream Notebook */
+      --bg-canvas: #FAF5EA;
+      --bg-sheet: #FFFDF9;
+      --bg-sticky: #FFF5D6;
+      --bg-sticky-alt: #FFE8D6;
+      --bg-mint: #E0F5EA;
+      --bg-cyan: #E5F8F6;
+      --bg-pill: #FFFFFF;
+      --ink-navy: #101535;
+      --ink-slate: #4A4E69;
+      --ink-muted: #7C7F93;
+      --brand-orange: #FF8811;
+      --brand-orange-dark: #D96B00;
+      --brand-cyan: #2EC4B6;
+      --brand-cyan-dark: #1B998B;
+      --brand-Green: #1E9E5A;
+      --brand-red: #E53935;
+      --tape-salmon: #FFAD99;
+      --rule-line: rgba(46, 196, 182, 0.14);
+      --margin-line: rgba(255, 136, 17, 0.25);
+      --border-ink: #101535;
+      --shadow-hard: 4px 4px 0px #101535;
+      --shadow-hard-sm: 2px 2px 0px #101535;
+      --shadow-hard-lg: 8px 8px 0px #101535;
+      --shadow-ambient: 0 20px 45px -15px rgba(16, 21, 53, 0.14);
+      --nav-glass: rgba(250, 245, 234, 0.88);
+    }
+
+    [data-theme="dark"] {
+      --bg-canvas: #0D1127;
+      --bg-sheet: #161B36;
+      --bg-sticky: #232946;
+      --bg-sticky-alt: #2A2438;
+      --bg-mint: #132F2C;
+      --bg-cyan: #132A38;
+      --bg-pill: #1E2547;
+      --ink-navy: #F7F4EB;
+      --ink-slate: #C4C8E0;
+      --ink-muted: #8B90B2;
+      --brand-orange: #FF982E;
+      --brand-orange-dark: #D96B00;
+      --brand-cyan: #38D6C7;
+      --brand-cyan-dark: #1B998B;
+      --brand-Green: #34D399;
+      --brand-red: #F87171;
+      --tape-salmon: #FF8A70;
+      --rule-line: rgba(255, 255, 255, 0.05);
+      --margin-line: rgba(255, 152, 46, 0.22);
+      --border-ink: #060918;
+      --shadow-hard: 4px 4px 0px #060918;
+      --shadow-hard-sm: 2px 2px 0px #060918;
+      --shadow-hard-lg: 8px 8px 0px #060918;
+      --shadow-ambient: 0 20px 50px -15px rgba(0, 0, 0, 0.6);
+      --nav-glass: rgba(13, 17, 39, 0.88);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink-navy);
+      background-color: var(--bg-canvas);
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      background-image:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 31px,
+          var(--rule-line) 31px,
+          var(--rule-line) 32px
+        );
+      color: var(--ink-navy);
+      line-height: 1.6;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    .handwritten {
+      font-family: 'Caveat', cursive;
+      font-weight: 700;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================
+       TOP ANNOUNCEMENT TAPE
+       ========================================== */
+    .top-tape-banner {
+      background: var(--ink-navy);
+      color: #FFFDF9;
+      padding: 0.55rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      border-bottom: 2px solid var(--border-ink);
+    }
+
+    [data-theme="dark"] .top-tape-banner {
+      background: #1E2547;
+      color: #F7F4EB;
+    }
+
+    .tape-pill {
+      background: var(--brand-orange);
+      color: #101535;
+      font-weight: 800;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+    }
+
+    /* ==========================================
+       STICKY NAVBAR
+       ========================================== */
+    .navbar-wrap {
+      position: sticky;
+      top: 0.75rem;
+      z-index: 100;
+      padding: 0 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .navbar {
+      max-width: 1180px;
+      margin: 0 auto;
+      background: var(--nav-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 2px solid var(--border-ink);
+      border-radius: 999px;
+      padding: 0.6rem 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-hard);
+      gap: 1rem;
+    }
+
+    .brand-link {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .brand-logo-light {
+      height: 36px;
+      width: auto;
+    }
+
+    .brand-logo-dark {
+      height: 36px;
+      width: auto;
+      display: none;
+    }
+
+    [data-theme="dark"] .brand-logo-light {
+      display: none;
+    }
+
+    [data-theme="dark"] .brand-logo-dark {
+      display: block;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      list-style: none;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .nav-links a {
+      color: var(--ink-slate);
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--brand-orange);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .theme-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--border-ink);
+      background: var(--bg-pill);
+      color: var(--ink-navy);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: var(--shadow-hard-sm);
+      transition: transform 0.15s ease;
+    }
+
+    .theme-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    /* ==========================================
+       3D TACTILE BUTTONS
+       ========================================== */
+    .btn-3d {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      background: var(--brand-orange);
+      color: #101535;
+      font-weight: 800;
+      font-size: 1rem;
+      padding: 0.85rem 1.45rem;
+      border-radius: 16px;
+      border: 2px solid var(--border-ink);
+      box-shadow: 0 5px 0 var(--border-ink);
+      cursor: pointer;
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, background-color 0.15s ease;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .btn-3d:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 0 var(--border-ink);
+      background: #FF962B;
+    }
+
+    .btn-3d:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--border-ink);
+    }
+
+    .btn-3d-sm {
+      padding: 0.55rem 1.05rem;
+      font-size: 0.88rem;
+      border-radius: 999px;
+      box-shadow: 0 3px 0 var(--border-ink);
+    }
+
+    .btn-3d-secondary {
+      background: var(--bg-pill);
+      color: var(--ink-navy);
+    }
+
+    .btn-3d-secondary:hover {
+      background: var(--bg-sticky);
+    }
+
+    .btn-3d-cyan {
+      background: var(--brand-cyan);
+      color: #101535;
+    }
+
+    .btn-3d-cyan:hover {
+      background: #42D6C8;
+    }
+
+    /* ==========================================
+       HERO SECTION (2-COLUMN NOTEBOOK + LIVE WIDGET)
+       ========================================== */
+    .hero {
+      padding: 3.5rem 0 4rem;
+      position: relative;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 2.75rem;
+      align-items: center;
+    }
+
+    .eyebrow-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-sticky);
+      border: 2px solid var(--border-ink);
+      box-shadow: var(--shadow-hard-sm);
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      margin-bottom: 1.15rem;
+    }
+
+    .eyebrow-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--brand-Green);
+      display: inline-block;
+      box-shadow: 0 0 0 3px rgba(30, 158, 90, 0.25);
+    }
+
+    .hero h1 {
+      font-size: clamp(2.25rem, 4.4vw, 3.65rem);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.15rem;
+    }
+
+    .highlight-marker {
+      background: linear-gradient(120deg, rgba(255, 136, 17, 0.28) 0%, rgba(255, 136, 17, 0.42) 100%);
+      padding: 0 0.3rem;
+      border-radius: 8px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .hero-lead {
+      font-size: clamp(1.02rem, 1.35vw, 1.18rem);
+      color: var(--ink-slate);
+      margin-bottom: 1.5rem;
+      max-width: 60ch;
+    }
+
+    .hero-pillars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .pillar-chip {
+      background: var(--bg-sheet);
+      border: 2px solid var(--border-ink);
+      border-radius: 14px;
+      padding: 0.65rem 0.75rem;
+      box-shadow: var(--shadow-hard-sm);
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .pillar-chip span.icon {
+      font-size: 1.15rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 1.15rem;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      font-weight: 600;
+    }
+
+    .hero-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* ==========================================
+       INTERACTIVE WIDGET SIMULATOR (STICKY NOTE)
+       ========================================== */
+    .simulator-wrapper {
+      position: relative;
+    }
+
+    .handwritten-callout {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 1.35rem;
+      color: var(--brand-orange-dark);
+      margin-bottom: 0.5rem;
+      transform: rotate(-2deg);
+    }
+
+    [data-theme="dark"] .handwritten-callout {
+      color: var(--brand-orange);
+    }
+
+    .sticky-widget-card {
+      background: var(--bg-sticky);
+      border: 2.5px solid var(--border-ink);
+      border-radius: 26px;
+      padding: 1.5rem 1.35rem 1.35rem;
+      box-shadow: var(--shadow-hard-lg), var(--shadow-ambient);
+      position: relative;
+    }
+
+    /* Translucent top salmon adhesive tape */
+    .sticky-tape {
+      width: 118px;
+      height: 24px;
+      background: var(--tape-salmon);
+      opacity: 0.85;
+      border: 1.5px solid var(--border-ink);
+      border-radius: 4px;
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-1.5deg);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .widget-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .widget-app-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: #FFFDF9;
+      border: 2px solid var(--border-ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      box-shadow: var(--shadow-hard-sm);
+    }
+
+    .widget-title {
+      font-weight: 800;
+      font-size: 1.02rem;
+      line-height: 1.15;
+    }
+
+    .widget-subtitle {
+      font-size: 0.75rem;
+      color: var(--ink-slate);
+      font-weight: 600;
+    }
+
+    .bcv-live-pill {
+      background: var(--bg-mint);
+      border: 1.5px solid var(--border-ink);
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.73rem;
+      font-weight: 800;
+      color: var(--ink-navy);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .section-micro-label {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-muted);
+      margin-bottom: 0.45rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Wallet Selector Pills with Official Bank Logos */
+    .wallet-pills-row {
+      display: flex;
+      gap: 0.45rem;
+      overflow-x: auto;
+      padding-bottom: 0.4rem;
+      margin-bottom: 0.85rem;
+      scrollbar-width: thin;
+    }
+
+    .wallet-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: var(--bg-pill);
+      border: 2px solid var(--border-ink);
+      border-radius: 999px;
+      padding: 0.32rem 0.7rem 0.32rem 0.4rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink-navy);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 0 var(--border-ink);
+    }
+
+    .wallet-pill img {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      object-fit: contain;
+      background: #FFFFFF;
+      padding: 1px;
+      border: 1px solid rgba(16, 21, 53, 0.15);
+    }
+
+    .wallet-pill.active {
+      background: var(--ink-navy);
+      color: #FFFDF9;
+      transform: translateY(-1px);
+    }
+
+    [data-theme="dark"] .wallet-pill.active {
+      background: var(--brand-orange);
+      color: #101535;
+    }
+
+    .wallet-curr-tag {
+      font-size: 0.66rem;
+      font-weight: 800;
+      padding: 0.08rem 0.38rem;
+      border-radius: 6px;
+      background: rgba(255, 136, 17, 0.22);
+      color: inherit;
+    }
+
+    /* 4 Widget Action Buttons (Escribir, Voz, Escanear, Galería) */
+    .widget-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .widget-action-btn {
+      background: var(--bg-sheet);
+      border: 2px solid var(--border-ink);
+      border-radius: 16px;
+      padding: 0.6rem 0.35rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.28rem;
+      cursor: pointer;
+      box-shadow: 0 3px 0 var(--border-ink);
+      transition: transform 0.12s ease, background-color 0.15s ease;
+      color: var(--ink-navy);
+    }
+
+    .widget-action-btn:hover {
+      transform: translateY(-2px);
+      background: var(--bg-cyan);
+    }
+
+    .widget-action-btn.active-mode {
+      background: var(--brand-orange);
+      color: #101535;
+    }
+
+    .widget-action-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    .widget-action-label {
+      font-size: 0.73rem;
+      font-weight: 800;
+    }
+
+    .widget-action-tag {
+      font-size: 0.6rem;
+      font-weight: 700;
+      opacity: 0.78;
+    }
+
+    /* Interactive Input Box inside Widget */
+    .widget-input-sheet {
+      background: var(--bg-sheet);
+      border: 2px solid var(--border-ink);
+      border-radius: 16px;
+      padding: 0.75rem;
+      margin-bottom: 0.75rem;
+      box-shadow: inset 0 2px 4px rgba(16, 21, 53, 0.05);
+    }
+
+    .widget-input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.55rem;
+    }
+
+    .widget-input {
+      flex: 1;
+      border: 1.5px solid var(--border-ink);
+      border-radius: 11px;
+      padding: 0.55rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      background: var(--bg-canvas);
+      color: var(--ink-navy);
+    }
+
+    .widget-input:focus {
+      outline: 2px solid var(--brand-orange);
+    }
+
+    .widget-send-btn {
+      background: var(--brand-cyan);
+      color: #101535;
+      border: 2px solid var(--border-ink);
+      border-radius: 11px;
+      padding: 0 0.9rem;
+      font-weight: 800;
+      font-size: 0.84rem;
+      cursor: pointer;
+      box-shadow: 0 2px 0 var(--border-ink);
+      transition: transform 0.1s ease;
+    }
+
+    .widget-send-btn:active {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .preset-chip {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: var(--bg-sticky);
+      color: var(--ink-navy);
+      border: 1px solid var(--border-ink);
+      border-radius: 999px;
+      padding: 0.18rem 0.55rem;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .preset-chip:hover {
+      background: var(--brand-orange);
+      color: #101535;
+    }
+
+    /* Live AI Feed inside Simulator */
+    .simulator-feed {
+      background: var(--bg-sheet);
+      border: 2px solid var(--border-ink);
+      border-radius: 16px;
+      padding: 0.75rem;
+    }
+
+    .feed-status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: var(--ink-slate);
+    }
+
+    .feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .feed-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 11px;
+      background: var(--bg-canvas);
+      border: 1.5px solid rgba(16, 21, 53, 0.15);
+      font-size: 0.8rem;
+      animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .feed-item-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+
+    .feed-item-left img {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      object-fit: contain;
+      background: #FFF;
+      padding: 2px;
+      border: 1px solid rgba(16, 21, 53, 0.15);
+      flex-shrink: 0;
+    }
+
+    .feed-item-title {
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .feed-item-meta {
+      font-size: 0.68rem;
+      color: var(--ink-muted);
+      font-weight: 600;
+    }
+
+    .feed-item-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .feed-amount-main {
+      font-weight: 800;
+      color: var(--brand-red);
+      font-size: 0.82rem;
+    }
+
+    .feed-amount-conv {
+      font-size: 0.66rem;
+      color: var(--ink-muted);
+    }
+
+    /* ==========================================
+       OFFICIAL BANK LOGOS SHOWCASE STRIP
+       ========================================== */
+    .banks-section {
+      padding: 2.5rem 0;
+      border-top: 2px dashed rgba(16, 21, 53, 0.18);
+      border-bottom: 2px dashed rgba(16, 21, 53, 0.18);
+      background: rgba(255, 253, 249, 0.5);
+    }
+
+    [data-theme="dark"] .banks-section {
+      background: rgba(22, 27, 54, 0.5);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .banks-header {
+      text-align: center;
+      margin-bottom: 1.35rem;
+    }
+
+    .banks-header p {
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-slate);
+    }
+
+    .banks-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.65rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .bank-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-sheet);
+      border: 2px solid var(--border-ink);
+      border-radius: 14px;
+      padding: 0.4rem 0.8rem 0.4rem 0.45rem;
+      box-shadow: var(--shadow-hard-sm);
+      font-size: 0.82rem;
+      font-weight: 700;
+      transition: transform 0.15s ease;
+    }
+
+    .bank-chip:hover {
+      transform: translateY(-3px) rotate(-1deg);
+    }
+
+    .bank-chip img {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      object-fit: contain;
+      background: #FFFFFF;
+      padding: 2px;
+      border: 1px solid rgba(16, 21, 53, 0.12);
+    }
+
+    .bank-country-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--ink-muted);
+      padding-left: 0.15rem;
+    }
+
+    /* ==========================================
+       SECTION HEADINGS
+       ========================================== */
+    .section {
+      padding: 4.5rem 0;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 3rem;
+    }
+
+    .section-kicker {
+      display: inline-block;
+      font-size: 1.35rem;
+      color: var(--brand-orange-dark);
+      margin-bottom: 0.25rem;
+    }
+
+    [data-theme="dark"] .section-kicker {
+      color: var(--brand-orange);
+    }
+
+    .section-title {
+      font-size: clamp(1.75rem, 3.2vw, 2.65rem);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+      margin-bottom: 0.85rem;
+    }
+
+    .section-desc {
+      color: var(--ink-slate);
+      font-size: 1.05rem;
+    }
+
+    /* ==========================================
+       BENTO NOTEBOOK FEATURES GRID
+       ========================================== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1.5rem;
+    }
+
+    .notebook-card {
+      background: var(--bg-sheet);
+      border: 2.5px solid var(--border-ink);
+      border-radius: 24px;
+      padding: 1.75rem;
+      box-shadow: var(--shadow-hard);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease;
+    }
+
+    .notebook-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .col-span-7 {
+      grid-column: span 7;
+    }
+
+    .col-span-5 {
+      grid-column: span 5;
+    }
+
+    .col-span-6 {
+      grid-column: span 6;
+    }
+
+    .col-span-4 {
+      grid-column: span 4;
+    }
+
+    .card-yellow {
+      background: var(--bg-sticky);
+    }
+
+    .card-mint {
+      background: var(--bg-mint);
+    }
+
+    .card-cyan {
+      background: var(--bg-cyan);
+    }
+
+    .card-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--bg-pill);
+      border: 1.5px solid var(--border-ink);
+      padding: 0.22rem 0.65rem;
+      border-radius: 999px;
+      margin-bottom: 0.9rem;
+      width: fit-content;
+    }
+
+    .notebook-card h3 {
+      font-size: 1.38rem;
+      font-weight: 800;
+      line-height: 1.22;
+      margin-bottom: 0.65rem;
+    }
+
+    .notebook-card p {
+      color: var(--ink-slate);
+      font-size: 0.95rem;
+      margin-bottom: 1.15rem;
+    }
+
+    .feature-mini-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .feature-mini-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sticker-float {
+      width: 84px;
+      height: 84px;
+      object-fit: contain;
+      position: absolute;
+      top: 1.1rem;
+      right: 1.25rem;
+      filter: drop-shadow(2px 4px 0px rgba(16, 21, 53, 0.18));
+    }
+
+    /* ==========================================
+       MASCOT & FAMILY SHOWCASE BANNER
+       ========================================== */
+    .story-showcase {
+      background: var(--bg-sheet);
+      border: 2.5px solid var(--border-ink);
+      border-radius: 28px;
+      padding: 2.5rem;
+      box-shadow: var(--shadow-hard-lg);
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 2.5rem;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .story-img-box {
+      background: var(--bg-sticky);
+      border: 2px solid var(--border-ink);
+      border-radius: 22px;
+      padding: 1.25rem;
+      box-shadow: var(--shadow-hard);
+      text-align: center;
+    }
+
+    .story-img-box img {
+      max-height: 320px;
+      margin: 0 auto;
+      object-fit: contain;
+      border-radius: 14px;
+    }
+
+    .story-steps {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1.35rem;
+    }
+
+    .story-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      background: var(--bg-canvas);
+      border: 2px solid var(--border-ink);
+      border-radius: 16px;
+      padding: 0.9rem 1rem;
+      box-shadow: var(--shadow-hard-sm);
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--brand-orange);
+      color: #101535;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--border-ink);
+      flex-shrink: 0;
+    }
+
+    /* ==========================================
+       COMPARISON TABLE (AEO / CRO)
+       ========================================== */
+    .table-wrap {
+      background: var(--bg-sheet);
+      border: 2.5px solid var(--border-ink);
+      border-radius: 24px;
+      box-shadow: var(--shadow-hard);
+      overflow-x: auto;
+    }
+
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.92rem;
+    }
+
+    .comp-table th,
+    .comp-table td {
+      padding: 1rem 1.25rem;
+      border-bottom: 1.5px solid rgba(16, 21, 53, 0.12);
+    }
+
+    .comp-table th {
+      background: var(--bg-sticky);
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .comp-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .comp-highlight {
+      background: rgba(46, 196, 182, 0.1);
+      font-weight: 800;
+    }
+
+    /* ==========================================
+       FAQ SECTION (AEO OPTIMIZED)
+       ========================================== */
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+    }
+
+    .faq-card {
+      background: var(--bg-sheet);
+      border: 2px solid var(--border-ink);
+      border-radius: 20px;
+      padding: 1.4rem;
+      box-shadow: var(--shadow-hard-sm);
+    }
+
+    .faq-card h3 {
+      font-size: 1.06rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .faq-card p {
+      font-size: 0.92rem;
+      color: var(--ink-slate);
+    }
+
+    /* ==========================================
+       DOWNLOAD & QR CALLOUT SECTION
+       ========================================== */
+    .cta-box {
+      background: var(--bg-sticky);
+      border: 3px solid var(--border-ink);
+      border-radius: 30px;
+      padding: 2.75rem;
+      box-shadow: var(--shadow-hard-lg);
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 2rem;
+      align-items: center;
+      position: relative;
+    }
+
+    .qr-card {
+      background: #FFFDF9;
+      color: #101535;
+      border: 2.5px solid var(--border-ink);
+      border-radius: 22px;
+      padding: 1.35rem;
+      text-align: center;
+      box-shadow: var(--shadow-hard);
+      max-width: 270px;
+      margin: 0 auto;
+    }
+
+    .qr-card img {
+      width: 170px;
+      height: 170px;
+      margin: 0.5rem auto;
+      border-radius: 12px;
+      border: 2px solid #101535;
+      padding: 6px;
+      background: #FFFFFF;
+    }
+
+    /* ==========================================
+       FOOTER
+       ========================================== */
+    .footer {
+      padding: 3.5rem 0 2.5rem;
+      border-top: 2px solid var(--border-ink);
+      background: var(--bg-sheet);
+      margin-top: 3rem;
+    }
+
+    .footer-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.35rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink-slate);
+    }
+
+    .footer-links a:hover {
+      color: var(--brand-orange);
+    }
+
+    .footer-bottom {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding-top: 1.5rem;
+      border-top: 1px dashed rgba(16, 21, 53, 0.2);
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+    }
+
+    /* ==========================================
+       RESPONSIVE BREAKPOINTS
+       ========================================== */
+    @media (max-width: 980px) {
+      .hero-grid,
+      .story-showcase,
+      .cta-box {
+        grid-template-columns: 1fr;
+      }
+
+      .col-span-7,
+      .col-span-5,
+      .col-span-6,
+      .col-span-4 {
+        grid-column: span 12;
+      }
+
+      .faq-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-links {
+        display: none;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero-pillars {
+        grid-template-columns: 1fr;
+      }
+
+      .widget-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .sticker-float {
+        width: 58px;
+        height: 58px;
+      }
+
+      .story-showcase,
+      .cta-box {
+        padding: 1.5rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <nav class="navbar">
-        <a href="/" class="logo-container">
-            <div class="logo-icon">❤️</div>
-            <span>Fami</span>
+
+  <!-- Top Announcement Bar -->
+  <div class="top-tape-banner">
+    <span class="tape-pill" id="top-version-pill">NUEVO v3.9.3</span>
+    <span>Widget de Escritorio en 1 Toque + 26 Logos Oficiales de Bancos y Billeteras</span>
+    <a href="#descargar" style="text-decoration: underline; font-weight: 800; color: var(--brand-orange);">Descargar APK gratis →</a>
+  </div>
+
+  <!-- Sticky Navigation -->
+  <header class="navbar-wrap">
+    <nav class="navbar" aria-label="Navegación principal">
+      <a href="#" class="brand-link" aria-label="Fami Inicio">
+        <img src="assets/fami-logo-color.svg" alt="Fami Logo" class="brand-logo-light" />
+        <img src="assets/fami-logo-white.svg" alt="Fami Logo" class="brand-logo-dark" />
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#widget-demo">Widget en Vivo</a></li>
+        <li><a href="#bancos">Bancos Oficiales</a></li>
+        <li><a href="#funciones">Funciones IA</a></li>
+        <li><a href="#comparativa">Comparativa</a></li>
+        <li><a href="#preguntas">Preguntas</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-btn" id="theme-toggle" aria-label="Cambiar tema claro u oscuro" title="Cambiar modo papel / nocturno">
+          🌙
+        </button>
+        <a href="https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.3.apk" id="nav-download-btn" class="btn-3d btn-3d-sm">
+          <span>📲</span>
+          <span id="nav-download-label">Descargar v3.9.3</span>
         </a>
-        <div class="nav-links">
-            <a href="terms.html">Términos</a>
-            <a href="privacy.html">Privacidad</a>
-            <a href="delete-account.html">Eliminar Datos</a>
-        </div>
+      </div>
     </nav>
+  </header>
 
-    <header class="hero">
+  <!-- Main Content -->
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <!-- Left Column: Copy & Primary CTAs -->
         <div>
-            <div class="hero-badge">✨ TU ASESOR FINANCIERO FAMILIAR CON IA</div>
-            <h1>Tu dinero en orden. <span>Tu hogar en paz.</span></h1>
-            <p>Fami combina la calidez familiar con inteligencia artificial: escaneo automático de facturas, control multi-país con tasas oficiales en tiempo real y metas compartidas para que crezcan juntos.</p>
-            <div class="cta-group">
-                <a href="https://raw.githubusercontent.com/Julcer26/fami-app/main/DESCARGA_TU_APK_AQUI/Fami_v1.0.apk" class="btn-primary">
-                    <span>📲 Descargar Fami APK v1.0</span>
-                </a>
-                <a href="https://instagram.com/hola.fami" target="_blank" class="btn-secondary">
-                    <span>@hola.fami</span>
-                </a>
-            </div>
-        </div>
-        <div class="hero-img-box">
-            <img src="https://raw.githubusercontent.com/Julcer26/fami-app/main/app/src/main/res/drawable/fami_onboarding_1.png" alt="Mascota Fami IA">
-        </div>
-    </header>
+          <div class="eyebrow-badge">
+            <span class="eyebrow-dot"></span>
+            <span>Disponible para Android · Actualizaciones OTA integradas</span>
+          </div>
 
-    <section class="features">
-        <div class="section-header">
-            <h2>Finanzas diseñadas para la vida real</h2>
-            <p>Todo lo que necesitas para tu economía familiar sin hojas de cálculo complicadas.</p>
+          <h1>
+            Tus cuentas claras en familia, tan fácil como pegar una <span class="highlight-marker">nota de papel.</span>
+          </h1>
+
+          <p class="hero-lead">
+            <strong>Fami</strong> combina la calidez de una libreta hecha a mano con <strong>Inteligencia Artificial Gemini</strong>. Registra gastos desde tu pantalla de inicio en <strong>1 solo toque</strong> por voz, cámara o texto, con logos oficiales de tus bancos y tasa <strong>BCV / Multi-Moneda</strong> en tiempo real.
+          </p>
+
+          <div class="hero-pillars">
+            <div class="pillar-chip">
+              <span class="icon">⚡</span>
+              <div>
+                <strong>Widget en 1 Toque</strong>
+                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">Voz, Escáner y Galería directos sin pantallas intermedias</div>
+              </div>
+            </div>
+            <div class="pillar-chip">
+              <span class="icon">🏦</span>
+              <div>
+                <strong>26+ Bancos Oficiales</strong>
+                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">Banesco, Mercantil, BDV, Zelle, Binance, Zinli y más</div>
+              </div>
+            </div>
+            <div class="pillar-chip">
+              <span class="icon">💱</span>
+              <div>
+                <strong>Multi-Moneda + BCV</strong>
+                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">USD, VES, EUR, COP, USDT con conversión al instante</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-cta-group">
+            <a href="https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.3.apk" id="hero-download-btn" class="btn-3d">
+              <span>⬇️</span>
+              <span id="hero-download-label">Descargar Fami APK v3.9.3</span>
+            </a>
+            <a href="#descargar" class="btn-3d btn-3d-secondary">
+              <span>📷</span>
+              <span>Ver código QR para el celular</span>
+            </a>
+          </div>
+
+          <div class="hero-meta">
+            <span class="hero-meta-item">✅ 100% Gratis y sin anuncios invasivos</span>
+            <span class="hero-meta-item">🔄 Auto-actualizable desde la app</span>
+            <span class="hero-meta-item" id="hero-release-notes">✨ Build 19 · Logos oficiales y Widget directo</span>
+          </div>
         </div>
-        <div class="grid-features">
-            <div class="feature-card">
-                <div class="feature-icon">🤖</div>
-                <h3>Mascota Fami IA</h3>
-                <p>Tu asistente inteligente te guía en cada paso, analiza tus tendencias y te ayuda a ahorrar sin estrés.</p>
+
+        <!-- Right Column: Interactive Sticky-Note Widget Simulator -->
+        <div class="simulator-wrapper" id="widget-demo">
+          <div class="handwritten handwritten-callout">
+            <span>✨ ¡Pruébalo en vivo! Toca un banco o botón del widget 👇</span>
+          </div>
+
+          <div class="sticky-widget-card">
+            <div class="sticky-tape" aria-hidden="true"></div>
+
+            <div class="widget-header">
+              <div class="widget-title-group">
+                <div class="widget-app-badge">
+                  <img src="assets/fami-icon-color.svg" alt="Fami Icon" />
+                </div>
+                <div>
+                  <div class="widget-title">Nota Rápida Fami IA</div>
+                  <div class="widget-subtitle">Widget de escritorio Android</div>
+                </div>
+              </div>
+              <div class="bcv-live-pill mono" title="Tasa de referencia demostrativa">
+                <span>🇻🇪 BCV:</span>
+                <span id="sim-bcv-rate">70.45 Bs/$</span>
+              </div>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">📸</div>
-                <h3>Lector de Facturas IA</h3>
-                <p>Fotografía cualquier ticket o recibo de supermercado. Gemini IA desglosa productos, precios e IVA al instante.</p>
+
+            <!-- Step 1: Select Bank Wallet Pill -->
+            <div class="section-micro-label">
+              <span>1. Elige tu billetera (Logos oficiales):</span>
+              <span id="selected-wallet-indicator" style="color: var(--brand-orange-dark);">Banesco VE (VES)</span>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🌎</div>
-                <h3>Multi-País y Multi-Moneda</h3>
-                <p>Consulta en moneda local (VES, COP, MXN, ARS, etc.) y en USD o EUR con la tasa oficial diaria de tu banco central.</p>
+
+            <div class="wallet-pills-row" role="tablist" aria-label="Billeteras de ejemplo">
+              <button type="button" class="wallet-pill active" data-wallet="Banesco VE" data-curr="VES" data-logo="assets/banks/bank_logo_banesco.png">
+                <img src="assets/banks/bank_logo_banesco.png" alt="Banesco" />
+                <span>Banesco VE</span>
+                <span class="wallet-curr-tag">VES</span>
+              </button>
+              <button type="button" class="wallet-pill" data-wallet="Banesco Panamá" data-curr="USD" data-logo="assets/banks/bank_logo_banesco_pa.png">
+                <img src="assets/banks/bank_logo_banesco_pa.png" alt="Banesco Panamá" />
+                <span>Banesco PA</span>
+                <span class="wallet-curr-tag">USD</span>
+              </button>
+              <button type="button" class="wallet-pill" data-wallet="Mercantil" data-curr="VES" data-logo="assets/banks/bank_logo_mercantil.png">
+                <img src="assets/banks/bank_logo_mercantil.png" alt="Mercantil" />
+                <span>Mercantil</span>
+                <span class="wallet-curr-tag">VES</span>
+              </button>
+              <button type="button" class="wallet-pill" data-wallet="Zelle" data-curr="USD" data-logo="assets/banks/bank_logo_zelle.png">
+                <img src="assets/banks/bank_logo_zelle.png" alt="Zelle" />
+                <span>Zelle</span>
+                <span class="wallet-curr-tag">USD</span>
+              </button>
+              <button type="button" class="wallet-pill" data-wallet="Binance" data-curr="USDT" data-logo="assets/banks/bank_logo_binance.png">
+                <img src="assets/banks/bank_logo_binance.png" alt="Binance" />
+                <span>Binance</span>
+                <span class="wallet-curr-tag">USDT</span>
+              </button>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">👨‍👩‍👧‍👦</div>
-                <h3>Economía en Pareja</h3>
-                <p>Comparte gastos, tareas del hogar y listas de compras con tus seres queridos mediante sincronización en vivo.</p>
+
+            <!-- Step 2: 4 Direct Action Buttons -->
+            <div class="section-micro-label">
+              <span>2. Registra en 1 toque:</span>
+              <span id="mode-helper-text">Escritura abre nota flotante</span>
             </div>
+
+            <div class="widget-actions-grid">
+              <button type="button" class="widget-action-btn active-mode" data-action="write">
+                <span class="widget-action-icon">✏️</span>
+                <span class="widget-action-label">Escribir</span>
+                <span class="widget-action-tag">Nota flotante</span>
+              </button>
+              <button type="button" class="widget-action-btn" data-action="voice">
+                <span class="widget-action-icon">🎙️</span>
+                <span class="widget-action-label">Voz IA</span>
+                <span class="widget-action-tag">Directo 1-Tap</span>
+              </button>
+              <button type="button" class="widget-action-btn" data-action="scan">
+                <span class="widget-action-icon">📸</span>
+                <span class="widget-action-label">Escanear</span>
+                <span class="widget-action-tag">Cámara directa</span>
+              </button>
+              <button type="button" class="widget-action-btn" data-action="gallery">
+                <span class="widget-action-icon">🖼️</span>
+                <span class="widget-action-label">Galería</span>
+                <span class="widget-action-tag">Captura pago</span>
+              </button>
+            </div>
+
+            <!-- Step 3: Interactive Input / Simulation Sheet -->
+            <div class="widget-input-sheet">
+              <form id="sim-form" class="widget-input-row">
+                <input
+                  type="text"
+                  id="sim-input"
+                  class="widget-input"
+                  placeholder="Ej: Mercado en Automercado 3850 Bs"
+                  value="Farmatodo medicinas y vitaminas 1420 Bs"
+                  aria-label="Escribe un gasto de prueba"
+                />
+                <button type="submit" class="widget-send-btn">Anotar ✨</button>
+              </form>
+              <div class="preset-chips">
+                <button type="button" class="preset-chip" data-text="Almuerzo familiar 28$" data-wallet="Zelle">🍔 Almuerzo 28$</button>
+                <button type="button" class="preset-chip" data-text="Pago móvil panadería 680 Bs" data-wallet="Banesco VE">🥖 Panadería 680 Bs</button>
+                <button type="button" class="preset-chip" data-text="Recarga gasolina 15$" data-wallet="Banesco Panamá">⛽ Gasolina 15$</button>
+                <button type="button" class="preset-chip" data-text="Suscripción streaming 12 USDT" data-wallet="Binance">🎬 Streaming 12 USDT</button>
+              </div>
+            </div>
+
+            <!-- Live Parsed Result Feed -->
+            <div class="simulator-feed">
+              <div class="feed-status-bar">
+                <span id="sim-status-text">✅ Fami IA categoriza y convierte al instante:</span>
+                <span class="mono" id="sim-total-usd">Total hoy: $48.16 USD</span>
+              </div>
+              <div class="feed-list" id="sim-feed-list">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
     </section>
 
-    <div class="social-bar">
-        <div class="social-tag">Síguenos en redes sociales: @hola.fami</div>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Instagram & TikTok • Dominio oficial: somosfami.app</p>
-    </div>
-
-    <footer>
-        <div>&copy; 2026 Fami Inc. (somosfami.app). Todos los derechos reservados.</div>
-        <div>
-            <a href="privacy.html">Privacidad</a>
-            <a href="terms.html">Términos</a>
-            <a href="delete-account.html">Eliminar Cuenta</a>
+    <!-- OFFICIAL BANK LOGOS SHOWCASE -->
+    <section class="banks-section" id="bancos">
+      <div class="container">
+        <div class="banks-header">
+          <p>Reconocimiento automático de 26 bancos y billeteras con sus logos oficiales</p>
         </div>
-    </footer>
+        <div class="banks-grid">
+          <div class="bank-chip"><img src="assets/banks/bank_logo_banesco.png" alt="Banesco" /><span>Banesco</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_banesco_pa.png" alt="Banesco Panamá" /><span>Banesco Panamá</span><span class="bank-country-tag">PA</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_mercantil.png" alt="Mercantil" /><span>Mercantil</span><span class="bank-country-tag">VE / PA</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bdv.png" alt="Banco de Venezuela" /><span>Banco de Venezuela</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bbva.png" alt="BBVA Provincial" /><span>BBVA Provincial</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bnc.png" alt="BNC" /><span>BNC</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bancamiga.png" alt="Bancamiga" /><span>Bancamiga</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_banplus.png" alt="Banplus" /><span>Banplus</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bancaribe.png" alt="Bancaribe" /><span>Bancaribe</span><span class="bank-country-tag">VE</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_zelle.png" alt="Zelle" /><span>Zelle</span><span class="bank-country-tag">USD</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_binance.png" alt="Binance" /><span>Binance Pay</span><span class="bank-country-tag">USDT</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_zinli.png" alt="Zinli" /><span>Zinli</span><span class="bank-country-tag">USD</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_wally.png" alt="Wally" /><span>Wally Tech</span><span class="bank-country-tag">USD</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_paypal.png" alt="PayPal" /><span>PayPal</span><span class="bank-country-tag">Global</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bgeneral.png" alt="Banco General" /><span>Banco General</span><span class="bank-country-tag">PA</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_yappy.png" alt="Yappy" /><span>Yappy</span><span class="bank-country-tag">PA</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bancolombia.png" alt="Bancolombia" /><span>Bancolombia</span><span class="bank-country-tag">CO</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_nequi.png" alt="Nequi" /><span>Nequi</span><span class="bank-country-tag">CO</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_nubank.png" alt="Nu" /><span>Nu / Nubank</span><span class="bank-country-tag">LATAM</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_mercadopago.png" alt="Mercado Pago" /><span>Mercado Pago</span><span class="bank-country-tag">LATAM</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_santander.png" alt="Santander" /><span>Santander</span><span class="bank-country-tag">Global</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_bofa.png" alt="Bank of America" /><span>Bank of America</span><span class="bank-country-tag">US</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_chase.png" alt="Chase" /><span>Chase</span><span class="bank-country-tag">US</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_wellsfargo.png" alt="Wells Fargo" /><span>Wells Fargo</span><span class="bank-country-tag">US</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_wise.png" alt="Wise" /><span>Wise</span><span class="bank-country-tag">Global</span></div>
+          <div class="bank-chip"><img src="assets/banks/bank_logo_revolut.png" alt="Revolut" /><span>Revolut</span><span class="bank-country-tag">Global</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CORE FEATURES BENTO GRID -->
+    <section class="section" id="funciones">
+      <div class="container">
+        <div class="section-header">
+          <span class="handwritten section-kicker">Diseñada para la vida real en Latinoamérica</span>
+          <h2 class="section-title">Todo lo que tu hogar necesita para organizar el dinero sin estrés</h2>
+          <p class="section-desc">
+            Olvídate de las hojas de cálculo complicadas. Fami entiende cómo pagas todos los días: bolívares al BCV, dólares en efectivo, Zelle, Pago Móvil o USDT.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Card 1: Widget 1-Tap -->
+          <article class="notebook-card card-yellow col-span-7">
+            <img src="assets/fami_sticker_idea.png" alt="Mascota Fami Idea" class="sticker-float" />
+            <div>
+              <span class="card-tag">⚡ Exclusivo en v3.9.3</span>
+              <h3>Widget de Nota Rápida con apertura directa</h3>
+              <p>
+                Coloca el widget de Fami en la pantalla principal de tu Android. Selecciona la billetera tocando su píldora con logo oficial y registra como prefieras:
+              </p>
+            </div>
+            <ul class="feature-mini-list">
+              <li>✏️ <strong>Escribir:</strong> Despliega una ventana flotante estilo post-it sin salir de lo que estabas haciendo.</li>
+              <li>🎙️ <strong>Voz directa:</strong> Inicia la escucha por micrófono al instante con 1 toque.</li>
+              <li>📸 <strong>Cámara y Galería directas:</strong> Abre el lente o el selector de capturas de Pago Móvil/Zelle de inmediato.</li>
+            </ul>
+          </article>
+
+          <!-- Card 2: Receipt Scanner AI -->
+          <article class="notebook-card card-cyan col-span-5">
+            <div>
+              <span class="card-tag">📸 Visión con Gemini IA</span>
+              <h3>Escáner de Facturas y Capturas de Pago</h3>
+              <p>
+                Toma una foto del ticket del supermercado o sube el capture de una transferencia. Fami extrae el comercio, la fecha, los artículos individuales, el IVA/IGTF y la moneda automáticamente.
+              </p>
+            </div>
+            <ul class="feature-mini-list">
+              <li>🧾 Desglose línea por línea de productos comprados</li>
+              <li>🔍 Detección automática de montos en Bs., USD o COP</li>
+              <li>📂 Historial inteligente para comparar precios por tienda</li>
+            </ul>
+          </article>
+
+          <!-- Card 3: Multi-Currency & BCV -->
+          <article class="notebook-card card-mint col-span-6">
+            <img src="assets/fami_sticker_piggy.png" alt="Mascota Fami Ahorro" class="sticker-float" />
+            <div>
+              <span class="card-tag">💱 Multi-Moneda Real</span>
+              <h3>Tasa BCV y Bancos Centrales siempre al día</h3>
+              <p>
+                ¿Tienes cuentas con el mismo banco en distintos países o monedas (como Banesco Venezuela en VES y Banesco Panamá en USD)? Cada billetera muestra su divisa claramente y convierte tus saldos sin enredos.
+              </p>
+            </div>
+            <ul class="feature-mini-list">
+              <li>🇻🇪 Sincronización con tasa oficial BCV (Bolívares)</li>
+              <li>🌎 Soporte para USD, VES, EUR, COP, CLP, MXN, ARS, PEN, BRL, PAB y USDT</li>
+              <li>🔄 Transferencias entre tus propias cuentas con cálculo de comisión</li>
+            </ul>
+          </article>
+
+          <!-- Card 4: Family Sync & Home Tasks -->
+          <article class="notebook-card col-span-6">
+            <img src="assets/fami_sticker_love.png" alt="Mascota Fami Familia" class="sticker-float" />
+            <div>
+              <span class="card-tag">👨‍👩‍👧‍👦 Espacio Familiar</span>
+              <h3>Mucho más que gastos: el centro de tu hogar</h3>
+              <p>
+                Invita a tu pareja o familia con un código seguro. Cada miembro ve las billeteras compartidas, las compras pendientes del mercado y las tareas de la casa en tiempo real.
+              </p>
+            </div>
+            <ul class="feature-mini-list">
+              <li>🛒 Lista de compras compartida que se convierte en gasto al pagar</li>
+              <li>🏆 Tareas del hogar con sistema de puntos y recompensas familiares</li>
+              <li>📅 Calendario estilo papel para pagos de servicios, colegios y metas</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- STORY / MASCOT SHOWCASE -->
+    <section class="section" style="padding-top: 1rem;">
+      <div class="container">
+        <div class="story-showcase">
+          <div class="story-img-box">
+            <img src="assets/fami_notebook_hero.png" alt="Ilustración de libreta Fami" />
+            <p class="handwritten" style="font-size: 1.35rem; margin-top: 0.65rem; color: var(--ink-navy);">
+              "Como anotar en el cuaderno de la casa, pero con superpoderes."
+            </p>
+          </div>
+
+          <div>
+            <span class="handwritten section-kicker">Empieza en menos de 60 segundos</span>
+            <h2 class="section-title" style="margin-bottom: 0.6rem;">¿Cómo funciona Fami en tu día a día?</h2>
+            <p class="section-desc">
+              No necesitas configurar cien categorías ni conectar claves bancarias sensibles. Tu privacidad y tranquilidad van primero.
+            </p>
+
+            <div class="story-steps">
+              <div class="story-step">
+                <div class="step-num">1</div>
+                <div>
+                  <strong>Crea tus billeteras por nombre</strong>
+                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Escribe "Banesco", "Mercantil", "Zelle" o "Efectivo". Fami coloca el logo oficial y el color de tu banco automáticamente.</p>
+                </div>
+              </div>
+              <div class="story-step">
+                <div class="step-num">2</div>
+                <div>
+                  <strong>Agrega el Widget a tu pantalla de inicio</strong>
+                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Mantén presionado el escritorio de tu Android, elige el widget <em>Nota Rápida Fami IA</em> y ten tus cuentas y botones a un toque.</p>
+                </div>
+              </div>
+              <div class="story-step">
+                <div class="step-num">3</div>
+                <div>
+                  <strong>Dicta, fotografía o escribe el movimiento</strong>
+                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Di <em>"Pagué 20 dólares de internet por Zelle"</em> o escanea la factura. Tu saldo familiar y tus gráficas se actualizan al instante.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON TABLE -->
+    <section class="section" id="comparativa">
+      <div class="container">
+        <div class="section-header">
+          <span class="handwritten section-kicker">Claridad frente a las alternativas</span>
+          <h2 class="section-title">¿Por qué elegir Fami en lugar de Excel o apps genéricas?</h2>
+        </div>
+
+        <div class="table-wrap">
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>Característica</th>
+                <th class="comp-highlight">✨ Fami (somosfami.app)</th>
+                <th>Apps financieras tradicionales</th>
+                <th>Hojas de Excel / Notas</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Registro desde pantalla de inicio</strong></td>
+                <td class="comp-highlight">✅ Widget 1-Toque (Voz, Cámara, Galería y Nota flotante)</td>
+                <td>❌ Requiere abrir la app y navegar menús</td>
+                <td>❌ Lento e incómodo desde el celular</td>
+              </tr>
+              <tr>
+                <td><strong>Soporte Multi-Moneda + Tasa BCV</strong></td>
+                <td class="comp-highlight">✅ Nativo (USD, VES al BCV, EUR, COP, USDT)</td>
+                <td>⚠️ Suelen manejar una sola moneda fija</td>
+                <td>⚠️ Fórmulas manuales que se desactualizan</td>
+              </tr>
+              <tr>
+                <td><strong>Logos oficiales de bancos locales</strong></td>
+                <td class="comp-highlight">✅ +26 bancos (Banesco, Mercantil, BDV, Zelle, Binance...)</td>
+                <td>❌ Íconos genéricos</td>
+                <td>❌ Solo texto plano</td>
+              </tr>
+              <tr>
+                <td><strong>Escáner de facturas con IA</strong></td>
+                <td class="comp-highlight">✅ Lee ítems, impuestos y moneda con Gemini IA</td>
+                <td>⚠️ Solo disponible en planes de pago costosos</td>
+                <td>❌ Transcripción 100% manual</td>
+              </tr>
+              <tr>
+                <td><strong>Organización familiar integral</strong></td>
+                <td class="comp-highlight">✅ Finanzas + Lista de compras + Tareas con puntos</td>
+                <td>❌ Solo contabilidad individual</td>
+                <td>❌ Sin notificaciones ni gamificación</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ SECTION (AEO & SEO) -->
+    <section class="section" id="preguntas">
+      <div class="container">
+        <div class="section-header">
+          <span class="handwritten section-kicker">Respuestas directas</span>
+          <h2 class="section-title">Preguntas Frecuentes sobre Fami</h2>
+        </div>
+
+        <div class="faq-grid">
+          <article class="faq-card">
+            <h3><span>📌</span> ¿Qué es Fami y cómo funciona su widget de nota rápida?</h3>
+            <p>
+              Fami es una aplicación Android de finanzas personales y familiares diseñada como una libreta de papel inteligente. Su widget de pantalla de inicio te permite elegir tu billetera con su logo bancario oficial y registrar movimientos al instante: abre una nota flotante si eliges escribir, o activa directamente el micrófono, la cámara o la galería con un solo toque.
+            </p>
+          </article>
+
+          <article class="faq-card">
+            <h3><span>💱</span> ¿Cómo maneja Fami la tasa BCV y las cuentas en varias monedas?</h3>
+            <p>
+              Fami sincroniza tasas oficiales de referencia (incluyendo la tasa del Banco Central de Venezuela BCV en bolívares y divisas como USD, EUR, COP y USDT). Puedes crear billeteras en distintas monedas y registrar gastos en cualquiera de ellas viendo la conversión automática y el balance consolidado de tu familia.
+            </p>
+          </article>
+
+          <article class="faq-card">
+            <h3><span>🏦</span> ¿Puedo diferenciar dos cuentas del mismo banco en distinto país o moneda?</h3>
+            <p>
+              Sí. Tanto en la app como en el widget de escritorio, cada billetera muestra su insignia de moneda (por ejemplo, <code>Banesco · VES</code> y <code>Banesco Panamá · USD</code>) junto con su logo oficial para que nunca te equivoques de cuenta al anotar un gasto rápido.
+            </p>
+          </article>
+
+          <article class="faq-card">
+            <h3><span>🔄</span> ¿Cómo se instala y cómo recibo nuevas actualizaciones?</h3>
+            <p>
+              Descarga el archivo APK oficial desde el botón de esta página e instálalo en tu teléfono Android. A partir de ese momento, Fami cuenta con actualizaciones automáticas integradas (OTA): cuando lancemos mejoras, la propia app te mostrará un aviso para actualizar con un toque.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL DOWNLOAD & QR CTA -->
+    <section class="section" id="descargar">
+      <div class="container">
+        <div class="cta-box">
+          <div>
+            <span class="tape-pill" style="margin-bottom: 0.75rem; display: inline-block;">DESCARGA OFICIAL DIRECTA</span>
+            <h2 class="section-title" style="margin-bottom: 0.75rem;">
+              Lleva tu libreta Fami en el bolsillo hoy mismo
+            </h2>
+            <p style="font-size: 1.05rem; color: var(--ink-slate); margin-bottom: 1.5rem;">
+              Instala la versión más reciente para Android (<strong id="cta-version-text">v3.9.3 · Build 19</strong>) y empieza a registrar tus gastos familiares por voz, foto o nota adhesiva en segundos.
+            </p>
+
+            <div class="hero-cta-group">
+              <a href="https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.3.apk" id="bottom-download-btn" class="btn-3d">
+                <span>📲</span>
+                <span id="bottom-download-label">Descargar Fami APK v3.9.3</span>
+              </a>
+              <a href="https://www.instagram.com/hola.fami" target="_blank" rel="noopener" class="btn-3d btn-3d-secondary">
+                <span>💬</span>
+                <span>Síguenos en @hola.fami</span>
+              </a>
+            </div>
+
+            <p style="font-size: 0.8rem; color: var(--ink-muted); margin-top: 0.75rem;">
+              🔒 Archivo verificado y firmado oficialmente · Compatible con Android 8.0 o superior.
+            </p>
+          </div>
+
+          <!-- QR Code Card for Desktop Visitors -->
+          <div class="qr-card">
+            <div style="font-weight: 800; font-size: 0.9rem;">¿Estás en computadora?</div>
+            <div style="font-size: 0.76rem; color: #4A4E69;">Escanea con la cámara de tu Android para descargar el APK directo:</div>
+            <img
+              id="apk-qr-img"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=https%3A%2F%2Fgithub.com%2FJulcer26%2Ffami-app%2Fraw%2Fmain%2FDESCARGA_TU_APK_AQUI%2FFami_v3.9.3.apk"
+              alt="Código QR para descargar Fami APK"
+              loading="lazy"
+            />
+            <div class="mono" style="font-size: 0.72rem; font-weight: 700; color: #101535;">somosfami.app</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <a href="#" class="brand-link">
+          <img src="assets/fami-logo-color.svg" alt="Fami Logo" class="brand-logo-light" style="height: 32px;" />
+          <img src="assets/fami-logo-white.svg" alt="Fami Logo" class="brand-logo-dark" style="height: 32px;" />
+        </a>
+
+        <div class="footer-links">
+          <a href="#widget-demo">Simulador Widget</a>
+          <a href="#bancos">Bancos Oficiales</a>
+          <a href="#funciones">Funciones</a>
+          <a href="privacy.html">Política de Privacidad</a>
+          <a href="terms.html">Términos de Uso</a>
+          <a href="delete-account.html">Eliminar Cuenta</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>© 2026 Fami (somosfami.app). Hecho con 🧡 para las familias de Latinoamérica.</span>
+        <span>Contacto y comunidad: <a href="https://www.instagram.com/hola.fami" target="_blank" rel="noopener" style="text-decoration: underline; font-weight: 700;">@hola.fami</a></span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Interactive Simulator, Theme Toggle & Dynamic OTA Version Sync -->
+  <script>
+    (function () {
+      // 1. Theme Toggle (Warm Paper vs Dark Slate)
+      const htmlEl = document.documentElement;
+      const themeBtn = document.getElementById('theme-toggle');
+      const savedTheme = localStorage.getItem('fami_web_theme');
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        htmlEl.setAttribute('data-theme', savedTheme);
+        themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+      }
+
+      themeBtn.addEventListener('click', function () {
+        const current = htmlEl.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        htmlEl.setAttribute('data-theme', next);
+        localStorage.setItem('fami_web_theme', next);
+        themeBtn.textContent = next === 'dark' ? '☀️' : '🌙';
+      });
+
+      // 2. Auto-sync latest APK version from fami-version.json on GitHub
+      const VERSION_JSON_URL = 'https://raw.githubusercontent.com/Julcer26/fami-app/main/fami-version.json';
+      fetch(VERSION_JSON_URL)
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!data || !data.versionName || !data.apkUrl) return;
+          const v = 'v' + data.versionName;
+          const apk = data.apkUrl;
+
+          document.getElementById('top-version-pill').textContent = 'NUEVO ' + v;
+          document.getElementById('nav-download-label').textContent = 'Descargar ' + v;
+          document.getElementById('hero-download-label').textContent = 'Descargar Fami APK ' + v;
+          document.getElementById('bottom-download-label').textContent = 'Descargar Fami APK ' + v;
+          document.getElementById('cta-version-text').textContent = v + (data.versionCode ? ' · Build ' + data.versionCode : '');
+
+          document.getElementById('nav-download-btn').href = apk;
+          document.getElementById('hero-download-btn').href = apk;
+          document.getElementById('bottom-download-btn').href = apk;
+
+          const qrImg = document.getElementById('apk-qr-img');
+          if (qrImg) {
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=' + encodeURIComponent(apk);
+          }
+        })
+        .catch(function () {
+          // Fallback to static v3.9.3 links already in HTML
+        });
+
+      // 3. Interactive Sticky-Note Widget Simulator
+      const BCV_RATE = 70.45;
+      let activeWallet = {
+        name: 'Banesco VE',
+        curr: 'VES',
+        logo: 'assets/banks/bank_logo_banesco.png'
+      };
+
+      const walletPills = document.querySelectorAll('.wallet-pill');
+      const walletIndicator = document.getElementById('selected-wallet-indicator');
+      const actionBtns = document.querySelectorAll('.widget-action-btn');
+      const modeHelperText = document.getElementById('mode-helper-text');
+      const simInput = document.getElementById('sim-input');
+      const simForm = document.getElementById('sim-form');
+      const simFeedList = document.getElementById('sim-feed-list');
+      const simStatusText = document.getElementById('sim-status-text');
+      const simTotalUsd = document.getElementById('sim-total-usd');
+
+      const ledgerItems = [
+        {
+          title: 'Automercado Familiar',
+          category: '🛒 Supermercado',
+          wallet: 'Banesco VE',
+          logo: 'assets/banks/bank_logo_banesco.png',
+          amountText: '-1,980.00 Bs',
+          convText: '≈ $28.10 USD (BCV)',
+          usdValue: 28.10
+        },
+        {
+          title: 'Consulta Pediátrica',
+          category: '🩺 Salud',
+          wallet: 'Zelle',
+          logo: 'assets/banks/bank_logo_zelle.png',
+          amountText: '-$20.06 USD',
+          convText: '≈ 1,413.22 Bs',
+          usdValue: 20.06
+        }
+      ];
+
+      function renderFeed() {
+        simFeedList.innerHTML = '';
+        let totalUsd = 0;
+        ledgerItems.slice(0, 3).forEach(function (item) {
+          totalUsd += item.usdValue;
+          const row = document.createElement('div');
+          row.className = 'feed-item';
+          row.innerHTML =
+            '<div class="feed-item-left">' +
+              '<img src="' + item.logo + '" alt="' + item.wallet + '" />' +
+              '<div>' +
+                '<div class="feed-item-title">' + item.title + '</div>' +
+                '<div class="feed-item-meta">' + item.category + ' · ' + item.wallet + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="feed-item-right mono">' +
+              '<div class="feed-amount-main">' + item.amountText + '</div>' +
+              '<div class="feed-amount-conv">' + item.convText + '</div>' +
+            '</div>';
+          simFeedList.appendChild(row);
+        });
+        simTotalUsd.textContent = 'Total muestra: $' + totalUsd.toFixed(2) + ' USD';
+      }
+
+      function detectCategory(text) {
+        const t = text.toLowerCase();
+        if (t.includes('farmatodo') || t.includes('medicin') || t.includes('salud')) return '💊 Salud y Farmacia';
+        if (t.includes('almuerzo') || t.includes('panader') || t.includes('rest') || t.includes('pizza')) return '🍔 Comida';
+        if (t.includes('gasolina') || t.includes('uber') || t.includes('peaje')) return '⛽ Transporte';
+        if (t.includes('stream') || t.includes('netflix') || t.includes('internet')) return '🎬 Servicios';
+        return '🏠 Hogar y Compras';
+      }
+
+      function parseAndAddExpense(rawText, sourceLabel) {
+        if (!rawText || !rawText.trim()) return;
+        const clean = rawText.trim();
+        const numMatch = clean.match(/(\d+(?:[.,]\d+)?)/);
+        const amount = numMatch ? parseFloat(numMatch[1].replace(',', '.')) : 25;
+
+        const lower = clean.toLowerCase();
+        const isBs = lower.includes('bs') || lower.includes('bolivar') || (activeWallet.curr === 'VES' && !lower.includes('$') && !lower.includes('usd') && !lower.includes('usdt'));
+
+        let amountText = '';
+        let convText = '';
+        let usdVal = 0;
+
+        if (isBs) {
+          usdVal = amount / BCV_RATE;
+          amountText = '-' + amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
+          convText = '≈ $' + usdVal.toFixed(2) + ' USD (BCV)';
+        } else {
+          usdVal = amount;
+          const currUnit = activeWallet.curr === 'USDT' ? 'USDT' : 'USD';
+          amountText = '-$' + amount.toFixed(2) + ' ' + currUnit;
+          convText = '≈ ' + (amount * BCV_RATE).toLocaleString('es-VE', { maximumFractionDigits: 0 }) + ' Bs (BCV)';
+        }
+
+        const titleClean = clean.replace(/(\d+(?:[.,]\d+)?)\s*(bs|usd|usdt|\$)?/gi, '').trim() || 'Gasto registrado';
+
+        ledgerItems.unshift({
+          title: titleClean.charAt(0).toUpperCase() + titleClean.slice(1),
+          category: detectCategory(clean) + (sourceLabel ? ' · ' + sourceLabel : ''),
+          wallet: activeWallet.name,
+          logo: activeWallet.logo,
+          amountText: amountText,
+          convText: convText,
+          usdValue: usdVal
+        });
+
+        renderFeed();
+      }
+
+      // Wallet selection
+      walletPills.forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          walletPills.forEach(function (p) { p.classList.remove('active'); });
+          pill.classList.add('active');
+          activeWallet = {
+            name: pill.getAttribute('data-wallet'),
+            curr: pill.getAttribute('data-curr'),
+            logo: pill.getAttribute('data-logo')
+          };
+          walletIndicator.textContent = activeWallet.name + ' (' + activeWallet.curr + ')';
+        });
+      });
+
+      // 4 Widget Action Modes (Write, Voice, Scan, Gallery)
+      actionBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          actionBtns.forEach(function (b) { b.classList.remove('active-mode'); });
+          btn.classList.add('active-mode');
+          const action = btn.getAttribute('data-action');
+
+          if (action === 'write') {
+            modeHelperText.textContent = '✏️ Ventana flotante rápida para escribir';
+            simStatusText.textContent = '✏️ Escribe tu nota y presiona Anotar:';
+            simInput.focus();
+          } else if (action === 'voice') {
+            modeHelperText.textContent = '🎙️ En la app abre el micrófono directo sin ventana previa';
+            simStatusText.textContent = '🎙️ Dictado por voz procesado en 1 toque:';
+            simInput.value = 'Dictado: Frutería y verduras 890 Bs';
+            parseAndAddExpense('Frutería y verduras 890 Bs', 'Voz 1-Tap');
+          } else if (action === 'scan') {
+            modeHelperText.textContent = '📸 En la app abre la cámara directo en 1 toque';
+            simStatusText.textContent = '📸 Factura escaneada con Gemini IA:';
+            simInput.value = 'Factura Automercado (6 ítems) $34.50';
+            parseAndAddExpense('Factura Automercado (6 ítems) 34.50$', 'Escáner IA');
+          } else if (action === 'gallery') {
+            modeHelperText.textContent = '🖼️ En la app abre tu galería de capturas directo';
+            simStatusText.textContent = '🖼️ Captura de Pago Móvil / Zelle leída por IA:';
+            simInput.value = 'Capture Pago Móvil Panadería 750 Bs';
+            parseAndAddExpense('Capture Pago Móvil Panadería 750 Bs', 'Galería IA');
+          }
+        });
+      });
+
+      // Form submit
+      simForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        parseAndAddExpense(simInput.value, 'Nota');
+        simStatusText.textContent = '✅ ¡Movimiento anotado en ' + activeWallet.name + '!';
+        simInput.value = '';
+      });
+
+      // Preset chips
+      document.querySelectorAll('.preset-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          const targetWalletName = chip.getAttribute('data-wallet');
+          walletPills.forEach(function (pill) {
+            if (pill.getAttribute('data-wallet') === targetWalletName) {
+              pill.click();
+            }
+          });
+          const text = chip.getAttribute('data-text');
+          simInput.value = text;
+          parseAndAddExpense(text, 'Rápido');
+        });
+      });
+
+      renderFeed();
+    })();
+  </script>
 </body>
 </html>
