@@ -387,7 +387,7 @@ fun StickyNoteCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     MemberAvatarBadge(
@@ -395,16 +395,23 @@ fun StickyNoteCard(
                         profiles = profiles,
                         currentUser = currentUser,
                         currentUserAvatarId = currentUserAvatarId,
-                        size = 18.dp
+                        size = 20.dp,
+                        showAliasBelow = true,
+                        aliasText = cleanAuthor,
+                        aliasFontSize = 8.5.sp,
+                        aliasColor = paper.inkMuted,
+                        aliasMaxWidth = 52.dp
                     )
-                    Text(
-                        text = if (formattedDate.isNotBlank() && !compact) "$cleanAuthor • $formattedDate" else cleanAuthor,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = paper.inkMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (formattedDate.isNotBlank() && !compact) {
+                        Text(
+                            text = "• $formattedDate",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = paper.inkMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Row(

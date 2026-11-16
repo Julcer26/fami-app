@@ -312,7 +312,7 @@ fun OnboardingScreen(
                                     border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
-                                        text = if (isEn) "📓 PAGE 1 • MEET YOUR FAMI NOTEBOOK" else "📓 HOJA 1 • BIENVENIDA AL CUADERNO FAMI",
+                                        text = if (isEn) "✨ STEP 1 • WELCOME TO FAMI" else "✨ PASO 1 • BIENVENIDA A FAMI",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = accentCoralText,
@@ -349,9 +349,9 @@ fun OnboardingScreen(
 
                                 RuledNotebookText(
                                     text = if (isEn)
-                                        "Let's set up your family or personal ledger sheet by sheet. Everything adapts to your country and currency."
+                                        "Let's set up your family or personal space step by step. Everything adapts to your country and currency."
                                     else
-                                        "Vamos a preparar tu cuaderno familiar o personal hoja por hoja. Todo se adapta a tu país, idioma y monedas.",
+                                        "Vamos a preparar tu espacio familiar o personal paso a paso. Todo se adapta a tu país, idioma y monedas.",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = paper.inkMuted,
@@ -428,7 +428,7 @@ fun OnboardingScreen(
                                     border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
-                                        text = if (isEn) "💱 PAGE 2 • PREFERRED CURRENCIES" else "💱 HOJA 2 • MONEDAS PREFERIDAS",
+                                        text = if (isEn) "💱 STEP 2 • PREFERRED CURRENCIES" else "💱 PASO 2 • MONEDAS PREFERIDAS",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink,
@@ -567,7 +567,7 @@ fun OnboardingScreen(
                                     border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
-                                        text = if (isEn) "🏡 PAGE 3 • HOUSEHOLD MODE & ROLE" else "🏡 HOJA 3 • MODO DE USO, FAMILIA Y ROL",
+                                        text = if (isEn) "🏡 STEP 3 • HOUSEHOLD MODE & ROLE" else "🏡 PASO 3 • MODO DE USO, FAMILIA Y ROL",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink,
@@ -576,7 +576,7 @@ fun OnboardingScreen(
                                 }
 
                                 Text(
-                                    text = if (isEn) "How will you use Fami?" else "¿Cómo vas a llevar este cuaderno?",
+                                    text = if (isEn) "How will you use Fami?" else "¿Cómo vas a usar Fami?",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
@@ -674,7 +674,7 @@ fun OnboardingScreen(
                                         onValueChange = { familyNameInput = it },
                                         label = {
                                             Text(
-                                                if (managementMode == "individual") "Nombre de tu Cuaderno Personal" else "Nombre de la Familia / Hogar",
+                                                if (managementMode == "individual") "Nombre de tu Espacio Personal" else "Nombre de la Familia / Hogar",
                                                 fontSize = 11.sp
                                             )
                                         },
@@ -805,7 +805,7 @@ fun OnboardingScreen(
                                     border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
-                                        text = if (isEn) "💼 PAGE 4 • INCOME & MULTI-WALLETS" else "💼 HOJA 4 • INGRESO MENSUAL Y BILLETERAS",
+                                        text = if (isEn) "💼 STEP 4 • INCOME & MULTI-WALLETS" else "💼 PASO 4 • INGRESO MENSUAL Y BILLETERAS",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink,
@@ -1005,7 +1005,7 @@ fun OnboardingScreen(
                                     border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
-                                        text = if (isEn) "🎨 PAGE 5 • CHOOSE YOUR AVATAR" else "🎨 HOJA 5 • ELIGE TU AVATAR DE CUENTA",
+                                        text = if (isEn) "🎨 STEP 5 • CHOOSE YOUR AVATAR" else "🎨 PASO 5 • ELIGE TU AVATAR DE CUENTA",
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = accentCoralText,

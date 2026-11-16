@@ -4,9 +4,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,8 +19,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.database.UserProfile
 import com.example.ui.theme.FamiCoral
@@ -91,6 +101,11 @@ fun MemberAvatarBadge(
     size: Dp = 24.dp,
     borderColor: Color = Color.Unspecified,
     borderWidth: Dp = 1.4.dp,
+    showAliasBelow: Boolean = false,
+    aliasText: String = memberName,
+    aliasFontSize: TextUnit = 9.sp,
+    aliasColor: Color = Color.Unspecified,
+    aliasMaxWidth: Dp = 64.dp,
     modifier: Modifier = Modifier
 ) {
     val paper = FamiTheme.paper
@@ -99,6 +114,7 @@ fun MemberAvatarBadge(
     } else {
         borderColor
     }
+    val resolvedAliasColor = if (aliasColor == Color.Unspecified) paper.ink else aliasColor
     val drawableRes = AvatarCatalog.resolveDrawableForMember(
         memberName = memberName,
         profiles = profiles,
@@ -106,19 +122,56 @@ fun MemberAvatarBadge(
         currentUserAvatarId = currentUserAvatarId,
         explicitAvatarId = explicitAvatarId
     )
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(paper.stickyYellow)
-            .border(borderWidth, resolvedBorder, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(id = drawableRes),
-            contentDescription = memberName.ifBlank { "Avatar" },
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+    val cleanAlias = aliasText.trim().substringBefore("@").ifBlank { memberName.trim().substringBefore("@") }
+
+    if (showAliasBelow && cleanAlias.isNotBlank()) {
+        Column(
+            modifier = modifier,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .background(paper.stickyYellow)
+                    .border(borderWidth, resolvedBorder, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = drawableRes),
+                    contentDescription = cleanAlias,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = cleanAlias,
+                fontSize = aliasFontSize,
+                lineHeight = (aliasFontSize.value + 1f).sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = resolvedAliasColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = aliasMaxWidth)
+            )
+        }
+    } else {
+        Box(
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(paper.stickyYellow)
+                .border(borderWidth, resolvedBorder, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = drawableRes),
+                contentDescription = cleanAlias.ifBlank { "Avatar" },
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }

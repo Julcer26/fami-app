@@ -141,14 +141,14 @@ fun FinanceAiHeroCard(
                         )
                     } else {
                         Text(
-                            text = "¡Revisemos tus finanzas del cuaderno!",
+                            text = "¡Revisemos tus finanzas del mes!",
                             fontSize = 15.5.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Fami IA analiza cada hoja de gastos y te sugiere cómo ahorrar en familia.",
+                            text = "Fami IA analiza tus gastos del mes y te sugiere cómo ahorrar en familia.",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = paper.ink.copy(alpha = 0.78f)
@@ -195,7 +195,7 @@ fun FinanceAiHeroCard(
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
             ) {
                 Text(
-                    text = if (report != null) "ABRIR DIAGNÓSTICO DEL CUADERNO" else "ANALIZAR HOJA CON FAMI IA",
+                    text = if (report != null) "ABRIR DIAGNÓSTICO FINANCIERO" else "ANALIZAR MES CON FAMI IA",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White

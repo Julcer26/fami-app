@@ -203,9 +203,13 @@ fun ConfigMainContent(
                                     profiles = profiles,
                                     currentUser = currentUser,
                                     currentUserAvatarId = currentAvatarId,
-                                    size = 38.dp
+                                    size = 40.dp,
+                                    showAliasBelow = true,
+                                    aliasText = displayAlias,
+                                    aliasFontSize = 9.5.sp,
+                                    aliasMaxWidth = 68.dp
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
                                         text = displayAlias,
@@ -214,7 +218,7 @@ fun ConfigMainContent(
                                         color = paper.ink
                                     )
                                     Text(
-                                        text = "Tu alias en todas las notas y listas",
+                                        text = "Tu alias visible en la app",
                                         fontSize = 10.5.sp,
                                         color = paper.inkMuted
                                     )
@@ -484,13 +488,13 @@ fun ConfigMainContent(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Aspecto Visual del Cuaderno",
+                                    "Tema Visual (Claro / Oscuro)",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
                                 )
                                 Text(
-                                    "Alterna entre cuaderno claro y modo azul oscuro oficial",
+                                    "Alterna entre modo claro y modo azul oscuro oficial",
                                     fontSize = 11.sp,
                                     color = paper.inkMuted
                                 )
@@ -719,9 +723,13 @@ fun ConfigMainContent(
                                                 currentUser = currentUser,
                                                 currentUserAvatarId = currentAvatarId,
                                                 explicitAvatarId = p.avatarId,
-                                                size = 34.dp
+                                                size = 36.dp,
+                                                showAliasBelow = true,
+                                                aliasText = p.name,
+                                                aliasFontSize = 9.sp,
+                                                aliasMaxWidth = 64.dp
                                             )
-                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
                                             Column {
                                                 Text(p.name, fontSize = 13.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
                                                 if (p.role.isNotBlank()) {
@@ -1024,7 +1032,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "Ajustes del Cuaderno",
+                    text = "Ajustes de Fami",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = paper.ink,
@@ -1250,7 +1258,7 @@ fun ConfigDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Ajustes del Cuaderno",
+                        text = "Ajustes de Fami",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
                         color = paper.ink

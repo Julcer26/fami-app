@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 14,
-  "latestVersionName": "3.8.2",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.8.2.apk",
-  "changelog": "v3.8.2: Botones oficiales de Instagram y TikTok (@hola.fami) en Ajustes > Ayuda."
+  "latestVersionCode": 15,
+  "latestVersionName": "3.8.3",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.8.3.apk",
+  "changelog": "v3.8.3: Cabeceras simplificadas sin repetir logo ni mascota, alias debajo del avatar y textos limpios sin repetir 'cuaderno'."
 }

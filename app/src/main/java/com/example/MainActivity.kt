@@ -838,7 +838,7 @@ fun FamilyBottomNavigation(
     val paper = FamiTheme.paper
     val strings = remember(appLanguage) { com.example.ui.FamiStrings.get(appLanguage) }
     val tabs = listOf(
-        Triple("inicio", strings.tabNotebook, if (currentTab == "inicio") Icons.Filled.MenuBook else Icons.Outlined.MenuBook),
+        Triple("inicio", strings.tabNotebook, if (currentTab == "inicio") Icons.Filled.Home else Icons.Outlined.Home),
         Triple("cuentas", strings.tabAccounts, if (currentTab == "cuentas") Icons.Filled.AccountBalanceWallet else Icons.Outlined.AccountBalanceWallet),
         Triple("tareas", strings.tabChores, if (currentTab == "tareas") Icons.Filled.CheckBox else Icons.Outlined.CheckBoxOutlineBlank),
         Triple("compras", strings.tabMarket, if (currentTab == "compras") Icons.Filled.ShoppingBag else Icons.Outlined.ShoppingBag),
@@ -1245,7 +1245,7 @@ fun DashboardTab(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 1. PORTADA SUPERIOR DEL CUADERNO FAMI (Anillos + Logo Oficial + Botones 3D)
+            // 1. CABECERA PRINCIPAL FAMI (Avatar + Alias abajo + Logo Oficial + Botones 3D)
             com.example.ui.NotebookPaperSheet(
                 modifier = Modifier.fillMaxWidth(),
                 sheetColor = paper.sheet,
@@ -1260,22 +1260,24 @@ fun DashboardTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val avatarOpt = remember(userAvatarId) { com.example.ui.AvatarCatalog.getById(userAvatarId) }
                     val customFamilyName = settings.find { it.key == "family_name" }?.value.orEmpty()
-                    val cleanHeaderUser = cleanMemberAlias(currentUser, "")
+                    val cleanHeaderUser = cleanMemberAlias(currentUser, "Miembro")
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = avatarOpt.drawableRes),
-                            contentDescription = avatarOpt.labelEs,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(paper.sheetCream)
-                                .border(1.8.dp, paper.border, CircleShape),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        com.example.ui.MemberAvatarBadge(
+                            memberName = cleanHeaderUser,
+                            profiles = profiles,
+                            currentUser = currentUser,
+                            currentUserAvatarId = userAvatarId,
+                            explicitAvatarId = userAvatarId,
+                            size = 44.dp,
+                            borderWidth = 1.8.dp,
+                            showAliasBelow = true,
+                            aliasText = cleanHeaderUser,
+                            aliasFontSize = 10.sp,
+                            aliasMaxWidth = 68.dp
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -1290,8 +1292,8 @@ fun DashboardTab(
                             Text(
                                 text = when {
                                     customFamilyName.isNotBlank() -> customFamilyName
-                                    cleanHeaderUser.isNotBlank() -> "Cuaderno de $cleanHeaderUser"
-                                    else -> "Cuaderno Familiar Fami"
+                                    managementMode == "individual" -> "Espacio Personal"
+                                    else -> "Hogar Familiar"
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
@@ -1362,7 +1364,7 @@ fun DashboardTab(
             }
         }
 
-        // 2. HOJA MAYOR DE CONTABILIDAD FAMILIAR (Saldo Consolidado de Billeteras en Moneda de Preferencia)
+        // 2. RESUMEN MENSUAL (Saldo Consolidado de Billeteras en Moneda de Preferencia)
         item {
             val countryInfo = remember(selectedCountryCode) {
                 com.example.currency.CountryCurrencyConfig.getCountryByCode(selectedCountryCode)
@@ -1417,7 +1419,7 @@ fun DashboardTab(
                             .fillMaxWidth()
                             .tourTarget("balance_sheet")
                     ) {
-                    // Cabecera de Hoja, Cambio Rápido de Moneda y Tasa de Referencia
+                    // Cabecera de Resumen, Cambio Rápido de Moneda y Tasa de Referencia
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1433,7 +1435,7 @@ fun DashboardTab(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "📓 HOJA DEL MES",
+                                    text = "📅 RESUMEN DEL MES",
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
@@ -1505,7 +1507,7 @@ fun DashboardTab(
                     ModernMonthSelector(selectedMonth = selectedMonth, onMonthChange = { viewModel.updateSelectedMonth(it) })
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Bloque Principal: Suma Consolidada de Billeteras + Ilustración Nano Banana
+                    // Bloque Principal: Suma Consolidada de Billeteras
                     val displaySymbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(displayCurrency)
                     val primaryDisplayText = if (!showBalance) {
                         "••••••"
@@ -1522,61 +1524,28 @@ fun DashboardTab(
                         else -> "Suma total de ${wallets.size} billetera(s)"
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "SALDO DISPONIBLE ($displayCurrency)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = FamiCoralDeep,
+                            letterSpacing = 0.7.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = primaryDisplayText,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink,
+                            letterSpacing = (-0.6).sp
+                        )
+                        if (showBalance) {
                             Text(
-                                text = "SALDO DISPONIBLE ($displayCurrency)",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Black,
-                                color = FamiCoralDeep,
-                                letterSpacing = 0.7.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = primaryDisplayText,
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Black,
-                                color = paper.ink,
-                                letterSpacing = (-0.6).sp
-                            )
-                            if (showBalance) {
-                                Text(
-                                    text = secondaryDisplayText,
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = paper.inkMuted
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-                        // Mascota Fami flotando limpiamente sobre halo suave del cuaderno
-                        Box(
-                            modifier = Modifier
-                                .size(84.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            paper.stickyYellow.copy(alpha = 0.72f),
-                                            paper.stickyYellow.copy(alpha = 0.14f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_notebook_hero),
-                                contentDescription = "Fami Guía Financiera",
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(3.dp)
+                                text = secondaryDisplayText,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = paper.inkMuted
                             )
                         }
                     }
@@ -1668,9 +1637,9 @@ fun DashboardTab(
                     Spacer(modifier = Modifier.height(8.dp))
                     com.example.ui.RuledNotebookText(
                         text = when {
-                            spentPercentage > 100 -> "⚠️ Excediste la hoja mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
-                            spentPercentage >= 85 -> "📌 Atención Fami: Has ejecutado el $spentPercentage% de tu hoja mensual"
-                            else -> "✅ Cuaderno al día: $spentPercentage% del presupuesto utilizado"
+                            spentPercentage > 100 -> "⚠️ Excediste el presupuesto mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
+                            spentPercentage >= 85 -> "📌 Atención: Has ejecutado el $spentPercentage% de tu presupuesto mensual"
+                            else -> "✅ Presupuesto al día: $spentPercentage% utilizado"
                         },
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
@@ -1934,7 +1903,7 @@ fun DashboardTab(
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = FamiCoral)
                                 Text(
-                                    text = "Fami IA leyendo el recibo y anotando en el cuaderno...",
+                                    text = "Fami IA leyendo el recibo y registrando el gasto...",
                                     fontSize = 11.sp,
                                     color = paper.ink,
                                     fontWeight = FontWeight.Bold
@@ -3298,7 +3267,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         val cleanAssignee = cleanMemberAlias(chore.assignedTo, "Todos")
                                         com.example.ui.MemberAvatarBadge(
@@ -3306,17 +3275,17 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             profiles = profiles,
                                             currentUser = currentUser,
                                             currentUserAvatarId = userAvatarIdState,
-                                            size = 22.dp
-                                        )
-                                        Text(
-                                            text = "Asignado a $cleanAssignee",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = paper.inkMuted
+                                            size = 26.dp,
+                                            showAliasBelow = true,
+                                            aliasText = cleanAssignee,
+                                            aliasFontSize = 9.sp,
+                                            aliasColor = paper.inkMuted,
+                                            aliasMaxWidth = 58.dp
                                         )
                                         Text(
                                             text = " • ${chore.category}",
                                             fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
                                             color = paper.inkMuted
                                         )
                                         Spacer(modifier = Modifier.weight(1f))
@@ -3494,7 +3463,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
                     }
 
-                    // Assignee dropdown picker list (Represented by profiles capsules)
+                    // Assignee dropdown picker list (Avatar con alias debajo)
                     Column {
                         Text("Asignar esta tarea a:", fontSize = 11.sp, color = paper.inkMuted, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
@@ -3502,40 +3471,38 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp) ){
+                            horizontalArrangement = Arrangement.spacedBy(8.dp) ){
                             val activeProfiles = (profiles.map { cleanMemberAlias(it.name) }.ifEmpty { listOf(cleanMemberAlias(currentUser)) } + "Todos").distinct()
 
                             activeProfiles.forEach { name ->
                                 val isSelected = taskAssignee == name
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                Box(
+                                    contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .background(
                                             if (isSelected) FamiCoral
                                             else paper.sheetCream
                                         )
                                         .clickable { taskAssignee = name }
                                         .border(
-                                            width = 1.dp,
+                                            width = if (isSelected) 1.6.dp else 1.dp,
                                             color = if (isSelected) FamiCoral else paper.border.copy(alpha = 0.45f),
-                                            shape = CircleShape
+                                            shape = RoundedCornerShape(12.dp)
                                         )
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
                                 ){
                                     com.example.ui.MemberAvatarBadge(
                                         memberName = name,
                                         profiles = profiles,
                                         currentUser = currentUser,
                                         currentUserAvatarId = userAvatarIdState,
-                                        size = 18.dp
-                                    )
-                                    Text(
-                                        text = name,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else paper.ink
+                                        size = 28.dp,
+                                        showAliasBelow = true,
+                                        aliasText = name,
+                                        aliasFontSize = 10.sp,
+                                        aliasColor = if (isSelected) Color.White else paper.ink,
+                                        aliasMaxWidth = 64.dp
                                     )
                                 }
                             }
@@ -3905,25 +3872,19 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     textDecoration = if (item.isBought) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    val cleanAdder = cleanMemberAlias(item.addedBy)
-                                    com.example.ui.MemberAvatarBadge(
-                                        memberName = cleanAdder,
-                                        profiles = profiles,
-                                        currentUser = currentUser,
-                                        currentUserAvatarId = userAvatarIdState,
-                                        size = 22.dp
-                                    )
-                                    Text(
-                                        text = "Por $cleanAdder",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = paper.inkMuted
-                                    )
-                                }
+                                val cleanAdder = cleanMemberAlias(item.addedBy)
+                                com.example.ui.MemberAvatarBadge(
+                                    memberName = cleanAdder,
+                                    profiles = profiles,
+                                    currentUser = currentUser,
+                                    currentUserAvatarId = userAvatarIdState,
+                                    size = 24.dp,
+                                    showAliasBelow = true,
+                                    aliasText = cleanAdder,
+                                    aliasFontSize = 9.sp,
+                                    aliasColor = paper.inkMuted,
+                                    aliasMaxWidth = 58.dp
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -4758,24 +4719,18 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            com.example.ui.MemberAvatarBadge(
-                                                memberName = cleanCreator,
-                                                profiles = profiles,
-                                                currentUser = currentUser,
-                                                currentUserAvatarId = userAvatarIdState,
-                                                size = 18.dp
-                                            )
-                                            Text(
-                                                text = "Por $cleanCreator",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = paper.inkMuted
-                                            )
-                                        }
+                                        com.example.ui.MemberAvatarBadge(
+                                            memberName = cleanCreator,
+                                            profiles = profiles,
+                                            currentUser = currentUser,
+                                            currentUserAvatarId = userAvatarIdState,
+                                            size = 24.dp,
+                                            showAliasBelow = true,
+                                            aliasText = cleanCreator,
+                                            aliasFontSize = 9.sp,
+                                            aliasColor = paper.inkMuted,
+                                            aliasMaxWidth = 58.dp
+                                        )
                                     }
                                 }
 

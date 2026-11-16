@@ -46,76 +46,32 @@ fun ModernTabHeader(
         shadowColor = paper.shadow3D,
         ruleColor = paper.ruleLine.copy(alpha = 0.58f),
         marginColor = paper.marginLine.copy(alpha = 0.42f),
-        showRuledLines = true,
+        showRuledLines = false,
         showMarginLine = true,
         showSpiralTop = true
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 26.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(paper.stickyYellow.copy(alpha = 0.55f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_fami_mascot),
-                        contentDescription = "Mascota Fami",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(2.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(
-                                id = if (paper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
-                            ),
-                            contentDescription = "Fami Logo",
-                            modifier = Modifier.height(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            color = paper.stickyYellow,
-                            shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, paper.border)
-                        ) {
-                            Text(
-                                text = "CUADERNO",
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Black,
-                                color = paper.ink,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = paper.ink,
-                        letterSpacing = (-0.4).sp
-                    )
-                    Text(
-                        text = subtitle,
-                        fontSize = 11.sp,
-                        color = paper.inkMuted,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink,
+                    letterSpacing = (-0.4).sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 11.5.sp,
+                    color = paper.inkMuted,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             if (actionText != null && onActionClick != null) {

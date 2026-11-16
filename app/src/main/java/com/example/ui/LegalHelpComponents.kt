@@ -207,7 +207,7 @@ fun LegalDocumentDialog(
                             )
                             LegalSectionCard(
                                 title = "4. Grupos Familiares",
-                                body = "Quien comparte el Código Familiar otorga acceso a los registros compartidos del cuaderno dentro de ese grupo. Las notas marcadas como privadas solo son visibles por su autor."
+                                body = "Quien comparte el Código Familiar otorga acceso a los registros compartidos del hogar dentro de ese grupo. Las notas marcadas como privadas solo son visibles por su autor."
                             )
                             LegalSectionCard(
                                 title = "5. Propiedad Intelectual y Contacto",
@@ -217,7 +217,7 @@ fun LegalDocumentDialog(
                         else -> {
                             LegalSectionCard(
                                 title = "Información de la Aplicación",
-                                body = "• Aplicación: Fami — Cuaderno de Gestión Familiar\n• Paquete: ${BuildConfig.APPLICATION_ID}\n• Versión instalada: v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})\n• Correo de soporte: $SUPPORT_EMAIL\n• Sitio oficial: somosfami.app"
+                                body = "• Aplicación: Fami — Gestión Familiar y Personal\n• Paquete: ${BuildConfig.APPLICATION_ID}\n• Versión instalada: v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})\n• Correo de soporte: $SUPPORT_EMAIL\n• Sitio oficial: somosfami.app"
                             )
                             LegalSectionCard(
                                 title = "Cumplimiento y Transparencia",
@@ -658,7 +658,7 @@ fun HelpSupportContent(
                     answer = "En Ajustes > General > Método de Acceso puedes elegir Huella o PIN y tocar 'Cambiar PIN de 5 dígitos'."
                 )
                 HelpFaqItem(
-                    question = "¿Cómo comparto el cuaderno con mi familia?",
+                    question = "¿Cómo comparto mi espacio con mi familia?",
                     answer = "En Ajustes > General > Código Familiar copia tu código y compártelo para que se unan desde la pantalla inicial."
                 )
                 HelpFaqItem(

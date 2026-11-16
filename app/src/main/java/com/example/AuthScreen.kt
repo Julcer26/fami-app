@@ -293,17 +293,24 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     color = paper.stickyYellow,
                     border = BorderStroke(1.3.dp, paper.border)
                 ) {
+                    val pendingAliasHeader by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
+                    val currentAliasHeader by viewModel.currentUser.collectAsStateWithLifecycle()
+                    val displayHeaderAlias = pendingAliasHeader.takeIf { it.isNotBlank() && !it.contains("@") }
+                        ?: currentAliasHeader.takeIf { it.isNotBlank() && !it.contains("@") }
+                        ?: ""
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = selectedAvatar.drawableRes),
-                            contentDescription = selectedAvatar.labelEs,
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
+                        com.example.ui.MemberAvatarBadge(
+                            memberName = displayHeaderAlias.ifBlank { "Fami" },
+                            explicitAvatarId = selectedAvatar.id,
+                            size = 28.dp,
+                            showAliasBelow = displayHeaderAlias.isNotBlank(),
+                            aliasText = displayHeaderAlias,
+                            aliasFontSize = 8.5.sp,
+                            aliasMaxWidth = 56.dp
                         )
                         Text(
                             text = "${if (managementMode == "individual") "👤 Individual" else "👨‍👩‍👧‍👦 Familiar"} • $familyRole",
@@ -636,7 +643,7 @@ private fun SelectModeContent(
         ) {
             Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(19.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Crear Cuaderno con Correo", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text("Crear Cuenta con Correo", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -799,7 +806,7 @@ private fun LoginContent(
                 text = if (unlockMethod == "biometric") {
                     "Usa tu huella digital o ingresa tu PIN de respaldo"
                 } else {
-                    "Ingresa tu PIN de 5 dígitos para abrir tu cuaderno"
+                    "Ingresa tu PIN de 5 dígitos para entrar a Fami"
                 },
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -868,7 +875,7 @@ private fun LoginContent(
 }
 
 // -------------------------------------------------------------
-// 3. CREAR NUEVO CUADERNO FAMI (GOOGLE O CORREO VERIFICADO)
+// 3. CREAR NUEVA CUENTA FAMI (GOOGLE O CORREO VERIFICADO)
 // -------------------------------------------------------------
 @Composable
 private fun CreateFamilyContent(
@@ -909,7 +916,7 @@ private fun CreateFamilyContent(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = if (managementMode == "individual") "Crea tu Cuaderno Personal" else "Crea tu Hogar Fami",
+                        text = if (managementMode == "individual") "Crea tu Espacio Personal" else "Crea tu Hogar Fami",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -946,8 +953,8 @@ private fun CreateFamilyContent(
             OutlinedTextField(
                 value = familyNameInput,
                 onValueChange = { familyNameInput = it },
-                label = { Text(if (managementMode == "individual") "Nombre del Cuaderno" else "Nombre de la Familia / Hogar") },
-                placeholder = { Text(if (managementMode == "individual") "Mi Cuaderno Fami" else "Ej: Familia Pérez") },
+                label = { Text(if (managementMode == "individual") "Nombre de tu Espacio" else "Nombre de la Familia / Hogar") },
+                placeholder = { Text(if (managementMode == "individual") "Ej: Mis Finanzas" else "Ej: Familia Pérez") },
                 leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -1707,7 +1714,7 @@ private fun ChooseUnlockMethodContent(
             OutlinedTextField(
                 value = aliasInput,
                 onValueChange = { aliasInput = it },
-                label = { Text("Tu Alias en el Cuaderno (obligatorio)") },
+                label = { Text("Tu Alias en Fami (obligatorio)") },
                 placeholder = { Text("Ej: Mamá, Carlos, Sofía...") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 singleLine = true,
@@ -1818,7 +1825,7 @@ private fun ChooseUnlockMethodContent(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
             ) {
-                Text("Confirmar y Abrir mi Cuaderno", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Confirmar y Entrar a Fami", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
     }

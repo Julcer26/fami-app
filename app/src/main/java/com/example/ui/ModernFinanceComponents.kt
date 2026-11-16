@@ -746,17 +746,13 @@ fun ModernTransactionCard(
                             profiles = profiles,
                             currentUser = currentUser,
                             currentUserAvatarId = currentUserAvatarId,
-                            size = 17.dp,
-                            borderWidth = 1.dp
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = authorLabel,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = paper.inkMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            size = 20.dp,
+                            borderWidth = 1.dp,
+                            showAliasBelow = true,
+                            aliasText = authorLabel,
+                            aliasFontSize = 8.5.sp,
+                            aliasColor = paper.inkMuted,
+                            aliasMaxWidth = 52.dp
                         )
                     }
 

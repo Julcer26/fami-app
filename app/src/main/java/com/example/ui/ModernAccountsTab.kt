@@ -1821,10 +1821,10 @@ private fun ModernTransactionCardItem(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (authorLabel.isNotBlank()) {
                             MemberAvatarBadge(
@@ -1832,16 +1832,13 @@ private fun ModernTransactionCardItem(
                                 profiles = profiles,
                                 currentUser = currentUser,
                                 currentUserAvatarId = currentUserAvatarId,
-                                size = 18.dp,
-                                borderWidth = 1.dp
-                            )
-                            Text(
-                                text = authorLabel,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = paper.inkMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                size = 22.dp,
+                                borderWidth = 1.dp,
+                                showAliasBelow = true,
+                                aliasText = authorLabel,
+                                aliasFontSize = 8.5.sp,
+                                aliasColor = paper.inkMuted,
+                                aliasMaxWidth = 54.dp
                             )
                             Text("•", fontSize = 9.sp, color = paper.inkMuted)
                         }
