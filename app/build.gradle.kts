@@ -15,8 +15,8 @@ android {
     applicationId = "app.somosfami"
     minSdk = 24
     targetSdk = 35
-    versionCode = 17
-    versionName = "3.9.1"
+    versionCode = 18
+    versionName = "3.9.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -876,7 +876,7 @@ fun OnboardingScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "👛 Billeteras (${draftWallets.size})",
+                                        text = "🏦 Billeteras (${draftWallets.size})",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink
@@ -941,12 +941,17 @@ fun OnboardingScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
+                                                BankLogoBadge(
+                                                    walletName = w.name,
+                                                    currency = w.currency,
+                                                    size = 28.dp
+                                                )
                                                 OutlinedTextField(
                                                     value = w.name,
                                                     onValueChange = { newVal ->
                                                         draftWallets = draftWallets.mapIndexed { i, old -> if (i == idx) old.copy(name = newVal) else old }
                                                     },
-                                                    label = { Text("Nombre", fontSize = 10.sp) },
+                                                    label = { Text("Banco / Billetera", fontSize = 10.sp) },
                                                     singleLine = true,
                                                     modifier = Modifier.weight(1.3f),
                                                     shape = RoundedCornerShape(10.dp),

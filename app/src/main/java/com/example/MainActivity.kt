@@ -1897,28 +1897,17 @@ fun DashboardTab(
                     if (wallets.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(10.dp))
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 2.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(wallets, key = { it.id.ifBlank { it.name } }) { w ->
+                            items(wallets, key = { it.id.ifBlank { "${it.name}_${it.currency}" } }) { w ->
                                 val isSelected = selectedNlpWalletId == w.id
-                                FilterChip(
+                                BankWalletSelectorChip(
+                                    walletName = w.name,
+                                    currency = w.currency,
                                     selected = isSelected,
-                                    onClick = { selectedNlpWalletId = w.id },
-                                    label = { Text("👛 ${w.name} (${w.currency})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = FamiCoral,
-                                        selectedLabelColor = Color.White,
-                                        containerColor = paper.sheet,
-                                        labelColor = paper.ink
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = paper.border.copy(alpha = 0.7f),
-                                        selectedBorderColor = paper.border
-                                    )
+                                    onClick = { selectedNlpWalletId = w.id }
                                 )
                             }
                         }

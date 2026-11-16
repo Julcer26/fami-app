@@ -981,6 +981,12 @@ fun ModernAccountsTab(
     // --- DIÁLOGO: CREAR / EDITAR BILLETERA ---
     if (showWalletDialog) {
         val isEditingWallet = editingWallet != null
+        val detectedBrand = remember(walletNameInput, walletCurrencyInput) {
+            BankBrandHelper.resolveBankBrand(walletNameInput.ifBlank { "Banco" }, walletCurrencyInput)
+        }
+        val quickBankPresets = remember(localCurrency) {
+            BankBrandHelper.getQuickBankPresets(localCurrency)
+        }
         AlertDialog(
             onDismissRequest = {
                 showWalletDialog = false
@@ -988,24 +994,78 @@ fun ModernAccountsTab(
             },
             containerColor = paper.sheet,
             title = {
-                Text(
-                    text = if (isEditingWallet) "✏️ Editar Billetera" else "🏦 Nueva Billetera",
-                    fontWeight = FontWeight.Black,
-                    color = paper.ink
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    BankLogoBadge(
+                        walletName = walletNameInput.ifBlank { "Banco" },
+                        currency = walletCurrencyInput,
+                        size = 32.dp
+                    )
+                    Column {
+                        Text(
+                            text = if (isEditingWallet) "Editar Billetera" else "Nueva Billetera",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 17.sp,
+                            color = paper.ink
+                        )
+                        Text(
+                            text = if (walletNameInput.isNotBlank()) "Logo detectado: ${detectedBrand.canonicalName}" else "Detecta el logo oficial del banco automáticamente",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = detectedBrand.primaryColor
+                        )
+                    }
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Usa billeteras separadas (ej. Efectivo USD, Banco Bs, Zelle, Binance) para ver tu saldo consolidado.",
-                        fontSize = 12.sp,
+                        text = "Toca un banco para autocompletar con su logo oficial o escribe el nombre:",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = paper.inkMuted
                     )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(quickBankPresets, key = { "${it.first}_${it.second}" }) { (presetName, presetCurr) ->
+                            val isPresetSelected = walletNameInput.equals(presetName, ignoreCase = true)
+                            BankWalletSelectorChip(
+                                walletName = presetName,
+                                currency = presetCurr,
+                                selected = isPresetSelected,
+                                compact = true,
+                                onClick = {
+                                    walletNameInput = presetName
+                                    walletCurrencyInput = presetCurr
+                                }
+                            )
+                        }
+                    }
+
                     OutlinedTextField(
                         value = walletNameInput,
-                        onValueChange = { walletNameInput = it },
-                        label = { Text("Nombre de billetera") },
-                        placeholder = { Text("Ej. Efectivo, Zelle, Banco...") },
+                        onValueChange = { newName ->
+                            walletNameInput = newName
+                            val autoBrand = BankBrandHelper.resolveBankBrand(newName, walletCurrencyInput)
+                            if (!isEditingWallet && autoBrand.defaultCurrencyHint != null && newName.length >= 4) {
+                                walletCurrencyInput = autoBrand.defaultCurrencyHint
+                            }
+                        },
+                        label = { Text("Nombre de billetera o banco") },
+                        placeholder = { Text("Ej. Banesco Venezuela, Mercantil, Zelle...") },
+                        leadingIcon = {
+                            BankLogoBadge(
+                                walletName = walletNameInput.ifBlank { "Banco" },
+                                currency = walletCurrencyInput,
+                                size = 24.dp
+                            )
+                        },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1343,13 +1403,13 @@ private fun AccountsWalletsSectionCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "👛 MIS BILLETERAS MULTI-MONEDA",
+                        text = "🏦 MIS BILLETERAS MULTI-MONEDA",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
                         color = paper.ink
                     )
                     Text(
-                        text = "Moneda local y extranjera al mismo tiempo",
+                        text = "Con logos oficiales de tus bancos y cuentas",
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = paper.inkMuted
@@ -1402,39 +1462,58 @@ private fun AccountsWalletsSectionCard(
                 ) {
                     items(wallets, key = { it.id.ifEmpty { "${it.name}_${it.currency}" } }) { w ->
                         val sym = CountryCurrencyConfig.getCurrencySymbol(w.currency)
+                        val brand = remember(w.name, w.currency) {
+                            BankBrandHelper.resolveBankBrand(w.name, w.currency)
+                        }
                         val bgColor = if (w.currency.equals(defaultLocalCurrency, ignoreCase = true)) paper.stickyPeach else paper.stickyYellow
                         Surface(
                             onClick = { onEditWalletClick(w) },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(13.dp),
                             color = bgColor,
                             border = BorderStroke(1.5.dp, paper.border),
-                            modifier = Modifier.widthIn(min = 132.dp)
+                            modifier = Modifier.widthIn(min = 148.dp)
                         ) {
-                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(
-                                        text = w.currency,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = FamiCoralDeep
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        BankLogoBadge(
+                                            walletName = w.name,
+                                            currency = w.currency,
+                                            size = 24.dp
+                                        )
+                                        Surface(
+                                            color = brand.primaryColor.copy(alpha = 0.14f),
+                                            shape = RoundedCornerShape(5.dp)
+                                        ) {
+                                            Text(
+                                                text = w.currency.uppercase(),
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (paper.isDark) Color.White else brand.primaryColor,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Editar",
                                         tint = paper.inkMuted,
-                                        modifier = Modifier.size(11.dp)
+                                        modifier = Modifier.size(12.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(5.dp))
                                 Text(
                                     text = w.name,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = paper.ink,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1790,18 +1869,28 @@ private fun ModernTransactionCardItem(
                         if (!walletName.isNullOrBlank()) {
                             Surface(
                                 color = paper.sheet,
-                                shape = RoundedCornerShape(5.dp),
-                                border = BorderStroke(1.dp, paper.border.copy(alpha = 0.4f))
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, paper.border.copy(alpha = 0.45f))
                             ) {
-                                Text(
-                                    text = "🏦 $walletName",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = paper.ink,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                ) {
+                                    BankLogoBadge(
+                                        walletName = walletName,
+                                        currency = tx.currency,
+                                        size = 13.dp
+                                    )
+                                    Text(
+                                        text = walletName,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = paper.ink,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                         if (tx.items.isNotEmpty()) {
@@ -2320,27 +2409,19 @@ private fun TransactionFormBottomSheet(
                     fontWeight = FontWeight.Bold,
                     color = paper.inkMuted
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(wallets, key = { it.id.ifBlank { it.name } }) { w ->
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp)
+                ) {
+                    items(wallets, key = { it.id.ifBlank { "${it.name}_${it.currency}" } }) { w ->
                         val isSelected = selectedWalletId == w.id
                         val sym = CountryCurrencyConfig.getCurrencySymbol(w.currency)
-                        FilterChip(
+                        BankWalletSelectorChip(
+                            walletName = w.name,
+                            currency = w.currency,
                             selected = isSelected,
-                            onClick = { selectedWalletId = w.id },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = paper.sheetCream,
-                                selectedContainerColor = paper.stickyYellow,
-                                labelColor = paper.ink,
-                                selectedLabelColor = paper.ink
-                            ),
-                            label = {
-                                Text(
-                                    text = "🏦 ${w.name} ($sym${String.format(Locale.US, "%.0f", w.balance)})",
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium
-                                )
-                            },
-                            shape = RoundedCornerShape(12.dp)
+                            balancePreview = "Saldo: $sym${String.format(Locale.US, "%,.0f", w.balance)}",
+                            onClick = { selectedWalletId = w.id }
                         )
                     }
                 }
@@ -3090,30 +3171,38 @@ fun WalletTransferDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Desde:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.inkMuted)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp)
+                ) {
                     items(wallets, key = { "from_${it.id.ifBlank { it.name }}" }) { w ->
                         val isSelected = fromWallet?.id == w.id
-                        FilterChip(
+                        BankWalletSelectorChip(
+                            walletName = w.name,
+                            currency = w.currency,
                             selected = isSelected,
                             onClick = {
                                 fromWallet = w
                                 if (toWallet?.id == w.id) {
                                     toWallet = wallets.firstOrNull { it.id != w.id }
                                 }
-                            },
-                            label = { Text("${w.name} (${w.currency})", fontSize = 11.5.sp) }
+                            }
                         )
                     }
                 }
 
                 Text("Hacia:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.inkMuted)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp)
+                ) {
                     items(wallets.filter { it.id != fromWallet?.id }, key = { "to_${it.id.ifBlank { it.name }}" }) { w ->
                         val isSelected = toWallet?.id == w.id
-                        FilterChip(
+                        BankWalletSelectorChip(
+                            walletName = w.name,
+                            currency = w.currency,
                             selected = isSelected,
-                            onClick = { toWallet = w },
-                            label = { Text("${w.name} (${w.currency})", fontSize = 11.5.sp) }
+                            onClick = { toWallet = w }
                         )
                     }
                 }

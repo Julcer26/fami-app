@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.api.GeminiParser
 import com.example.api.ParsedReceiptItem
 import com.example.database.TransactionItem
+import com.example.ui.BankWalletSelectorChip
 import com.example.ui.ReceiptScanConfirmDialog
 import com.example.ui.StickyNoteSheet
 import com.example.ui.Tactile3DButton
@@ -55,7 +56,6 @@ import com.example.ui.theme.*
 import com.example.uriToBitmap
 import com.example.viewmodel.FamilyViewModel
 import com.example.viewmodel.FamilyViewModelFactory
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -297,13 +297,20 @@ private fun WidgetQuickOverlayScreen(
         }
     }
 
-    // Disparo automático según el botón tocado en el widget del escritorio
+    // Seleccionar por defecto la primera billetera cuando carguen si aún no hay selección
+    LaunchedEffect(wallets) {
+        if (selectedWalletId.isBlank() && wallets.isNotEmpty()) {
+            selectedWalletId = wallets.first().id
+        }
+    }
+
+    // Disparo automático inmediato (0 lag) según el botón tocado en el widget del escritorio
     LaunchedEffect(triggerKey, initialAction) {
         viewModel.clearNlpError()
         scanError = null
         when (initialAction) {
             FamiQuickWidgetProvider.ACTION_WRITE -> {
-                delay(120)
+                withFrameNanos { }
                 try {
                     focusRequester.requestFocus()
                     keyboardController?.show()
@@ -393,36 +400,19 @@ private fun WidgetQuickOverlayScreen(
                     if (wallets.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(10.dp))
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 2.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(wallets, key = { it.id.ifBlank { it.name } }) { w ->
+                            items(wallets, key = { it.id.ifBlank { "${it.name}_${it.currency}" } }) { w ->
                                 val isSelected = selectedWalletId == w.id
-                                FilterChip(
+                                BankWalletSelectorChip(
+                                    walletName = w.name,
+                                    currency = w.currency,
                                     selected = isSelected,
                                     onClick = {
-                                        selectedWalletId = if (isSelected) "" else w.id
-                                    },
-                                    label = {
-                                        Text(
-                                            text = "👛 ${w.name} (${w.currency})",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = FamiCoral,
-                                        selectedLabelColor = Color.White,
-                                        containerColor = paper.sheet,
-                                        labelColor = paper.ink
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = paper.border.copy(alpha = 0.7f),
-                                        selectedBorderColor = paper.border
-                                    )
+                                        selectedWalletId = if (isSelected && wallets.size > 1) "" else w.id
+                                    }
                                 )
                             }
                         }

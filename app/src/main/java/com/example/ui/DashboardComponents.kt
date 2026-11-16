@@ -230,24 +230,17 @@ fun ReceiptScanConfirmDialog(
                             color = FamiCoral
                         )
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 2.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(wallets, key = { it.id.ifBlank { it.name } }) { w ->
+                            items(wallets, key = { it.id.ifBlank { "${it.name}_${it.currency}" } }) { w ->
                                 val isSelected = selectedWalletId == w.id
-                                FilterChip(
+                                BankWalletSelectorChip(
+                                    walletName = w.name,
+                                    currency = w.currency,
                                     selected = isSelected,
-                                    onClick = { selectedWalletId = w.id },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        containerColor = paper.sheetCream,
-                                        selectedContainerColor = paper.stickyYellow,
-                                        labelColor = paper.ink,
-                                        selectedLabelColor = paper.ink
-                                    ),
-                                    label = {
-                                        Text("🏦 ${w.name} (${w.currency})", fontSize = 10.5.sp)
-                                    },
-                                    shape = RoundedCornerShape(8.dp)
+                                    onClick = { selectedWalletId = w.id }
                                 )
                             }
                         }
