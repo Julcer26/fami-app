@@ -1169,7 +1169,8 @@ class FamilyViewModel(
         receiptUrl: String = "",
         balanceDate: Long = 0L,
         items: List<com.example.database.TransactionItem> = emptyList(),
-        walletId: String = ""
+        walletId: String = "",
+        onFinished: ((Boolean, String) -> Unit)? = null
     ) {
         viewModelScope.launch {
             val user = _currentUser.value
@@ -1191,8 +1192,9 @@ class FamilyViewModel(
                 walletId = resolvedWalletId
             )
             val alertMessage = repository.insertTransaction(tx, user, isNewEntry = true)
-            if (alertMessage != null) notifyUser(alertMessage)
-            else notifyUser("¡Guardado!: $originalAmount $currency en '$description'")
+            val msg = alertMessage ?: "¡Guardado!: $originalAmount $currency en '$description'"
+            notifyUser(msg)
+            onFinished?.invoke(true, msg)
         }
     }
     fun deleteTransaction(transaction: Transaction) { viewModelScope.launch { repository.deleteTransaction(transaction, _currentUser.value) } }
