@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -7,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,11 +37,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.*
 import java.text.Normalizer
 
@@ -84,6 +89,7 @@ data class BankBrandInfo(
     val textOnBadge: Color,
     val monogram: String,
     val emblemStyle: BankEmblemStyle,
+    @DrawableRes val logoResId: Int? = null,
     val defaultCurrencyHint: String? = null
 )
 
@@ -108,6 +114,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFF003366),
                 monogram = "B",
                 emblemStyle = BankEmblemStyle.BANESCO,
+                logoResId = R.drawable.bank_logo_banesco_pa,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("banesco") -> BankBrandInfo(
@@ -119,6 +126,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFF007953),
                 monogram = "B",
                 emblemStyle = BankEmblemStyle.BANESCO,
+                logoResId = R.drawable.bank_logo_banesco,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("mercantil") -> BankBrandInfo(
@@ -130,6 +138,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "M",
                 emblemStyle = BankEmblemStyle.MERCANTIL,
+                logoResId = R.drawable.bank_logo_mercantil,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("venezuela") || norm.contains("bdv") -> BankBrandInfo(
@@ -141,6 +150,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFF003893),
                 monogram = "BV",
                 emblemStyle = BankEmblemStyle.BDV,
+                logoResId = R.drawable.bank_logo_bdv,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("provincial") || norm.contains("bbva") -> BankBrandInfo(
@@ -152,6 +162,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "BBVA",
                 emblemStyle = BankEmblemStyle.BBVA_PROVINCIAL,
+                logoResId = R.drawable.bank_logo_bbva,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("bnc") || norm.contains("nacional de credito") -> BankBrandInfo(
@@ -163,6 +174,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "BNC",
                 emblemStyle = BankEmblemStyle.BNC,
+                logoResId = R.drawable.bank_logo_bnc,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("bancamiga") -> BankBrandInfo(
@@ -174,6 +186,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "BA",
                 emblemStyle = BankEmblemStyle.BANCAMIGA,
+                logoResId = R.drawable.bank_logo_bancamiga,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("banplus") -> BankBrandInfo(
@@ -185,6 +198,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "B+",
                 emblemStyle = BankEmblemStyle.BANPLUS,
+                logoResId = R.drawable.bank_logo_banplus,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("bancaribe") || norm.contains("bfc") || norm.contains("fondo comun") || norm.contains("sofitasa") || norm.contains("plaza") || norm.contains("tesoro") || norm.contains("bicentenario") -> BankBrandInfo(
@@ -196,6 +210,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = walletName.trim().take(2).uppercase().ifBlank { "BC" },
                 emblemStyle = BankEmblemStyle.BANCARIBE,
+                logoResId = if (norm.contains("bancaribe")) R.drawable.bank_logo_bancaribe else null,
                 defaultCurrencyHint = "VES"
             )
             norm.contains("zelle") -> BankBrandInfo(
@@ -207,6 +222,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "Z",
                 emblemStyle = BankEmblemStyle.ZELLE,
+                logoResId = R.drawable.bank_logo_zelle,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("binance") || norm.contains("usdt") || norm.contains("cripto") || norm.contains("crypto") -> BankBrandInfo(
@@ -218,6 +234,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFFF3BA2F),
                 monogram = "BN",
                 emblemStyle = BankEmblemStyle.BINANCE,
+                logoResId = R.drawable.bank_logo_binance,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("paypal") -> BankBrandInfo(
@@ -229,6 +246,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "P",
                 emblemStyle = BankEmblemStyle.PAYPAL,
+                logoResId = R.drawable.bank_logo_paypal,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("zinli") -> BankBrandInfo(
@@ -240,6 +258,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "Z",
                 emblemStyle = BankEmblemStyle.ZINLI,
+                logoResId = R.drawable.bank_logo_zinli,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("wally") -> BankBrandInfo(
@@ -251,9 +270,22 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "W",
                 emblemStyle = BankEmblemStyle.WALLY,
+                logoResId = R.drawable.bank_logo_wally,
                 defaultCurrencyHint = "USD"
             )
-            norm.contains("banco general") || norm.contains("bgeneral") || norm.contains("yappy") || norm.contains("banistmo") || norm.contains("bac") -> BankBrandInfo(
+            norm.contains("yappy") -> BankBrandInfo(
+                id = "yappy",
+                canonicalName = "Yappy",
+                primaryColor = Color(0xFF00549F),
+                secondaryColor = Color(0xFFE31837),
+                badgeBgColor = Color(0xFF00549F),
+                textOnBadge = Color.White,
+                monogram = "Y",
+                emblemStyle = BankEmblemStyle.BGENERAL,
+                logoResId = R.drawable.bank_logo_yappy,
+                defaultCurrencyHint = "USD"
+            )
+            norm.contains("banco general") || norm.contains("bgeneral") || norm.contains("banistmo") || norm.contains("bac") -> BankBrandInfo(
                 id = "bgeneral",
                 canonicalName = "Banco General",
                 primaryColor = Color(0xFF00549F),
@@ -262,6 +294,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "BG",
                 emblemStyle = BankEmblemStyle.BGENERAL,
+                logoResId = R.drawable.bank_logo_bgeneral,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("bank of america") || norm.contains("bofa") -> BankBrandInfo(
@@ -273,6 +306,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFF012169),
                 monogram = "BA",
                 emblemStyle = BankEmblemStyle.BOFA,
+                logoResId = R.drawable.bank_logo_bofa,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("chase") || norm.contains("jpmorgan") -> BankBrandInfo(
@@ -284,6 +318,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "C",
                 emblemStyle = BankEmblemStyle.CHASE,
+                logoResId = R.drawable.bank_logo_chase,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("wells fargo") || norm.contains("wellsfargo") -> BankBrandInfo(
@@ -295,6 +330,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFFFFCD41),
                 monogram = "WF",
                 emblemStyle = BankEmblemStyle.WELLS_FARGO,
+                logoResId = R.drawable.bank_logo_wellsfargo,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("bancolombia") || norm.contains("davivienda") -> BankBrandInfo(
@@ -306,6 +342,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFFFDDA24),
                 monogram = "BC",
                 emblemStyle = BankEmblemStyle.BANCOLOMBIA,
+                logoResId = R.drawable.bank_logo_bancolombia,
                 defaultCurrencyHint = "COP"
             )
             norm.contains("nequi") -> BankBrandInfo(
@@ -317,6 +354,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "N",
                 emblemStyle = BankEmblemStyle.NEQUI,
+                logoResId = R.drawable.bank_logo_nequi,
                 defaultCurrencyHint = "COP"
             )
             norm.contains("nubank") || norm == "nu" || norm.startsWith("nu ") || norm.contains("banco nu") -> BankBrandInfo(
@@ -327,7 +365,8 @@ object BankBrandHelper {
                 badgeBgColor = Color(0xFF820AD1),
                 textOnBadge = Color.White,
                 monogram = "nu",
-                emblemStyle = BankEmblemStyle.NUBANK
+                emblemStyle = BankEmblemStyle.NUBANK,
+                logoResId = R.drawable.bank_logo_nubank
             )
             norm.contains("mercado pago") || norm.contains("mercadopago") -> BankBrandInfo(
                 id = "mercadopago",
@@ -337,7 +376,8 @@ object BankBrandHelper {
                 badgeBgColor = Color(0xFF009EE3),
                 textOnBadge = Color.White,
                 monogram = "MP",
-                emblemStyle = BankEmblemStyle.MERCADO_PAGO
+                emblemStyle = BankEmblemStyle.MERCADO_PAGO,
+                logoResId = R.drawable.bank_logo_mercadopago
             )
             norm.contains("santander") -> BankBrandInfo(
                 id = "santander",
@@ -347,7 +387,8 @@ object BankBrandHelper {
                 badgeBgColor = Color(0xFFEC0000),
                 textOnBadge = Color.White,
                 monogram = "S",
-                emblemStyle = BankEmblemStyle.SANTANDER
+                emblemStyle = BankEmblemStyle.SANTANDER,
+                logoResId = R.drawable.bank_logo_santander
             )
             norm.contains("wise") -> BankBrandInfo(
                 id = "wise",
@@ -358,6 +399,7 @@ object BankBrandHelper {
                 textOnBadge = Color(0xFF163300),
                 monogram = "W",
                 emblemStyle = BankEmblemStyle.WISE,
+                logoResId = R.drawable.bank_logo_wise,
                 defaultCurrencyHint = "USD"
             )
             norm.contains("revolut") -> BankBrandInfo(
@@ -369,6 +411,7 @@ object BankBrandHelper {
                 textOnBadge = Color.White,
                 monogram = "R",
                 emblemStyle = BankEmblemStyle.REVOLUT,
+                logoResId = R.drawable.bank_logo_revolut,
                 defaultCurrencyHint = "EUR"
             )
             norm.contains("efectivo") || norm.contains("cash") || norm.contains("billetera fisica") || norm.contains("cartera") || norm.contains("divisas") -> BankBrandInfo(
@@ -473,11 +516,19 @@ fun BankLogoBadge(
         modifier = modifier
             .size(size)
             .clip(shape)
-            .background(brand.badgeBgColor)
+            .background(if (brand.logoResId != null) Color.White else brand.badgeBgColor)
             .border(1.dp, FamiTheme.paper.border.copy(alpha = 0.85f), shape),
         contentAlignment = Alignment.Center
     ) {
-        when (brand.emblemStyle) {
+        val resId = brand.logoResId
+        if (resId != null) {
+            Image(
+                painter = painterResource(id = resId),
+                contentDescription = brand.canonicalName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else when (brand.emblemStyle) {
             BankEmblemStyle.BANESCO -> {
                 // Emblema oficial Banesco: Arcos gemelos (Verde Esmeralda + Rojo + Punto Azul) sobre fondo blanco
                 Canvas(modifier = Modifier.fillMaxSize().padding(size * 0.14f)) {

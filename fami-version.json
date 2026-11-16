@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 18,
-  "latestVersionName": "3.9.2",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.2.apk",
-  "changelog": "v3.9.2: Diseño de widget 1:1 con la notita de Fami, nuevos selectores táctiles 3D de billetera con detección automática de logos oficiales de bancos (Banesco, Mercantil, BDV, Provincial, BNC, Bancamiga, Zelle, Binance, etc.) y fluidez mejorada a 60fps."
+  "latestVersionCode": 19,
+  "latestVersionName": "3.9.3",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.3.apk",
+  "changelog": "v3.9.3: Logos oficiales reales de cada banco/plataforma (Banesco VE/PA, Mercantil, BDV, BBVA Provincial, BNC, Bancamiga, Banplus, Bancaribe, Zelle, Binance, Zinli, Wally, Banco General, Yappy, BofA, Chase, etc.) y apertura directa en 1 toque para Voz, Escanear y Galería desde el widget sin ventana flotante intermedia."
 }

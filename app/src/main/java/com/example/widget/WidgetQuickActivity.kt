@@ -328,6 +328,9 @@ private fun WidgetQuickOverlayScreen(
         }
     }
 
+    val isWriteMode = initialAction == FamiQuickWidgetProvider.ACTION_WRITE ||
+        initialAction == FamiQuickWidgetProvider.ACTION_SEND
+
     // Fondo completamente transparente sobre la pantalla de inicio del teléfono
     Box(
         modifier = Modifier
@@ -344,302 +347,313 @@ private fun WidgetQuickOverlayScreen(
             .padding(horizontal = 16.dp, vertical = 24.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Notita flotante idéntica a la sección de registro rápido de Fami
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { /* Absorber toques dentro de la notita */ }
-        ) {
-            StickyNoteSheet(
-                modifier = Modifier.fillMaxWidth(),
-                noteColor = paper.stickyYellow,
-                tapeColor = FamiCoralSoft.copy(alpha = 0.72f),
-                borderColor = paper.border,
-                shadowColor = paper.shadow3D
+        if (isWriteMode) {
+            // Notita flotante SOLO para escritura rápida desde el widget
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* Absorber toques dentro de la notita */ }
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+                StickyNoteSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    noteColor = paper.stickyYellow,
+                    tapeColor = FamiCoralSoft.copy(alpha = 0.72f),
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "NOTA RÁPIDA CON FAMI IA ✏️",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                color = paper.ink
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "NOTA RÁPIDA CON FAMI IA ✏️",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                                Text(
+                                    text = "Escribe tu gasto o ingreso sin abrir la app",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = paper.inkMuted
+                                )
+                            }
+                            IconButton(
+                                onClick = { onFinishOverlay() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cerrar",
+                                    tint = paper.ink,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        if (wallets.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(horizontal = 2.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(wallets, key = { it.id.ifBlank { "${it.name}_${it.currency}" } }) { w ->
+                                    val isSelected = selectedWalletId == w.id
+                                    BankWalletSelectorChip(
+                                        walletName = w.name,
+                                        currency = w.currency,
+                                        selected = isSelected,
+                                        onClick = {
+                                            selectedWalletId = if (isSelected && wallets.size > 1) "" else w.id
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Fila principal: Campo de texto + Micrófono 3D + Enviar 3D
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = inputText,
+                                onValueChange = { inputText = it },
+                                placeholder = {
+                                    Text(
+                                        text = "Escribe tu gasto...",
+                                        fontSize = 12.5.sp,
+                                        color = paper.inkMuted
+                                    )
+                                },
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Send
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onSend = { submitTextMovement(inputText) }
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(focusRequester)
+                                    .background(paper.sheet, RoundedCornerShape(14.dp)),
+                                shape = RoundedCornerShape(14.dp),
+                                trailingIcon = {
+                                    if (inputText.isNotEmpty() && !isRegisteringNlp) {
+                                        IconButton(
+                                            onClick = { inputText = "" },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Limpiar",
+                                                tint = paper.ink,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = paper.border,
+                                    unfocusedBorderColor = paper.border,
+                                    focusedTextColor = paper.ink,
+                                    unfocusedTextColor = paper.ink
+                                ),
+                                maxLines = 2
                             )
+
+                            Tactile3DButton(
+                                onClick = { launchVoiceRecognizer() },
+                                faceColor = paper.stickyMint,
+                                lipColor = Lip3DMint,
+                                borderColor = paper.border,
+                                cornerRadius = 13.dp,
+                                lipHeight = 3.5.dp,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Dictar gasto por voz",
+                                    tint = paper.ink,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Tactile3DButton(
+                                onClick = { submitTextMovement(inputText) },
+                                faceColor = FamiCoral,
+                                lipColor = Lip3DCoral,
+                                borderColor = paper.border,
+                                cornerRadius = 13.dp,
+                                lipHeight = 3.5.dp,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                            ) {
+                                if (isRegisteringNlp) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = "Enviar gasto",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!nlpError.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Escribe, dicta o escanea sin abrir la app",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = paper.inkMuted
+                                text = nlpError ?: "",
+                                color = FamiAlertRed,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Fila inferior: ESCANEAR y GALERÍA
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Tactile3DButton(
+                                onClick = { requestAndLaunchCamera() },
+                                modifier = Modifier.weight(1f),
+                                faceColor = FamiCoral,
+                                lipColor = Lip3DCoral,
+                                borderColor = paper.border,
+                                cornerRadius = 12.dp,
+                                lipHeight = 4.dp,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Escanear",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "ESCANEAR",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    maxLines = 1
+                                )
+                            }
+
+                            Tactile3DButton(
+                                onClick = { galleryLauncher.launch("image/*") },
+                                modifier = Modifier.weight(1f),
+                                faceColor = if (paper.isDark) Color(0xFF233269) else FamiMidnight,
+                                lipColor = paper.lipNavy,
+                                borderColor = paper.border,
+                                cornerRadius = 12.dp,
+                                lipHeight = 4.dp,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = "Galería",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "GALERÍA",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Modo directo (Voz / Escanear / Galería):
+            // Pantalla completamente limpia; solo muestra un indicador minimalista mientras Fami IA procesa
+            if (isRegisteringNlp || isScanningReceipt) {
+                Surface(
+                    color = paper.stickyYellow,
+                    border = BorderStroke(1.8.dp, paper.border),
+                    shape = RoundedCornerShape(16.dp),
+                    shadowElevation = 6.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.4.dp,
+                            color = FamiCoral
+                        )
+                        Text(
+                            text = if (isScanningReceipt) "Fami IA leyendo tu recibo..." else "Registrando con Fami IA...",
+                            fontSize = 12.sp,
+                            color = paper.ink,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            } else if (!scanError.isNullOrBlank() || !nlpError.isNullOrBlank()) {
+                Surface(
+                    color = paper.alertBg,
+                    border = BorderStroke(1.8.dp, paper.border),
+                    shape = RoundedCornerShape(16.dp),
+                    shadowElevation = 6.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = "Error",
+                            tint = FamiAlertRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = scanError ?: nlpError ?: "No se pudo completar",
+                            fontSize = 11.5.sp,
+                            color = paper.ink,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
                         IconButton(
                             onClick = { onFinishOverlay() },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cerrar",
                                 tint = paper.ink,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    if (wallets.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 2.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(wallets, key = { it.id.ifBlank { "${it.name}_${it.currency}" } }) { w ->
-                                val isSelected = selectedWalletId == w.id
-                                BankWalletSelectorChip(
-                                    walletName = w.name,
-                                    currency = w.currency,
-                                    selected = isSelected,
-                                    onClick = {
-                                        selectedWalletId = if (isSelected && wallets.size > 1) "" else w.id
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Fila principal: Campo de texto + Micrófono 3D + Enviar 3D
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = inputText,
-                            onValueChange = { inputText = it },
-                            placeholder = {
-                                Text(
-                                    text = "Escribe o dicta tu gasto...",
-                                    fontSize = 12.5.sp,
-                                    color = paper.inkMuted
-                                )
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Sentences,
-                                imeAction = ImeAction.Send
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onSend = { submitTextMovement(inputText) }
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester)
-                                .background(paper.sheet, RoundedCornerShape(14.dp)),
-                            shape = RoundedCornerShape(14.dp),
-                            trailingIcon = {
-                                if (inputText.isNotEmpty() && !isRegisteringNlp) {
-                                    IconButton(
-                                        onClick = { inputText = "" },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Clear,
-                                            contentDescription = "Limpiar",
-                                            tint = paper.ink,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = paper.border,
-                                unfocusedBorderColor = paper.border,
-                                focusedTextColor = paper.ink,
-                                unfocusedTextColor = paper.ink
-                            ),
-                            maxLines = 2
-                        )
-
-                        Tactile3DButton(
-                            onClick = { launchVoiceRecognizer() },
-                            faceColor = paper.stickyMint,
-                            lipColor = Lip3DMint,
-                            borderColor = paper.border,
-                            cornerRadius = 13.dp,
-                            lipHeight = 3.5.dp,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Mic,
-                                contentDescription = "Dictar gasto por voz",
-                                tint = paper.ink,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Tactile3DButton(
-                            onClick = { submitTextMovement(inputText) },
-                            faceColor = FamiCoral,
-                            lipColor = Lip3DCoral,
-                            borderColor = paper.border,
-                            cornerRadius = 13.dp,
-                            lipHeight = 3.5.dp,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
-                        ) {
-                            if (isRegisteringNlp) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color.White
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Enviar gasto",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    if (!nlpError.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = nlpError ?: "",
-                            color = FamiAlertRed,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Fila inferior: ESCANEAR y GALERÍA
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Tactile3DButton(
-                            onClick = { requestAndLaunchCamera() },
-                            modifier = Modifier.weight(1f),
-                            faceColor = FamiCoral,
-                            lipColor = Lip3DCoral,
-                            borderColor = paper.border,
-                            cornerRadius = 12.dp,
-                            lipHeight = 4.dp,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Escanear",
-                                tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "ESCANEAR",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                maxLines = 1
-                            )
-                        }
-
-                        Tactile3DButton(
-                            onClick = { galleryLauncher.launch("image/*") },
-                            modifier = Modifier.weight(1f),
-                            faceColor = if (paper.isDark) Color(0xFF233269) else FamiMidnight,
-                            lipColor = paper.lipNavy,
-                            borderColor = paper.border,
-                            cornerRadius = 12.dp,
-                            lipHeight = 4.dp,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Image,
-                                contentDescription = "Galería",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "GALERÍA",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                maxLines = 1
-                            )
-                        }
-                    }
-
-                    if (isScanningReceipt) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Surface(
-                            color = paper.sheet,
-                            border = BorderStroke(1.5.dp, paper.border),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = FamiCoral
-                                )
-                                Text(
-                                    text = "Fami IA leyendo el recibo y registrando el gasto...",
-                                    fontSize = 11.sp,
-                                    color = paper.ink,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    if (!scanError.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Surface(
-                            color = paper.alertBg,
-                            border = BorderStroke(1.5.dp, paper.border),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Error,
-                                    contentDescription = "Error",
-                                    tint = FamiAlertRed,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = scanError ?: "",
-                                    fontSize = 11.sp,
-                                    color = paper.ink,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
                         }
                     }
                 }
