@@ -162,7 +162,11 @@ object CountryCurrencyConfig {
         LanguageOption("pt", "Portugués", "Português", "🇧🇷"),
         LanguageOption("fr", "Francés", "Français", "🇫🇷"),
         LanguageOption("it", "Italiano", "Italiano", "🇮🇹"),
-        LanguageOption("de", "Alemán", "Deutsch", "🇩🇪")
+        LanguageOption("de", "Alemán", "Deutsch", "🇩🇪"),
+        LanguageOption("zh", "Chino", "中文", "🇨🇳"),
+        LanguageOption("ja", "Japonés", "日本語", "🇯🇵"),
+        LanguageOption("ko", "Coreano", "한국어", "🇰🇷"),
+        LanguageOption("ar", "Árabe", "العربية", "🇸🇦")
     )
 
     val FAMILY_ROLES = listOf(

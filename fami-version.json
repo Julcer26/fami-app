@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 20,
-  "latestVersionName": "3.9.4",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.4.apk",
-  "changelog": "v3.9.4: Solución definitiva al inicio de sesión rápido con Google (selector nativo de cuentas sin error INVALID_APP_ID), cierre automático y limpieza total al eliminar cuenta, y recuperación/recreación automática de cuentas con el mismo correo tanto al registrarse como al iniciar sesión."
+  "latestVersionCode": 21,
+  "latestVersionName": "3.9.5",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.5.apk",
+  "changelog": "v3.9.5: Borrado legal completo de cuenta (Firebase Auth + Realtime DB + dispositivo), flujo de registro primero y configuración después, y selector de los 10 idiomas principales en Configuración (por defecto el del teléfono)."
 }

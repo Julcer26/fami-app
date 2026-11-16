@@ -155,6 +155,10 @@ fun ConfigMainContent(
     val paper = FamiTheme.paper
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
+    var deleteRequiresPassword by remember { mutableStateOf(false) }
+    var deletePasswordInput by remember { mutableStateOf("") }
+    var isDeletingAccount by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var showChangePinDialog by remember { mutableStateOf(false) }
     var newPinInput by remember { mutableStateOf("") }
     var showEditAliasDialog by remember { mutableStateOf(false) }
@@ -162,6 +166,7 @@ fun ConfigMainContent(
     var profileToDelete by remember { mutableStateOf<UserProfile?>(null) }
     var legalDialogTab by remember { mutableStateOf<String?>(null) }
 
+    val currentAppLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val currentAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val unlockMethod by viewModel.unlockMethod.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
@@ -505,6 +510,72 @@ fun ConfigMainContent(
                             checked = isDarkTheme,
                             onCheckedChange = { onToggleTheme(it) }
                         )
+                    }
+                }
+            }
+
+            // --- LANGUAGE SELECTOR (10 MOST COMMON LANGUAGES, DEFAULT = PHONE) ---
+            item {
+                val activeLangOption = com.example.currency.CountryCurrencyConfig.getLanguageOption(currentAppLanguage)
+                val systemDefaultCode = com.example.currency.CountryCurrencyConfig.detectSystemLanguageCode()
+                val isUsingSystemLang = currentAppLanguage.equals(systemDefaultCode, ignoreCase = true)
+
+                NotebookPaperSheet(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showLanguageDialog = true },
+                    sheetColor = paper.sheet,
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(14.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "Idioma de la App",
+                                tint = FamiCoral
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Idioma de la App",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                                Text(
+                                    "${activeLangOption.flag} ${activeLangOption.nativeName}" +
+                                        if (isUsingSystemLang) " (Del teléfono)" else "",
+                                    fontSize = 11.sp,
+                                    color = paper.inkMuted
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = paper.stickyYellow,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.2.dp, paper.border)
+                        ) {
+                            Text(
+                                text = "Cambiar",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -907,48 +978,222 @@ fun ConfigMainContent(
     if (showDeleteAccountDialog) {
         AlertDialog(
             onDismissRequest = {
-                showDeleteAccountDialog = false
-                deleteAccountError = null
+                if (!isDeletingAccount) {
+                    showDeleteAccountDialog = false
+                    deleteAccountError = null
+                    deleteRequiresPassword = false
+                    deletePasswordInput = ""
+                }
             },
             containerColor = paper.sheet,
             title = { Text("¿Eliminar tu Cuenta?", color = AlertRed, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     Text(
-                        "Esta acción es irreversible y permanente conforme a las políticas de Google Play. Se eliminarán tus credenciales de acceso, tus comprobantes en la nube y tus preferencias, y la aplicación se cerrará.",
-                        color = paper.ink
+                        "Esta acción es irreversible y permanente conforme a las políticas de Google Play y leyes de privacidad. Se eliminarán tus credenciales de acceso (correo y contraseña), tu cuenta en Firebase Auth, tus datos en la nube y tus preferencias locales, y la aplicación se cerrará.",
+                        color = paper.ink,
+                        fontSize = 13.sp
                     )
+                    if (deleteRequiresPassword) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = deletePasswordInput,
+                            onValueChange = { deletePasswordInput = it },
+                            label = { Text("Confirma tu contraseña") },
+                            placeholder = { Text("Contraseña de tu cuenta") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     deleteAccountError?.let { err: String ->
                         Spacer(modifier = Modifier.height(10.dp))
-                        Text(err, color = AlertRed, fontSize = 12.sp)
+                        Text(err, color = AlertRed, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             },
             confirmButton = {
                 Button(
+                    enabled = !isDeletingAccount && (!deleteRequiresPassword || deletePasswordInput.isNotBlank()),
                     onClick = {
+                        isDeletingAccount = true
+                        deleteAccountError = null
                         viewModel.deleteUserAccount(
+                            confirmPassword = if (deleteRequiresPassword) deletePasswordInput else "",
                             onSuccess = {
+                                isDeletingAccount = false
                                 showDeleteAccountDialog = false
-                                Toast.makeText(dialogContext, "Cuenta eliminada correctamente. Cerrando Fami...", Toast.LENGTH_LONG).show()
+                                deleteRequiresPassword = false
+                                deletePasswordInput = ""
+                                Toast.makeText(
+                                    dialogContext,
+                                    "Cuenta y datos eliminados definitivamente. Cerrando Fami...",
+                                    Toast.LENGTH_LONG
+                                ).show()
                                 (dialogContext as? android.app.Activity)?.finishAffinity()
                             },
+                            onRequiresPassword = { email ->
+                                isDeletingAccount = false
+                                deleteRequiresPassword = true
+                                deleteAccountError = "Por seguridad legal, ingresa la contraseña de $email para eliminarla definitivamente."
+                            },
                             onError = { err: String ->
+                                isDeletingAccount = false
                                 deleteAccountError = err
                             }
                         )
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
                 ) {
-                    Text("Sí, Eliminar y Cerrar")
+                    if (isDeletingAccount) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Eliminando...", color = Color.White)
+                    } else {
+                        Text(
+                            if (deleteRequiresPassword) "Confirmar y Eliminar" else "Sí, Eliminar y Cerrar",
+                            color = Color.White
+                        )
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showDeleteAccountDialog = false
-                    deleteAccountError = null
-                }) {
+                TextButton(
+                    enabled = !isDeletingAccount,
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        deleteAccountError = null
+                        deleteRequiresPassword = false
+                        deletePasswordInput = ""
+                    }
+                ) {
                     Text("Cancelar", color = paper.inkMuted)
+                }
+            }
+        )
+    }
+
+    if (showLanguageDialog) {
+        val systemDefaultCode = com.example.currency.CountryCurrencyConfig.detectSystemLanguageCode()
+        val systemLangOpt = com.example.currency.CountryCurrencyConfig.getLanguageOption(systemDefaultCode)
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            containerColor = paper.sheet,
+            title = {
+                Text(
+                    "Idioma de la App",
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 380.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        val isSystemSelected = currentAppLanguage.equals(systemDefaultCode, ignoreCase = true)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    viewModel.updateAppLanguage(systemDefaultCode)
+                                    showLanguageDialog = false
+                                },
+                            color = if (isSystemSelected) paper.stickyYellow else paper.sheetCream,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                width = if (isSystemSelected) 1.6.dp else 1.dp,
+                                color = if (isSystemSelected) paper.border else paper.border.copy(alpha = 0.28f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "🌐 Automático (Idioma del teléfono)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
+                                    Text(
+                                        text = "Detectado: ${systemLangOpt.flag} ${systemLangOpt.nativeName}",
+                                        fontSize = 11.sp,
+                                        color = paper.inkMuted
+                                    )
+                                }
+                                if (isSystemSelected) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    items(com.example.currency.CountryCurrencyConfig.SUPPORTED_LANGUAGES) { lang ->
+                        val isSelected = currentAppLanguage.equals(lang.code, ignoreCase = true)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    viewModel.updateAppLanguage(lang.code)
+                                    showLanguageDialog = false
+                                },
+                            color = if (isSelected) paper.stickyMint else paper.sheetCream,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                width = if (isSelected) 1.6.dp else 1.dp,
+                                color = if (isSelected) paper.border else paper.border.copy(alpha = 0.25f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(lang.flag, fontSize = 18.sp)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = lang.nativeName,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = paper.ink
+                                        )
+                                        Text(
+                                            text = lang.name,
+                                            fontSize = 10.5.sp,
+                                            color = paper.inkMuted
+                                        )
+                                    }
+                                }
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text("Cerrar", fontWeight = FontWeight.Bold, color = paper.ink)
                 }
             }
         )

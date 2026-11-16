@@ -551,7 +551,19 @@ fun MainScreen(
         }
     }
 
-    if (!hasCompletedOnboarding) {
+    if (!isAuthenticated) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AuthScreen(viewModel = viewModel)
+
+            // Top banner notification system on login
+            topNotification?.let { msg ->
+                TopNotificationBanner(
+                    message = msg,
+                    onDismiss = { viewModel.dismissNotification() }
+                )
+            }
+        }
+    } else if (!hasCompletedOnboarding) {
         com.example.ui.OnboardingScreen(
             initialCountryCode = countryCodeState,
             initialPrimaryCurrency = primaryCurrencyState,
@@ -582,18 +594,6 @@ fun MainScreen(
                 )
             }
         )
-    } else if (!isAuthenticated) {
-        Box(modifier = Modifier.fillMaxSize() ){
-            AuthScreen(viewModel = viewModel)
-            
-            // Top banner notification system on login
-            topNotification?.let { msg ->
-                TopNotificationBanner(
-                    message = msg,
-                    onDismiss = { viewModel.dismissNotification() }
-                )
-            }
-        }
     } else {
         val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
         val tourRegistry = com.example.ui.rememberTourTargetRegistry()

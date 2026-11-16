@@ -230,7 +230,35 @@ class FamilyViewModel(
                 initialWallets = initialWallets,
                 userAlias = userAlias.trim()
             )
+            val cleanAlias = userAlias.trim().takeIf { it.isNotBlank() && !it.contains("@") }
+            if (cleanAlias != null) {
+                applyAliasUpdateInternal(cleanAlias)
+            }
+            val fid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull()
+            val activeUser = _currentUser.value.ifBlank { cleanAlias ?: "Usuario Fami" }
+            if (!fid.isNullOrBlank()) {
+                repository.setFamilyId(fid)
+                runCatching { repository.populateDefaultsIfNeeded() }
+                runCatching {
+                    syncPendingNotebookSetup(
+                        userName = activeUser,
+                        colorHex = "#D0BCFF",
+                        familyNameOverride = familyName.trim()
+                    )
+                }
+            }
             syncExchangeRateFor(country.code, primaryCurr, secondaryCurr)
+        }
+    }
+
+    fun updateAppLanguage(languageCode: String) {
+        viewModelScope.launch {
+            val clean = languageCode.trim().lowercase().ifBlank {
+                com.example.currency.CountryCurrencyConfig.detectSystemLanguageCode()
+            }
+            dataStoreManager.setAppLanguage(clean)
+            val langOpt = com.example.currency.CountryCurrencyConfig.getLanguageOption(clean)
+            notifyUser("Idioma cambiado a ${langOpt.flag} ${langOpt.nativeName}")
         }
     }
 
@@ -1095,6 +1123,9 @@ class FamilyViewModel(
                     authSecret = authSecret
                 )
                 dataStoreManager.setUserName(finalUserName)
+                if (!isNewSetup) {
+                    dataStoreManager.setOnboardingCompleted(true)
+                }
                 _familyId.value = finalFid
                 repository.setFamilyId(finalFid)
                 _currentUser.value = finalUserName
@@ -1660,63 +1691,76 @@ class FamilyViewModel(
             }
         }
     }
-    fun deleteUserAccount(onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun deleteUserAccount(
+        confirmPassword: String = "",
+        onSuccess: () -> Unit,
+        onRequiresPassword: (String) -> Unit = {},
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
                 val savedEmail = dataStoreManager.savedEmailFlow.firstOrNull().orEmpty()
                 val savedSecret = dataStoreManager.savedAuthSecretFlow.firstOrNull().orEmpty()
                 val fid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull()
+                var user = auth.currentUser
 
-                // 1. Re-autenticar silenciosamente si hay credenciales guardadas para que Firebase permita borrar el usuario en Auth sin error de sesión antigua
-                if (savedEmail.isNotBlank() && savedSecret.isNotBlank()) {
+                // 1. Re-autenticar antes de borrar para garantizar que Firebase Auth elimine la cuenta al 100%
+                val targetEmail = user?.email?.takeIf { it.isNotBlank() } ?: savedEmail
+                if (confirmPassword.isNotBlank() && targetEmail.isNotBlank() && user != null) {
+                    val cred = com.google.firebase.auth.EmailAuthProvider.getCredential(targetEmail, confirmPassword)
+                    user.reauthenticate(cred).await()
+                } else if (savedEmail.isNotBlank() && savedSecret.isNotBlank()) {
                     runCatching {
                         auth.signInWithEmailAndPassword(savedEmail, savedSecret).await()
+                        user = auth.currentUser
                     }
                 } else if (savedEmail.isNotBlank()) {
                     runCatching {
                         auth.signInWithEmailAndPassword(savedEmail, deriveGoogleBridgeSecret(savedEmail)).await()
+                        user = auth.currentUser
                     }
                 }
 
-                val user = auth.currentUser
                 val uid = user?.uid
 
-                // 2. Eliminar mapeos en Realtime Database
-                if (uid != null) {
-                    runCatching {
-                        com.google.firebase.database.FirebaseDatabase.getInstance().reference
-                            .child("users").child(uid).removeValue().await()
+                // 2. Eliminar la cuenta de Firebase Auth PRIMERO (si requiere login reciente, pedimos contraseña)
+                if (user != null) {
+                    try {
+                        user!!.delete().await()
+                    } catch (recentEx: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                        onRequiresPassword(targetEmail)
+                        return@launch
                     }
+                }
+
+                // 3. Eliminar TODOS los datos del usuario y de su familia (si era el último miembro) en Realtime Database
+                if (uid != null) {
+                    val dbRef = com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                    runCatching { dbRef.child("users").child(uid).removeValue().await() }
                     if (!fid.isNullOrBlank()) {
+                        runCatching { dbRef.child("families").child(fid).child("members").child(uid).removeValue().await() }
                         runCatching {
-                            com.google.firebase.database.FirebaseDatabase.getInstance().reference
-                                .child("families").child(fid).child("members").child(uid).removeValue().await()
+                            val membersSnap = dbRef.child("families").child(fid).child("members").get().await()
+                            if (!membersSnap.exists() || membersSnap.childrenCount == 0L) {
+                                dbRef.child("families").child(fid).removeValue().await()
+                            }
                         }
                     }
                 }
 
-                // 3. Intentar eliminar el usuario de Firebase Auth y cerrar sesión
-                runCatching { user?.delete()?.await() }
+                // 4. Cerrar sesión de Firebase y borrar todos los datos locales de DataStore
                 runCatching { auth.signOut() }
-
-                // 4. Borrar todos los datos locales de DataStore y reiniciar estados
                 dataStoreManager.clearAllDataForAccountDeletion()
                 _isAuthenticated.value = false
                 _pendingEmailVerification.value = false
                 _needsUnlockMethodChoice.value = false
                 _familyId.value = null
                 _currentUser.value = ""
+                _authError.value = null
                 onSuccess()
             } catch (e: Exception) {
-                runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().signOut() }
-                runCatching { dataStoreManager.clearAllDataForAccountDeletion() }
-                _isAuthenticated.value = false
-                _pendingEmailVerification.value = false
-                _needsUnlockMethodChoice.value = false
-                _familyId.value = null
-                _currentUser.value = ""
-                onSuccess()
+                onError(mapFirebaseAuthError(e))
             }
         }
     }
