@@ -700,6 +700,63 @@ fun HelpSupportContent(
                 }
             }
         }
+
+        // Comunidad y Redes Sociales Oficiales (@hola.fami)
+        NotebookPaperSheet(
+            modifier = Modifier.fillMaxWidth(),
+            sheetColor = paper.sheetCream,
+            showRuledLines = false,
+            showMarginLine = false
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Síguenos en Redes Oficiales (@hola.fami)",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
+                Text(
+                    text = "Tips de finanzas familiares, novedades de Fami Robot y tutoriales rápidos.",
+                    fontSize = 11.sp,
+                    color = paper.inkMuted
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Tactile3DButton(
+                        onClick = { openSafeExternalUrl(context, "https://www.instagram.com/hola.fami") },
+                        faceColor = paper.stickyPeach,
+                        lipColor = Lip3DCoral,
+                        borderColor = paper.border,
+                        cornerRadius = 11.dp,
+                        lipHeight = 3.dp,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = "Instagram", tint = FamiCoral, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Instagram", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                    }
+
+                    Tactile3DButton(
+                        onClick = { openSafeExternalUrl(context, "https://www.tiktok.com/@hola.fami") },
+                        faceColor = if (paper.isDark) Color(0xFF233269) else FamiMidnight,
+                        lipColor = paper.lipNavy,
+                        borderColor = paper.border,
+                        cornerRadius = 11.dp,
+                        lipHeight = 3.dp,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.MusicNote, contentDescription = "TikTok", tint = Color.White, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("TikTok", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    }
+                }
+            }
+        }
     }
 }
 
