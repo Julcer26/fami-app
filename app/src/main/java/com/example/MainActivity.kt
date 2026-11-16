@@ -607,6 +607,71 @@ fun MainScreen(
             }
         }
 
+        var showWidgetQuickWriteDialog by remember { mutableStateOf(false) }
+        val widgetSpeechLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                val spokenText = matches?.firstOrNull()?.trim().orEmpty()
+                if (spokenText.isNotEmpty()) {
+                    viewModel.registerFromNaturalLanguage(spokenText, "")
+                    Toast.makeText(context, "Registrando: \"$spokenText\"", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        LaunchedEffect(pendingWidgetAction, isAuthenticated, currentUser) {
+            if (!pendingWidgetAction.isNullOrBlank() && isAuthenticated && currentUser.isNotBlank()) {
+                currentTab = "inicio"
+                when (pendingWidgetAction) {
+                    com.example.widget.FamiQuickWidgetProvider.ACTION_WRITE -> {
+                        showWidgetQuickWriteDialog = true
+                    }
+                    com.example.widget.FamiQuickWidgetProvider.ACTION_VOICE -> {
+                        val speechLocale = when (appLanguageState.lowercase()) {
+                            "en" -> "en-US"
+                            "pt" -> "pt-BR"
+                            else -> "es-ES"
+                        }
+                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechLocale)
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla para anotar tu gasto o ingreso")
+                        }
+                        try {
+                            widgetSpeechLauncher.launch(intent)
+                        } catch (_: ActivityNotFoundException) {
+                            Toast.makeText(context, "Dictado por voz no disponible en este dispositivo", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    com.example.widget.FamiQuickWidgetProvider.ACTION_SCAN -> {
+                        val hasCameraPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.CAMERA
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        try {
+                            if (hasCameraPermission) {
+                                launchHighResCamera()
+                            } else {
+                                permissionLauncherDirect.launch(android.Manifest.permission.CAMERA)
+                            }
+                        } catch (e: Exception) {
+                            errorMessageScan = "Camera Error: ${e.message}"
+                        }
+                    }
+                    com.example.widget.FamiQuickWidgetProvider.ACTION_GALLERY -> {
+                        try {
+                            imagePickerLauncherDirect.launch("image/*")
+                        } catch (e: Exception) {
+                            errorMessageScan = "Gallery Error: ${e.message}"
+                        }
+                    }
+                }
+                onConsumeWidgetAction()
+            }
+        }
+
         LaunchedEffect(isAuthenticated, currentUser, hasCompletedInAppTour) {
             if (isAuthenticated && currentUser.isNotBlank()) {
                 viewModel.syncFcmTokenAndWorker()
