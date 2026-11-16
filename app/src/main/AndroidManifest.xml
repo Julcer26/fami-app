@@ -72,10 +72,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".widget.WidgetQuickActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Fami.Translucent"
+            android:windowSoftInputMode="stateVisible|adjustResize" />
+
         <receiver
             android:name=".widget.FamiQuickWidgetProvider"
             android:exported="true"
-            android:label="Fami · Registro rápido">
+            android:label="Fami · Notita Rápida">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

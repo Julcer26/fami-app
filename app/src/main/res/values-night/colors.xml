@@ -4,12 +4,16 @@
     <color name="widget_sticky_bg">#FF332917</color>
     <color name="widget_sticky_shadow">#FF0A1026</color>
     <color name="widget_sticky_border">#FF4357A3</color>
-    <color name="widget_sticky_tape">#8CEB9376</color>
+    <color name="widget_sticky_tape">#A6EB9376</color>
     <color name="widget_sticky_ink">#FFF6F7FF</color>
     <color name="widget_sticky_ink_muted">#FFB4C0E8</color>
+    <color name="widget_input_sheet_bg">#FF121A3A</color>
     <color name="widget_btn_peach_bg">#FF382026</color>
     <color name="widget_btn_mint_bg">#FF11312F</color>
+    <color name="widget_btn_mint_lip">#FF007A58</color>
     <color name="widget_btn_coral_bg">#FFE54629</color>
     <color name="widget_btn_coral_lip">#FF9E2B14</color>
+    <color name="widget_btn_navy_bg">#FF233269</color>
+    <color name="widget_btn_navy_lip">#FF060818</color>
     <color name="widget_btn_sky_bg">#FF152A4F</color>
 </resources>

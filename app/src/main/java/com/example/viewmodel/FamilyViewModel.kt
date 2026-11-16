@@ -1258,7 +1258,11 @@ class FamilyViewModel(
     fun syncLiveBcvRate() { viewModelScope.launch { syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value) } }
     fun updateValueSetting(key: String, value: String) { viewModelScope.launch { repository.insertSetting(key, value, _currentUser.value) } }
 
-    fun registerFromNaturalLanguage(inputText: String, walletId: String = "") {
+    fun registerFromNaturalLanguage(
+        inputText: String,
+        walletId: String = "",
+        onFinished: ((Boolean, String) -> Unit)? = null
+    ) {
         if (inputText.isBlank()) return
         viewModelScope.launch {
             _isRegisteringNlp.value = true
@@ -1270,15 +1274,20 @@ class FamilyViewModel(
                 val (transaction, error, successMsg) = GeminiParser.parseTextToTransaction(inputText, user, categoryNameList, customKey)
                 if (error != null) {
                     _nlpError.value = error
+                    onFinished?.invoke(false, error)
                 } else if (transaction != null) {
                     val resolvedWalletId = walletId.ifBlank {
                         wallets.value.firstOrNull { it.currency.equals(transaction.currency, ignoreCase = true) }?.id.orEmpty()
                     }
                     repository.insertTransaction(transaction.copy(walletId = resolvedWalletId), user, isNewEntry = true)
-                    notifyUser(successMsg.ifBlank { "IA registró gasto/ingreso exitosamente." })
+                    val finalMsg = successMsg.ifBlank { "IA registró gasto/ingreso exitosamente." }
+                    notifyUser(finalMsg)
+                    onFinished?.invoke(true, finalMsg)
                 }
             } catch (e: Exception) {
-                _nlpError.value = "Error: ${e.message}"
+                val err = "Error: ${e.message}"
+                _nlpError.value = err
+                onFinished?.invoke(false, err)
             } finally {
                 _isRegisteringNlp.value = false
             }

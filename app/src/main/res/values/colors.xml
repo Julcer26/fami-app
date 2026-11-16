@@ -12,12 +12,16 @@
     <color name="widget_sticky_bg">#FFFFF5D6</color>
     <color name="widget_sticky_shadow">#FFD2C7B4</color>
     <color name="widget_sticky_border">#FF101535</color>
-    <color name="widget_sticky_tape">#A6EB9376</color>
+    <color name="widget_sticky_tape">#BFEB9376</color>
     <color name="widget_sticky_ink">#FF101535</color>
     <color name="widget_sticky_ink_muted">#FF4A5270</color>
+    <color name="widget_input_sheet_bg">#FFFFFDF9</color>
     <color name="widget_btn_peach_bg">#FFFDECE6</color>
     <color name="widget_btn_mint_bg">#FFE6F9F3</color>
+    <color name="widget_btn_mint_lip">#FF007A58</color>
     <color name="widget_btn_coral_bg">#FFE54629</color>
     <color name="widget_btn_coral_lip">#FF9E2B14</color>
+    <color name="widget_btn_navy_bg">#FF101535</color>
+    <color name="widget_btn_navy_lip">#FF060818</color>
     <color name="widget_btn_sky_bg">#FFE6F1FF</color>
 </resources>

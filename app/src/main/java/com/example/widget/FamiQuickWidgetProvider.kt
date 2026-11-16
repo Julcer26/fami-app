@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
-import com.example.MainActivity
 import com.example.R
 
 class FamiQuickWidgetProvider : AppWidgetProvider() {
@@ -37,19 +36,23 @@ class FamiQuickWidgetProvider : AppWidgetProvider() {
 
             views.setOnClickPendingIntent(
                 R.id.widget_btn_write,
-                buildActionIntent(context, ACTION_WRITE, 101)
+                buildActionIntent(context, ACTION_WRITE, 201)
+            )
+            views.setOnClickPendingIntent(
+                R.id.widget_btn_send,
+                buildActionIntent(context, ACTION_WRITE, 202)
             )
             views.setOnClickPendingIntent(
                 R.id.widget_btn_voice,
-                buildActionIntent(context, ACTION_VOICE, 102)
+                buildActionIntent(context, ACTION_VOICE, 203)
             )
             views.setOnClickPendingIntent(
                 R.id.widget_btn_scan,
-                buildActionIntent(context, ACTION_SCAN, 103)
+                buildActionIntent(context, ACTION_SCAN, 204)
             )
             views.setOnClickPendingIntent(
                 R.id.widget_btn_gallery,
-                buildActionIntent(context, ACTION_GALLERY, 104)
+                buildActionIntent(context, ACTION_GALLERY, 205)
             )
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -60,12 +63,10 @@ class FamiQuickWidgetProvider : AppWidgetProvider() {
             action: String,
             requestCode: Int
         ): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                this.action = "app.somosfami.WIDGET_$action"
+            val intent = Intent(context, WidgetQuickActivity::class.java).apply {
+                this.action = "app.somosfami.WIDGET_OVERLAY_$action"
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("open_tab", "Inicio")
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(EXTRA_WIDGET_ACTION, action)
             }
             return PendingIntent.getActivity(
