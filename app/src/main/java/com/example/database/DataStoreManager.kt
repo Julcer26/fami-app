@@ -44,6 +44,7 @@ class DataStoreManager(private val context: Context) {
         val VIEW_IN_SECONDARY = booleanPreferencesKey("view_in_secondary")
         val UNLOCK_METHOD = stringPreferencesKey("unlock_method") // "unset" | "biometric" | "pin"
         val SAVED_EMAIL = stringPreferencesKey("saved_email")
+        val SAVED_AUTH_SECRET = stringPreferencesKey("saved_auth_secret")
         val AUTH_PROVIDER = stringPreferencesKey("auth_provider") // "email" | "google"
         val PENDING_USER_ALIAS = stringPreferencesKey("pending_user_alias")
     }
@@ -74,6 +75,7 @@ class DataStoreManager(private val context: Context) {
     val viewInSecondaryFlow: Flow<Boolean> = context.dataStore.data.map { it[VIEW_IN_SECONDARY] ?: false }
     val unlockMethodFlow: Flow<String> = context.dataStore.data.map { it[UNLOCK_METHOD] ?: "unset" }
     val savedEmailFlow: Flow<String> = context.dataStore.data.map { it[SAVED_EMAIL] ?: "" }
+    val savedAuthSecretFlow: Flow<String> = context.dataStore.data.map { it[SAVED_AUTH_SECRET] ?: "" }
     val authProviderFlow: Flow<String> = context.dataStore.data.map { it[AUTH_PROVIDER] ?: "email" }
     val pendingUserAliasFlow: Flow<String> = context.dataStore.data.map { it[PENDING_USER_ALIAS] ?: "" }
 
@@ -232,13 +234,15 @@ class DataStoreManager(private val context: Context) {
         userName: String,
         pin: String,
         email: String = "",
-        authProvider: String = "email"
+        authProvider: String = "email",
+        authSecret: String = ""
     ) {
         context.dataStore.edit { prefs ->
             prefs[FAMILY_ID] = familyId
             prefs[USER_NAME] = userName
             prefs[USER_PIN] = pin
             if (email.isNotBlank()) prefs[SAVED_EMAIL] = email
+            if (authSecret.isNotBlank()) prefs[SAVED_AUTH_SECRET] = authSecret
             prefs[AUTH_PROVIDER] = authProvider
         }
     }
@@ -250,7 +254,14 @@ class DataStoreManager(private val context: Context) {
             prefs.remove(USER_PIN)
             prefs.remove(UNLOCK_METHOD)
             prefs.remove(SAVED_EMAIL)
+            prefs.remove(SAVED_AUTH_SECRET)
             prefs.remove(AUTH_PROVIDER)
+        }
+    }
+
+    suspend fun clearAllDataForAccountDeletion() {
+        context.dataStore.edit { prefs ->
+            prefs.clear()
         }
     }
 

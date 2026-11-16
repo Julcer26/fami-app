@@ -545,6 +545,12 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(isAuthenticated) {
+        if (!isAuthenticated) {
+            showConfigDialog = false
+        }
+    }
+
     if (!hasCompletedOnboarding) {
         com.example.ui.OnboardingScreen(
             initialCountryCode = countryCodeState,

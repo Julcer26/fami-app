@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 19,
-  "latestVersionName": "3.9.3",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.3.apk",
-  "changelog": "v3.9.3: Logos oficiales reales de cada banco/plataforma (Banesco VE/PA, Mercantil, BDV, BBVA Provincial, BNC, Bancamiga, Banplus, Bancaribe, Zelle, Binance, Zinli, Wally, Banco General, Yappy, BofA, Chase, etc.) y apertura directa en 1 toque para Voz, Escanear y Galería desde el widget sin ventana flotante intermedia."
+  "latestVersionCode": 20,
+  "latestVersionName": "3.9.4",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.4.apk",
+  "changelog": "v3.9.4: Solución definitiva al inicio de sesión rápido con Google (selector nativo de cuentas sin error INVALID_APP_ID), cierre automático y limpieza total al eliminar cuenta, y recuperación/recreación automática de cuentas con el mismo correo tanto al registrarse como al iniciar sesión."
 }

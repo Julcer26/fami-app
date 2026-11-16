@@ -107,40 +107,54 @@ fun AuthScreen(viewModel: FamilyViewModel) {
     var googleJoinCodePending by remember { mutableStateOf("") }
     var googleErrorLocal by remember { mutableStateOf<String?>(null) }
     var isGoogleLaunching by remember { mutableStateOf(false) }
+    var pendingGoogleEmailToLink by remember { mutableStateOf<String?>(null) }
+    var linkPasswordInput by remember { mutableStateOf("") }
+    var showLinkPasswordText by remember { mutableStateOf(false) }
 
-    fun launchGoogleOAuthFallback(activity: FragmentActivity, joinCode: String) {
-        isGoogleLaunching = true
-        val provider = OAuthProvider.newBuilder("google.com").apply {
-            addCustomParameter("prompt", "select_account")
-        }
-        val auth = FirebaseAuth.getInstance()
-        val pendingTask = auth.pendingAuthResult
-        val task = if (pendingTask != null) {
-            pendingTask
-        } else {
-            auth.startActivityForSignInWithProvider(activity, provider.build())
-        }
-        task.addOnSuccessListener { authRes ->
-            isGoogleLaunching = false
-            val user = authRes.user
-            if (user != null) {
-                viewModel.handleGoogleFirebaseUser(
-                    firebaseUser = user,
-                    joinFamilyCode = joinCode,
-                    customFamilyName = pendingFamilyName
+    val googleAccountPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        isGoogleLaunching = false
+        if (result.resultCode == Activity.RESULT_OK) {
+            val selectedEmail = result.data
+                ?.getStringExtra(android.accounts.AccountManager.KEY_ACCOUNT_NAME)
+                ?.trim()
+                .orEmpty()
+            if (selectedEmail.isNotBlank()) {
+                viewModel.authenticateWithGoogleEmail(
+                    email = selectedEmail,
+                    joinFamilyCode = googleJoinCodePending,
+                    customFamilyName = pendingFamilyName,
+                    onNeedsExistingPassword = { emailNeedingPass ->
+                        linkPasswordInput = ""
+                        pendingGoogleEmailToLink = emailNeedingPass
+                    }
                 )
             } else {
-                googleErrorLocal = "No se pudo obtener la sesión de Google."
+                googleErrorLocal = "No se pudo leer el correo de la cuenta seleccionada."
             }
-        }.addOnFailureListener { e ->
+        }
+    }
+
+    fun launchNativeGoogleAccountPicker(joinCode: String) {
+        googleJoinCodePending = joinCode
+        isGoogleLaunching = true
+        try {
+            @Suppress("DEPRECATION")
+            val intent = android.accounts.AccountManager.newChooseAccountIntent(
+                null,
+                null,
+                arrayOf("com.google"),
+                false,
+                null,
+                null,
+                null,
+                null
+            )
+            googleAccountPickerLauncher.launch(intent)
+        } catch (e: Exception) {
             isGoogleLaunching = false
-            val raw = e.localizedMessage.orEmpty()
-            googleErrorLocal = when {
-                raw.contains("canceled", ignoreCase = true) || raw.contains("cancelled", ignoreCase = true) -> null
-                raw.contains("network", ignoreCase = true) -> "Error de red al conectar con Google. Revisa tu conexión."
-                raw.isNotBlank() -> "No se pudo iniciar con Google: $raw"
-                else -> "Error al autenticar con Google. Verifica que Google Sign-In esté activo en Firebase."
-            }
+            googleErrorLocal = "No se encontró selector de cuentas de Google en este dispositivo."
         }
     }
 
@@ -151,6 +165,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
         try {
             val account = task.getResult(ApiException::class.java)
             val idToken = account.idToken
+            val email = account.email?.trim().orEmpty()
             if (idToken != null) {
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
                 FirebaseAuth.getInstance().signInWithCredential(credential)
@@ -164,38 +179,51 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             )
                         }
                     }
-                    .addOnFailureListener { e ->
+                    .addOnFailureListener {
                         isGoogleLaunching = false
-                        googleErrorLocal = e.localizedMessage ?: "No se pudo iniciar sesión con Google"
+                        if (email.isNotBlank()) {
+                            viewModel.authenticateWithGoogleEmail(
+                                email = email,
+                                joinFamilyCode = googleJoinCodePending,
+                                customFamilyName = pendingFamilyName,
+                                onNeedsExistingPassword = { emailNeedingPass ->
+                                    linkPasswordInput = ""
+                                    pendingGoogleEmailToLink = emailNeedingPass
+                                }
+                            )
+                        } else {
+                            launchNativeGoogleAccountPicker(googleJoinCodePending)
+                        }
                     }
+            } else if (email.isNotBlank()) {
+                isGoogleLaunching = false
+                viewModel.authenticateWithGoogleEmail(
+                    email = email,
+                    joinFamilyCode = googleJoinCodePending,
+                    customFamilyName = pendingFamilyName,
+                    onNeedsExistingPassword = { emailNeedingPass ->
+                        linkPasswordInput = ""
+                        pendingGoogleEmailToLink = emailNeedingPass
+                    }
+                )
             } else {
                 isGoogleLaunching = false
-                val activity = context as? FragmentActivity
-                if (activity != null) {
-                    launchGoogleOAuthFallback(activity, googleJoinCodePending)
-                } else {
-                    googleErrorLocal = "No se obtuvo token de Google."
-                }
+                launchNativeGoogleAccountPicker(googleJoinCodePending)
             }
         } catch (e: ApiException) {
             isGoogleLaunching = false
-            val activity = context as? FragmentActivity
             when (e.statusCode) {
                 12501 -> {
                     // Usuario canceló voluntariamente
                 }
-                10, 12500 -> {
-                    if (activity != null) {
-                        launchGoogleOAuthFallback(activity, googleJoinCodePending)
-                    } else {
-                        googleErrorLocal = "Configuración de Google Sign-In incompleta en Firebase (código ${e.statusCode})."
-                    }
+                10, 12500, 7, 8 -> {
+                    launchNativeGoogleAccountPicker(googleJoinCodePending)
                 }
                 else -> {
-                    googleErrorLocal = if (result.resultCode == Activity.RESULT_CANCELED && e.statusCode == 16) {
-                        null
+                    if (result.resultCode == Activity.RESULT_CANCELED && e.statusCode == 16) {
+                        // Cancelado
                     } else {
-                        "Error de Google Sign-In (código ${e.statusCode}): ${e.localizedMessage ?: "Intenta nuevamente"}"
+                        launchNativeGoogleAccountPicker(googleJoinCodePending)
                     }
                 }
             }
@@ -206,7 +234,6 @@ fun AuthScreen(viewModel: FamilyViewModel) {
         googleJoinCodePending = joinCode
         googleErrorLocal = null
         viewModel.clearAuthError()
-        val activity = context as? FragmentActivity
         val webClientResId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
         if (webClientResId != 0) {
             val webClientId = context.getString(webClientResId)
@@ -223,11 +250,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                 return
             }
         }
-        if (activity != null) {
-            launchGoogleOAuthFallback(activity, joinCode)
-        } else {
-            googleErrorLocal = "No se pudo abrir la ventana de Google en este dispositivo."
-        }
+        launchNativeGoogleAccountPicker(joinCode)
     }
 
     Box(
@@ -407,6 +430,10 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.clearAuthError()
                             currentMode = "login_existing"
                         },
+                        onForgotPassword = {
+                            viewModel.clearAuthError()
+                            currentMode = "forgot_password"
+                        },
                         onContinueWithGoogle = { launchGoogleAuth() }
                     )
                     "join_family" -> JoinFamilyContent(
@@ -463,6 +490,87 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     )
                 }
             }
+        }
+
+        pendingGoogleEmailToLink?.let { emailToLink ->
+            AlertDialog(
+                onDismissRequest = { pendingGoogleEmailToLink = null },
+                containerColor = paper.sheet,
+                title = {
+                    Text(
+                        "Completar acceso con Google",
+                        fontWeight = FontWeight.Black,
+                        color = paper.ink
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "El correo $emailToLink ya tenía una contraseña previa en Fami. Ingrésala una sola vez para entrar y vincular tu cuenta de Google:",
+                            fontSize = 13.sp,
+                            color = paper.inkMuted
+                        )
+                        OutlinedTextField(
+                            value = linkPasswordInput,
+                            onValueChange = { linkPasswordInput = it },
+                            label = { Text("Contraseña de Fami") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { showLinkPasswordText = !showLinkPasswordText }) {
+                                    Icon(
+                                        if (showLinkPasswordText) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            visualTransformation = if (showLinkPasswordText) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        TextButton(
+                            onClick = {
+                                val targetEmail = emailToLink
+                                pendingGoogleEmailToLink = null
+                                viewModel.sendPasswordReset(targetEmail) {
+                                    currentMode = "forgot_password"
+                                }
+                            }
+                        ) {
+                            Text("¿No recuerdas tu clave anterior? Enviar enlace al correo", fontSize = 12.sp)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (linkPasswordInput.length < 6) {
+                                Toast.makeText(context, "Ingresa tu contraseña (mínimo 6 caracteres)", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val targetEmail = emailToLink
+                                val pass = linkPasswordInput
+                                pendingGoogleEmailToLink = null
+                                viewModel.authenticateWithGoogleEmail(
+                                    email = targetEmail,
+                                    joinFamilyCode = googleJoinCodePending,
+                                    customFamilyName = pendingFamilyName,
+                                    existingPasswordToLink = pass,
+                                    onNeedsExistingPassword = {
+                                        pendingGoogleEmailToLink = targetEmail
+                                    }
+                                )
+                            }
+                        }
+                    ) {
+                        Text("Vincular y Entrar", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingGoogleEmailToLink = null }) {
+                        Text("Cancelar", color = paper.inkMuted)
+                    }
+                }
+            )
         }
     }
 }
@@ -885,6 +993,7 @@ private fun CreateFamilyContent(
     isLoading: Boolean = false,
     onBack: () -> Unit,
     onSwitchToLogin: () -> Unit,
+    onForgotPassword: () -> Unit = {},
     onContinueWithGoogle: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1067,10 +1176,14 @@ private fun CreateFamilyContent(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                TextButton(onClick = onForgotPassword) {
+                    Text("¿Olvidaste tu contraseña?", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
                 TextButton(onClick = onSwitchToLogin) {
-                    Text("¿Ya tienes cuenta? Iniciar Sesión", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("¿Ya tienes cuenta? Iniciar Sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

@@ -915,7 +915,7 @@ fun ConfigMainContent(
             text = {
                 Column {
                     Text(
-                        "Esta acción es irreversible y permanente conforme a las políticas de Google Play. Se eliminarán tus credenciales de acceso, tus comprobantes en la nube y tus preferencias.",
+                        "Esta acción es irreversible y permanente conforme a las políticas de Google Play. Se eliminarán tus credenciales de acceso, tus comprobantes en la nube y tus preferencias, y la aplicación se cerrará.",
                         color = paper.ink
                     )
                     deleteAccountError?.let { err: String ->
@@ -930,7 +930,8 @@ fun ConfigMainContent(
                         viewModel.deleteUserAccount(
                             onSuccess = {
                                 showDeleteAccountDialog = false
-                                Toast.makeText(dialogContext, "Cuenta eliminada correctamente", Toast.LENGTH_LONG).show()
+                                Toast.makeText(dialogContext, "Cuenta eliminada correctamente. Cerrando Fami...", Toast.LENGTH_LONG).show()
+                                (dialogContext as? android.app.Activity)?.finishAffinity()
                             },
                             onError = { err: String ->
                                 deleteAccountError = err
@@ -939,7 +940,7 @@ fun ConfigMainContent(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
                 ) {
-                    Text("Sí, Eliminar Cuenta")
+                    Text("Sí, Eliminar y Cerrar")
                 }
             },
             dismissButton = {

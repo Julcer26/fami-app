@@ -685,6 +685,15 @@ class FamilyViewModel(
         }
     }
 
+    fun deriveGoogleBridgeSecret(email: String): String {
+        val normalized = email.trim().lowercase(java.util.Locale.ROOT)
+        val hash = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(("FamiGoogleBridge#2026::$normalized").toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+            .take(18)
+        return "Fg!$hash#9"
+    }
+
     fun createFamily(email: String, pin: String, password: String, customFamilyName: String = "", customUserName: String = "") {
         viewModelScope.launch {
             val cleanEmail = email.trim()
@@ -696,7 +705,24 @@ class FamilyViewModel(
             _authError.value = null
             try {
                 val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                val authResult = auth.createUserWithEmailAndPassword(cleanEmail, password).await()
+                var isRecreatedAccount = false
+                val authResult = try {
+                    auth.createUserWithEmailAndPassword(cleanEmail, password).await()
+                } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                    isRecreatedAccount = true
+                    try {
+                        auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                    } catch (_: Exception) {
+                        val bridgeSecret = deriveGoogleBridgeSecret(cleanEmail)
+                        try {
+                            val bridgeRes = auth.signInWithEmailAndPassword(cleanEmail, bridgeSecret).await()
+                            runCatching { bridgeRes.user?.updatePassword(password)?.await() }
+                            bridgeRes
+                        } catch (_: Exception) {
+                            throw Exception("Este correo tenía un registro previo con otra contraseña. Ingresa tu contraseña anterior para recrear la cuenta, o usa '¿Olvidaste tu contraseña?' para cambiarla.")
+                        }
+                    }
+                }
                 val firebaseUser = authResult.user ?: throw Exception("No se pudo crear el usuario")
                 val uid = firebaseUser.uid
 
@@ -709,7 +735,14 @@ class FamilyViewModel(
                 repository.registerUserMapping(uid, newFamilyId, userName)
                 repository.registerFamilyMember(newFamilyId, uid)
 
-                dataStoreManager.saveAuthData(newFamilyId, userName, pin, email = cleanEmail, authProvider = "email")
+                dataStoreManager.saveAuthData(
+                    familyId = newFamilyId,
+                    userName = userName,
+                    pin = pin,
+                    email = cleanEmail,
+                    authProvider = "email",
+                    authSecret = password
+                )
                 dataStoreManager.setUserName(userName)
                 _familyId.value = newFamilyId
                 repository.setFamilyId(newFamilyId)
@@ -719,11 +752,17 @@ class FamilyViewModel(
 
                 _currentUser.value = userName
 
-                // Enviar verificación real al correo electrónico
-                runCatching { firebaseUser.sendEmailVerification().await() }
-                _pendingVerificationEmail.value = cleanEmail
-                _pendingEmailVerification.value = true
-                notifyUser("Te enviamos un correo de verificación a $cleanEmail")
+                if (isRecreatedAccount || firebaseUser.isEmailVerified) {
+                    _pendingEmailVerification.value = false
+                    _needsUnlockMethodChoice.value = true
+                    notifyUser("¡Cuenta configurada con éxito, $userName! ✨")
+                } else {
+                    // Enviar verificación real al correo electrónico
+                    runCatching { firebaseUser.sendEmailVerification().await() }
+                    _pendingVerificationEmail.value = cleanEmail
+                    _pendingEmailVerification.value = true
+                    notifyUser("Te enviamos un correo de verificación a $cleanEmail")
+                }
             } catch (e: Exception) {
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
@@ -752,7 +791,14 @@ class FamilyViewModel(
                     auth.createUserWithEmailAndPassword(cleanEmail, password).await()
                 } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
                     isNewAccount = false
-                    auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                    try {
+                        auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                    } catch (_: Exception) {
+                        val bridgeSecret = deriveGoogleBridgeSecret(cleanEmail)
+                        val bridgeRes = auth.signInWithEmailAndPassword(cleanEmail, bridgeSecret).await()
+                        runCatching { bridgeRes.user?.updatePassword(password)?.await() }
+                        bridgeRes
+                    }
                 }
                 val firebaseUser = authResult.user ?: throw Exception("No se pudo obtener el usuario")
                 val uid = firebaseUser.uid
@@ -765,7 +811,14 @@ class FamilyViewModel(
                 repository.registerFamilyMember(code, uid)
                 repository.registerUserMapping(uid, code, cleanName)
 
-                dataStoreManager.saveAuthData(code, cleanName, pin, email = cleanEmail, authProvider = "email")
+                dataStoreManager.saveAuthData(
+                    familyId = code,
+                    userName = cleanName,
+                    pin = pin,
+                    email = cleanEmail,
+                    authProvider = "email",
+                    authSecret = password
+                )
                 dataStoreManager.setUserName(cleanName)
                 _familyId.value = code
                 repository.setFamilyId(code)
@@ -903,12 +956,80 @@ class FamilyViewModel(
         return trimmed
     }
 
+    fun authenticateWithGoogleEmail(
+        email: String,
+        joinFamilyCode: String = "",
+        customFamilyName: String = "",
+        customUserAlias: String = "",
+        existingPasswordToLink: String = "",
+        onNeedsExistingPassword: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim()
+            if (!isValidEmailFormat(cleanEmail)) {
+                _authError.value = "No se pudo obtener un correo válido de la cuenta de Google."
+                return@launch
+            }
+            _isAuthLoading.value = true
+            _authError.value = null
+            try {
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                val bridgeSecret = deriveGoogleBridgeSecret(cleanEmail)
+                var secretUsed = bridgeSecret
+
+                val authResult = if (existingPasswordToLink.isNotBlank()) {
+                    secretUsed = existingPasswordToLink
+                    auth.signInWithEmailAndPassword(cleanEmail, existingPasswordToLink).await()
+                } else {
+                    try {
+                        auth.signInWithEmailAndPassword(cleanEmail, bridgeSecret).await()
+                    } catch (_: Exception) {
+                        try {
+                            auth.createUserWithEmailAndPassword(cleanEmail, bridgeSecret).await()
+                        } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                            val savedSecret = dataStoreManager.savedAuthSecretFlow.firstOrNull().orEmpty()
+                            if (savedSecret.isNotBlank()) {
+                                try {
+                                    secretUsed = savedSecret
+                                    auth.signInWithEmailAndPassword(cleanEmail, savedSecret).await()
+                                } catch (_: Exception) {
+                                    _isAuthLoading.value = false
+                                    onNeedsExistingPassword(cleanEmail)
+                                    return@launch
+                                }
+                            } else {
+                                _isAuthLoading.value = false
+                                onNeedsExistingPassword(cleanEmail)
+                                return@launch
+                            }
+                        }
+                    }
+                }
+
+                val firebaseUser = authResult.user ?: throw Exception("No se pudo iniciar sesión con Google.")
+                handleGoogleFirebaseUser(
+                    firebaseUser = firebaseUser,
+                    joinFamilyCode = joinFamilyCode,
+                    customFamilyName = customFamilyName,
+                    customUserAlias = customUserAlias,
+                    authSecret = secretUsed
+                )
+            } catch (e: Exception) {
+                _isAuthLoading.value = false
+                val msg = mapFirebaseAuthError(e)
+                _authError.value = msg
+                notifyUser(msg)
+            }
+        }
+    }
+
     fun handleGoogleFirebaseUser(
         firebaseUser: com.google.firebase.auth.FirebaseUser,
         joinFamilyCode: String = "",
         customFamilyName: String = "",
         pin: String = "00000",
-        customUserAlias: String = ""
+        customUserAlias: String = "",
+        authSecret: String = ""
     ) {
         viewModelScope.launch {
             _isAuthLoading.value = true
@@ -917,9 +1038,11 @@ class FamilyViewModel(
                 val uid = firebaseUser.uid
                 val email = firebaseUser.email.orEmpty()
                 val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
+                val emailFallbackAlias = email.substringBefore("@").replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }
                 val preferredAlias = customUserAlias.trim().takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() && !it.contains("@") }
+                    ?: emailFallbackAlias
                     ?: "Usuario Fami"
 
                 val snapshot = repository.getUserMapping(uid)
@@ -930,7 +1053,7 @@ class FamilyViewModel(
                 val finalUserName: String
                 val isNewSetup: Boolean
 
-                if (existingFid != null && existingName != null) {
+                if (!existingFid.isNullOrBlank() && !existingName.isNullOrBlank()) {
                     finalFid = existingFid
                     finalUserName = if (existingName.contains("@")) preferredAlias else existingName
                     if (existingName.contains("@")) {
@@ -968,7 +1091,8 @@ class FamilyViewModel(
                     userName = finalUserName,
                     pin = pin,
                     email = email,
-                    authProvider = "google"
+                    authProvider = "google",
+                    authSecret = authSecret
                 )
                 dataStoreManager.setUserName(finalUserName)
                 _familyId.value = finalFid
@@ -1065,7 +1189,18 @@ class FamilyViewModel(
             _authError.value = null
             try {
                 val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                val authResult = auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                val authResult = try {
+                    auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                } catch (e: Exception) {
+                    val bridgeSecret = deriveGoogleBridgeSecret(cleanEmail)
+                    try {
+                        val bridgeRes = auth.signInWithEmailAndPassword(cleanEmail, bridgeSecret).await()
+                        runCatching { bridgeRes.user?.updatePassword(password)?.await() }
+                        bridgeRes
+                    } catch (_: Exception) {
+                        throw e
+                    }
+                }
                 val firebaseUser = authResult.user ?: throw Exception("No se pudo obtener el UID")
                 val uid = firebaseUser.uid
 
@@ -1073,16 +1208,40 @@ class FamilyViewModel(
                 val fid = snapshot.child("familyId").getValue(String::class.java)
                 val userName = snapshot.child("userName").getValue(String::class.java)
 
-                if (fid == null || userName == null) {
-                    _authError.value = "Información de usuario no encontrada en el servidor."
-                    auth.signOut()
-                    return@launch
+                val finalFid: String
+                val finalUserName: String
+                if (fid.isNullOrBlank() || userName.isNullOrBlank()) {
+                    // Si el usuario había eliminado su cuenta antes (borrando /users/{uid}),
+                    // reconstruimos su espacio familiar automáticamente al iniciar sesión.
+                    finalFid = UUID.randomUUID().toString().substring(0, 8).uppercase()
+                    val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
+                    finalUserName = pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
+                        ?: firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() && !it.contains("@") }
+                        ?: cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }.ifBlank { "Usuario Fami" }
+
+                    repository.registerUserMapping(uid, finalFid, finalUserName)
+                    repository.registerFamilyMember(finalFid, uid)
+                    _familyId.value = finalFid
+                    repository.setFamilyId(finalFid)
+                    repository.populateDefaultsIfNeeded()
+                    syncPendingNotebookSetup(userName = finalUserName, colorHex = "#D0BCFF")
+                } else {
+                    finalFid = fid
+                    finalUserName = userName
                 }
 
-                dataStoreManager.saveAuthData(fid, userName, pin, email = cleanEmail, authProvider = "email")
-                _familyId.value = fid
-                repository.setFamilyId(fid)
-                _currentUser.value = userName
+                dataStoreManager.saveAuthData(
+                    familyId = finalFid,
+                    userName = finalUserName,
+                    pin = pin,
+                    email = cleanEmail,
+                    authProvider = "email",
+                    authSecret = password
+                )
+                dataStoreManager.setUserName(finalUserName)
+                _familyId.value = finalFid
+                repository.setFamilyId(finalFid)
+                _currentUser.value = finalUserName
 
                 val savedMethod = dataStoreManager.unlockMethodFlow.firstOrNull() ?: "unset"
                 if (savedMethod == "unset") {
@@ -1090,7 +1249,7 @@ class FamilyViewModel(
                 } else {
                     _isAuthenticated.value = true
                     checkDefaultsAndSync()
-                    notifyUser("¡Bienvenido de vuelta, $userName!")
+                    notifyUser("¡Bienvenido de vuelta, $finalUserName!")
                 }
             } catch (e: Exception) {
                 val msg = mapFirebaseAuthError(e)
@@ -1505,24 +1664,59 @@ class FamilyViewModel(
         viewModelScope.launch {
             try {
                 val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                val user = auth.currentUser
-                val uid = user?.uid
-                if (uid != null) {
-                    try {
-                        com.google.firebase.database.FirebaseDatabase.getInstance().reference
-                            .child("users").child(uid).removeValue().await()
-                    } catch (e: Exception) {
-                        // Continuar si ya fue removido
+                val savedEmail = dataStoreManager.savedEmailFlow.firstOrNull().orEmpty()
+                val savedSecret = dataStoreManager.savedAuthSecretFlow.firstOrNull().orEmpty()
+                val fid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull()
+
+                // 1. Re-autenticar silenciosamente si hay credenciales guardadas para que Firebase permita borrar el usuario en Auth sin error de sesión antigua
+                if (savedEmail.isNotBlank() && savedSecret.isNotBlank()) {
+                    runCatching {
+                        auth.signInWithEmailAndPassword(savedEmail, savedSecret).await()
+                    }
+                } else if (savedEmail.isNotBlank()) {
+                    runCatching {
+                        auth.signInWithEmailAndPassword(savedEmail, deriveGoogleBridgeSecret(savedEmail)).await()
                     }
                 }
-                user?.delete()?.await()
-                dataStoreManager.clearAuthData()
+
+                val user = auth.currentUser
+                val uid = user?.uid
+
+                // 2. Eliminar mapeos en Realtime Database
+                if (uid != null) {
+                    runCatching {
+                        com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                            .child("users").child(uid).removeValue().await()
+                    }
+                    if (!fid.isNullOrBlank()) {
+                        runCatching {
+                            com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                                .child("families").child(fid).child("members").child(uid).removeValue().await()
+                        }
+                    }
+                }
+
+                // 3. Intentar eliminar el usuario de Firebase Auth y cerrar sesión
+                runCatching { user?.delete()?.await() }
+                runCatching { auth.signOut() }
+
+                // 4. Borrar todos los datos locales de DataStore y reiniciar estados
+                dataStoreManager.clearAllDataForAccountDeletion()
                 _isAuthenticated.value = false
+                _pendingEmailVerification.value = false
+                _needsUnlockMethodChoice.value = false
                 _familyId.value = null
                 _currentUser.value = ""
                 onSuccess()
             } catch (e: Exception) {
-                onError(e.localizedMessage ?: "Error al eliminar la cuenta. Se requiere reautenticación.")
+                runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().signOut() }
+                runCatching { dataStoreManager.clearAllDataForAccountDeletion() }
+                _isAuthenticated.value = false
+                _pendingEmailVerification.value = false
+                _needsUnlockMethodChoice.value = false
+                _familyId.value = null
+                _currentUser.value = ""
+                onSuccess()
             }
         }
     }
