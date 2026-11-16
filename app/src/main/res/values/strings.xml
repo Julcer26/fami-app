@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Fami</string>
+    <string name="widget_quick_description">Notita rápida para registrar movimientos por texto, voz, escaneo o galería</string>
 </resources>

@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 15,
-  "latestVersionName": "3.8.3",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.8.3.apk",
-  "changelog": "v3.8.3: Cabeceras simplificadas sin repetir logo ni mascota, alias debajo del avatar y textos limpios sin repetir 'cuaderno'."
+  "latestVersionCode": 16,
+  "latestVersionName": "3.9.0",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.0.apk",
+  "changelog": "v3.9.0: Nuevo widget de pantalla de inicio estilo notita para registrar movimientos rápidos por escrito, voz, escaneo o galería."
 }

@@ -377,7 +377,9 @@ fun ConfettiEffect(
 fun MainScreen(
     viewModel: FamilyViewModel,
     pendingOpenTab: String? = null,
-    onConsumeOpenTab: () -> Unit = {}
+    onConsumeOpenTab: () -> Unit = {},
+    pendingWidgetAction: String? = null,
+    onConsumeWidgetAction: () -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val topNotification by viewModel.topNotification.collectAsStateWithLifecycle()
@@ -729,6 +731,135 @@ fun MainScreen(
                         "tareas" -> TasksTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
                         "compras" -> ComprasTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
                         "metas" -> MetasTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
+                    }
+                }
+                if (showWidgetQuickWriteDialog) {
+                    var quickText by remember { mutableStateOf("") }
+                    val walletsList by viewModel.wallets.collectAsStateWithLifecycle()
+                    val isRegistering by viewModel.isRegisteringNlp.collectAsStateWithLifecycle()
+                    var selectedWalletId by remember { mutableStateOf("") }
+                    val paperDialog = FamiTheme.paper
+                    androidx.compose.ui.window.Dialog(onDismissRequest = { showWidgetQuickWriteDialog = false }) {
+                        com.example.ui.StickyNoteSheet(
+                            noteColor = paperDialog.stickyYellow,
+                            tapeColor = FamiCoralSoft.copy(alpha = 0.65f),
+                            borderColor = paperDialog.border,
+                            shadowColor = paperDialog.shadow3D
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "FAMI · NOTITA RÁPIDA",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paperDialog.inkMuted
+                                    )
+                                    IconButton(
+                                        onClick = { showWidgetQuickWriteDialog = false },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Cerrar",
+                                            tint = paperDialog.ink,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "Registrar movimiento",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paperDialog.ink
+                                )
+                                OutlinedTextField(
+                                    value = quickText,
+                                    onValueChange = { quickText = it },
+                                    placeholder = {
+                                        Text(
+                                            "Ej: 120 café en Starbucks",
+                                            fontSize = 13.sp,
+                                            color = paperDialog.inkMuted
+                                        )
+                                    },
+                                    singleLine = false,
+                                    maxLines = 3,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = paperDialog.border,
+                                        unfocusedBorderColor = paperDialog.border,
+                                        focusedContainerColor = paperDialog.sheet,
+                                        unfocusedContainerColor = paperDialog.sheet,
+                                        focusedTextColor = paperDialog.ink,
+                                        unfocusedTextColor = paperDialog.ink
+                                    )
+                                )
+                                if (walletsList.isNotEmpty()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        walletsList.forEach { w ->
+                                            val isSelected = selectedWalletId == w.id
+                                            FilterChip(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    selectedWalletId = if (isSelected) "" else w.id
+                                                },
+                                                label = {
+                                                    Text(
+                                                        text = w.name,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                com.example.ui.Tactile3DButton(
+                                    onClick = {
+                                        if (quickText.isNotBlank() && !isRegistering) {
+                                            viewModel.registerFromNaturalLanguage(quickText.trim(), selectedWalletId)
+                                            showWidgetQuickWriteDialog = false
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    faceColor = FamiCoral,
+                                    lipColor = Lip3DCoral,
+                                    borderColor = paperDialog.border,
+                                    cornerRadius = 12.dp,
+                                    lipHeight = 4.dp,
+                                    contentPadding = PaddingValues(vertical = 12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "GUARDAR MOVIMIENTO",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 

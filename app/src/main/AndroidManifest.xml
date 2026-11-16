@@ -72,6 +72,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <receiver
+            android:name=".widget.FamiQuickWidgetProvider"
+            android:exported="true"
+            android:label="Fami · Registro rápido">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/fami_quick_widget_info" />
+        </receiver>
     </application>
 
 </manifest>
