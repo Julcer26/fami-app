@@ -328,8 +328,7 @@ private fun WidgetQuickOverlayScreen(
         }
     }
 
-    val isWriteMode = initialAction == FamiQuickWidgetProvider.ACTION_WRITE ||
-        initialAction == FamiQuickWidgetProvider.ACTION_SEND
+    val isWriteMode = initialAction == FamiQuickWidgetProvider.ACTION_WRITE
 
     // Fondo completamente transparente sobre la pantalla de inicio del teléfono
     Box(
