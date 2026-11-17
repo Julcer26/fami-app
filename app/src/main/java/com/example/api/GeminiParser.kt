@@ -136,7 +136,27 @@ object GeminiParser {
         jsonPayload: JSONObject,
         customUserKey: String? = null
     ): String? = withContext(Dispatchers.IO) {
-        val apiKeys = GeminiConfig.getApiKeys(customUserKey)
+        // 1. If no custom user key is overriding, try the authenticated Cloud Function proxy first
+        // so the server-side Gemini API key is used without exposing any key on the client.
+        if (!GeminiConfig.hasUsableCustomKey(customUserKey)) {
+            for (model in MODELS) {
+                try {
+                    val proxyResp = GeminiConfig.executeViaAuthenticatedCloudProxy(model, jsonPayload)
+                    if (!proxyResp.isNullOrEmpty()) {
+                        return@withContext proxyResp
+                    }
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                    // Proxy unavailable or returned error; fall through to next model / direct key
+                }
+            }
+        }
+
+        // 2. Resolve keys from custom user key, authenticated RTDB /secure_config vault, or BuildConfig
+        val apiKeys = GeminiConfig.resolveApiKeysSuspend(customUserKey)
+        if (apiKeys.isEmpty()) return@withContext null
+
         val requestBody = jsonPayload.toString().toRequestBody("application/json".toMediaType())
 
         for (apiKey in apiKeys) {
@@ -154,9 +174,12 @@ object GeminiParser {
 
                         client.newCall(request).execute().use { response ->
                             if (response.isSuccessful) {
-                                val body = response.body?.string()
+                                val body = response.body?.string()?.trim()
                                 if (!body.isNullOrEmpty()) {
                                     return@withContext body
+                                } else {
+                                    Log.w(TAG, "Model $model returned empty 2xx body")
+                                    break // Prevent infinite loop on empty 2xx body
                                 }
                             } else if (response.code == 429 || response.code == 503) {
                                 Log.w(TAG, "Model $model status ${response.code} (attempt ${retries + 1}/$maxRetries)")
@@ -169,6 +192,8 @@ object GeminiParser {
                                 break // Try next model immediately
                             }
                         }
+                    } catch (ce: kotlinx.coroutines.CancellationException) {
+                        throw ce
                     } catch (e: Exception) {
                         Log.e(TAG, "Exception calling Gemini $model", e)
                         break // Fail over to next model immediately on timeout/network error
@@ -280,6 +305,8 @@ object GeminiParser {
 
             val symbol = if (currency == "USD") "$" else "Bs."
             return@withContext Triple(tx, null, "Gasto detectado: $amount $symbol en '$description' [$matchedCategory]")
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Exception) {
             Log.e(TAG, "JSON parse error in parseTextToTransaction", e)
             return@withContext Triple(null, "No se pudo interpretar la respuesta: ${e.localizedMessage}", "")
@@ -297,6 +324,8 @@ object GeminiParser {
             val outputStream = java.io.ByteArrayOutputStream()
             scaled.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
             android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error encoding image", e)
             return@withContext Triple(null, "No se pudo procesar la foto del recibo", "")
@@ -439,6 +468,8 @@ object GeminiParser {
             val itemsDesc = if (itemsList.isNotEmpty()) " con ${itemsList.size} ítems desglosados" else ""
             val successMsg = "Factura procesada: $amount $symbol en '$description'$itemsDesc"
             return@withContext Triple(parsedReceipt, null, successMsg)
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Receipt parse exception", e)
             return@withContext Triple(null, "Error al interpretar la factura: ${e.localizedMessage}", "")

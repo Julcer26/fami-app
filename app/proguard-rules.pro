@@ -12,10 +12,33 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve source file and line numbers for readable crash stack traces
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Preserve Kotlin metadata & annotations used by Firebase RTDB and Moshi
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-keep class kotlin.Metadata { *; }
+
+# Firebase Realtime Database models & @PropertyName serialization
+-keepclassmembers class com.example.database.** { *; }
+-keepnames class com.example.database.**
+-keepclassmembers class * {
+    @com.google.firebase.database.PropertyName <methods>;
+    @com.google.firebase.database.PropertyName <fields>;
+    @com.google.firebase.database.Exclude <methods>;
+    @com.google.firebase.database.Exclude <fields>;
+}
+
+# Firebase Auth / Play Services / Coroutines
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
+
+# Retrofit / OkHttp / Moshi
+-keepattributes Exceptions
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}

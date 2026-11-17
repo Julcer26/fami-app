@@ -3,5 +3,4 @@
     <cache-path name="camera_photos" path="." />
     <external-files-path name="external_files" path="." />
     <external-path name="external_downloads" path="Download/" />
-    <external-path name="external_all" path="." />
 </paths>

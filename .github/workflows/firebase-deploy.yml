@@ -1,0 +1,50 @@
+name: Deploy Firebase (Rules & Functions)
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Firebase targets to deploy (comma-separated)"
+        required: true
+        default: "database,storage,functions"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate rules and Cloud Functions syntax
+        run: |
+          python3 -c "import json; json.load(open('database.rules.json')); json.load(open('firebase.json'))"
+          node -c functions/index.js
+
+      - name: Install Cloud Functions dependencies
+        run: npm --prefix functions install --omit=dev
+
+      - name: Configure Firebase Service Account
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/firebase-sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json" >> $GITHUB_ENV
+
+      - name: Deploy to Firebase
+        run: |
+          if [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -z "${{ secrets.FIREBASE_TOKEN }}" ]; then
+            echo "::error::Configura el secreto FIREBASE_SERVICE_ACCOUNT (JSON de cuenta de servicio) o FIREBASE_TOKEN en GitHub Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          npx --yes firebase-tools@latest deploy \
+            --project hogar-finanzas-2026 \
+            --only "${{ github.event.inputs.targets }}" \
+            ${{ secrets.FIREBASE_TOKEN != '' && format('--token "{0}"', secrets.FIREBASE_TOKEN) || '' }}
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f /tmp/firebase-sa.json

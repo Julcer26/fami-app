@@ -161,7 +161,7 @@ fun ModernListSelectorChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        items(lists) { listName ->
+        items(lists, key = { it }) { listName ->
             val isSelected = listName == selectedList
             val count = itemCounts[listName]
             Tactile3DButton(

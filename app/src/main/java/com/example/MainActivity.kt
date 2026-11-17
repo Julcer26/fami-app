@@ -99,7 +99,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.ui.composed
 import androidx.compose.foundation.LocalIndication
 
 class MainActivity : FragmentActivity() {
@@ -107,6 +106,7 @@ class MainActivity : FragmentActivity() {
     var onPhotoTaken: ((Boolean) -> Unit)? = null
     var onPermissionResult: ((Boolean) -> Unit)? = null
     private val pendingOpenTabState = mutableStateOf<String?>(null)
+    private val pendingChoreIdState = mutableStateOf<String?>(null)
 
     val imagePickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent() ){ uri ->
         onImagePicked?.invoke(uri)
@@ -122,6 +122,15 @@ class MainActivity : FragmentActivity() {
 
     private fun handleNotificationIntent(intent: Intent?) {
         val targetTab = (intent?.getStringExtra("open_tab") ?: intent?.getStringExtra("tab"))?.trim()
+        val targetChoreId = (intent?.getStringExtra("chore_id") ?: intent?.getStringExtra("choreId"))?.trim()
+        if (!targetChoreId.isNullOrBlank()) {
+            pendingChoreIdState.value = targetChoreId
+            if (targetTab.isNullOrBlank()) {
+                pendingOpenTabState.value = "tareas"
+            }
+            intent?.removeExtra("chore_id")
+            intent?.removeExtra("choreId")
+        }
         if (!targetTab.isNullOrBlank()) {
             pendingOpenTabState.value = targetTab
             intent?.removeExtra("open_tab")
@@ -133,6 +142,11 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleNotificationIntent(intent)
+    }
+
+    override fun onDestroy() {
+        OtaUpdateManager.unregisterDownloadReceiver(this)
+        super.onDestroy()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -147,6 +161,7 @@ class MainActivity : FragmentActivity() {
             val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
             val isDarkThemeSetting by viewModel.isDarkTheme.collectAsStateWithLifecycle()
             val pendingOpenTab by pendingOpenTabState
+            val pendingChoreId by pendingChoreIdState
 
             if (!view.isInEditMode) {
                 SideEffect {
@@ -161,7 +176,9 @@ class MainActivity : FragmentActivity() {
                 MainScreen(
                     viewModel = viewModel,
                     pendingOpenTab = pendingOpenTab,
-                    onConsumeOpenTab = { pendingOpenTabState.value = null }
+                    onConsumeOpenTab = { pendingOpenTabState.value = null },
+                    pendingChoreId = pendingChoreId,
+                    onConsumeChoreId = { pendingChoreIdState.value = null }
                 )
             }
         }
@@ -171,10 +188,11 @@ class MainActivity : FragmentActivity() {
 // Utility extension for hex color support
 
 // --- Modern Design Utilities ---
+@Composable
 fun Modifier.scaleClickable(
     interactionSource: MutableInteractionSource? = null,
     onClick: () -> Unit
-): Modifier = composed {
+): Modifier {
     val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val isPressed by actualInteractionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -182,7 +200,7 @@ fun Modifier.scaleClickable(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "scale"
     )
-    this.graphicsLayer {
+    return this.graphicsLayer {
         scaleX = scale
         scaleY = scale
     }.clickable(
@@ -379,7 +397,9 @@ fun MainScreen(
     pendingOpenTab: String? = null,
     onConsumeOpenTab: () -> Unit = {},
     pendingWidgetAction: String? = null,
-    onConsumeWidgetAction: () -> Unit = {}
+    onConsumeWidgetAction: () -> Unit = {},
+    pendingChoreId: String? = null,
+    onConsumeChoreId: () -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val topNotification by viewModel.topNotification.collectAsStateWithLifecycle()
@@ -394,6 +414,7 @@ fun MainScreen(
     var updateUrl by remember { mutableStateOf("") }
     var latestVersionCode by remember { mutableIntStateOf(0) }
     var latestVersionName by remember { mutableStateOf("") }
+    var updateApkSha256 by remember { mutableStateOf("") }
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {
@@ -402,6 +423,7 @@ fun MainScreen(
             updateUrl = info.downloadUrl
             latestVersionCode = info.latestVersionCode
             latestVersionName = info.latestVersionName
+            updateApkSha256 = info.expectedApkSha256
             showUpdateDialog = true
         }
     }
@@ -612,10 +634,12 @@ fun MainScreen(
             }
         }
 
-        LaunchedEffect(pendingOpenTab) {
+        LaunchedEffect(pendingOpenTab, pendingChoreId) {
             if (!pendingOpenTab.isNullOrBlank()) {
                 currentTab = pendingOpenTab
                 onConsumeOpenTab()
+            } else if (!pendingChoreId.isNullOrBlank()) {
+                currentTab = "tareas"
             }
         }
 
@@ -801,7 +825,12 @@ fun MainScreen(
                             }
                         )
                         "cuentas" -> AccountsTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
-                        "tareas" -> TasksTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
+                        "tareas" -> TasksTab(
+                            viewModel = viewModel,
+                            onOpenConfig = { showConfigDialog = true },
+                            pendingChoreId = pendingChoreId,
+                            onConsumeChoreId = onConsumeChoreId
+                        )
                         "compras" -> ComprasTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
                         "metas" -> MetasTab(viewModel = viewModel, onOpenConfig = { showConfigDialog = true })
                     }
@@ -975,9 +1004,9 @@ fun MainScreen(
                                     if (OtaUpdateManager.canInstallPackages(context)) {
                                         showUpdateDialog = false
                                         android.widget.Toast.makeText(context, "Descargando actualización OTA...", android.widget.Toast.LENGTH_LONG).show()
-                                        OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode)
+                                        OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode, updateApkSha256)
                                     } else {
-                                        OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode)
+                                        OtaUpdateManager.downloadAndInstallUpdate(context, updateUrl, latestVersionCode, updateApkSha256)
                                     }
                                 } else {
                                     showUpdateDialog = false
@@ -1177,8 +1206,10 @@ fun MonthSelector(
     onMonthChange: (java.util.Calendar) -> Unit
 ) {
     val activeLocale = java.util.Locale.getDefault()
-    val monthFormat = java.text.SimpleDateFormat("MMMM yyyy", activeLocale)
-    val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.titlecase(activeLocale) }
+    val monthFormat = remember(activeLocale) { java.text.SimpleDateFormat("MMMM yyyy", activeLocale) }
+    val monthStr = remember(selectedMonth.timeInMillis, activeLocale) {
+        monthFormat.format(selectedMonth.time).replaceFirstChar { it.titlecase(activeLocale) }
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Row(
@@ -1349,22 +1380,34 @@ fun DashboardTab(
     val totalLimit = totalLimitStr.toDoubleOrNull() ?: 1800.0
 
     // FAMILIA COMPARTIDA: Todos los miembros ven todas las transacciones
-    val userTransactions = transactions.sortedByDescending { if (it.balanceDate > 0) it.balanceDate else it.date }
+    val userTransactions = remember(transactions) {
+        transactions.sortedByDescending { if (it.balanceDate > 0) it.balanceDate else it.date }
+    }
     val curMonth = selectedMonth.get(java.util.Calendar.MONTH)
     val curYear = selectedMonth.get(java.util.Calendar.YEAR)
-    
-    val currentMonthTransactions = userTransactions.filter {
+
+    val currentMonthTransactions = remember(userTransactions, curMonth, curYear) {
         val tCal = java.util.Calendar.getInstance()
-        val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
-        tCal.timeInMillis = filterDate
-        tCal.get(java.util.Calendar.MONTH) == curMonth && tCal.get(java.util.Calendar.YEAR) == curYear
+        userTransactions.filter {
+            val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
+            tCal.timeInMillis = filterDate
+            tCal.get(java.util.Calendar.MONTH) == curMonth && tCal.get(java.util.Calendar.YEAR) == curYear
+        }
     }
 
-    val totalSpentUsd = currentMonthTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
-    val totalIncomeUsd = currentMonthTransactions.filter { it.isIncome && !it.isTransfer }.sumOf { it.amount }
+    val totalSpentUsd = remember(currentMonthTransactions) {
+        currentMonthTransactions.filter { !it.isIncome && !it.isTransfer }.sumOf { it.amount }
+    }
+    val totalIncomeUsd = remember(currentMonthTransactions) {
+        currentMonthTransactions.filter { it.isIncome && !it.isTransfer }.sumOf { it.amount }
+    }
     val baseLimitUsd = totalLimit + totalIncomeUsd // Ingreso base + ingresos extra del mes
-    val monthKey = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault()).format(selectedMonth.time)
-    val presupuestadoUsd = categories.sumOf { it.limitsPerMonth[monthKey] ?: it.limitAmount } // Suma de categorias
+    val monthKey = remember(selectedMonth.timeInMillis) {
+        java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault()).format(selectedMonth.time)
+    }
+    val presupuestadoUsd = remember(categories, monthKey) {
+        categories.sumOf { it.limitsPerMonth[monthKey] ?: it.limitAmount }
+    }
     val remainingBudgetUsd = presupuestadoUsd + totalIncomeUsd - totalSpentUsd
     val libreBudgetUsd = baseLimitUsd - presupuestadoUsd
     val totalAvailableForPercentage = presupuestadoUsd + totalIncomeUsd
@@ -2994,7 +3037,12 @@ fun AccountsTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
 
 // --- TAB 3: TAREAS CON PRIORIDADES ---
 @Composable
-fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
+fun TasksTab(
+    viewModel: FamilyViewModel,
+    onOpenConfig: () -> Unit,
+    pendingChoreId: String? = null,
+    onConsumeChoreId: () -> Unit = {}
+) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val chores by viewModel.chores.collectAsStateWithLifecycle()
@@ -3033,15 +3081,51 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     var selectedListName by remember { mutableStateOf("Todas") }
     var selectedPriorityFilter by remember { mutableStateOf("Todas") }
 
-    val userChores = chores.filter { !it.isPrivate || it.createdBy == currentUser || it.assignedTo == currentUser }
-    val pendingChores = userChores.filter { !it.isCompleted }
-    val completedChores = userChores.filter { it.isCompleted }
-    val shownChores = (if (activeTaskFilter == "pendientes") pendingChores else completedChores).filter {
-        (selectedListName.equals("Todas", ignoreCase = true) || it.category.equals(selectedListName, ignoreCase = true)) &&
-        (selectedPriorityFilter.equals("Todas", ignoreCase = true) || it.priority.equals(selectedPriorityFilter, ignoreCase = true))
+    val userChores = remember(chores, currentUser) {
+        chores.filter { !it.isPrivate || it.createdBy == currentUser || it.assignedTo == currentUser }
+    }
+    val pendingChores = remember(userChores) { userChores.filter { !it.isCompleted } }
+    val completedChores = remember(userChores) { userChores.filter { it.isCompleted } }
+    val shownChores = remember(pendingChores, completedChores, activeTaskFilter, selectedListName, selectedPriorityFilter) {
+        (if (activeTaskFilter == "pendientes") pendingChores else completedChores).filter {
+            (selectedListName.equals("Todas", ignoreCase = true) || it.category.equals(selectedListName, ignoreCase = true)) &&
+            (selectedPriorityFilter.equals("Todas", ignoreCase = true) || it.priority.equals(selectedPriorityFilter, ignoreCase = true))
+        }
+    }
+
+    val tasksListState = rememberLazyListState()
+    var highlightedChoreId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pendingChoreId, chores) {
+        val targetId = pendingChoreId?.trim().orEmpty()
+        if (targetId.isBlank()) return@LaunchedEffect
+        val match = chores.firstOrNull { it.id == targetId } ?: return@LaunchedEffect
+        activeTaskFilter = if (match.isCompleted) "completadas" else "pendientes"
+        selectedListName = "Todas"
+        selectedPriorityFilter = "Todas"
+        val targetList = if (match.isCompleted) {
+            userChores.filter { it.isCompleted }
+        } else {
+            userChores.filter { !it.isCompleted }
+        }
+        val idx = targetList.indexOfFirst { it.id == targetId }
+        if (idx >= 0) {
+            kotlinx.coroutines.delay(80L)
+            tasksListState.animateScrollToItem(4 + idx)
+            highlightedChoreId = targetId
+        }
+        onConsumeChoreId()
+    }
+
+    LaunchedEffect(highlightedChoreId) {
+        if (highlightedChoreId != null) {
+            kotlinx.coroutines.delay(2500L)
+            highlightedChoreId = null
+        }
     }
 
     LazyColumn(
+        state = tasksListState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
@@ -3135,7 +3219,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     },
                     text = {
                         androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp) ){
-                            items(listNames) { listName ->
+                            items(listNames, key = { it }) { listName ->
                                 val isEditing = listNameToEdit == listName
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -3361,10 +3445,25 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         else -> Color(0xFF00796B)
                     }
 
+                    val isHighlighted = chore.id.isNotBlank() && chore.id == highlightedChoreId
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                         com.example.ui.NotebookPaperSheet(
-                            modifier = Modifier.fillMaxWidth(),
-                            sheetColor = if (chore.isCompleted) paper.sheetCream else paper.sheet,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (isHighlighted) {
+                                        Modifier.border(2.dp, FamiCoral, RoundedCornerShape(14.dp))
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            sheetColor = if (isHighlighted) {
+                                paper.stickyYellow
+                            } else if (chore.isCompleted) {
+                                paper.sheetCream
+                            } else {
+                                paper.sheet
+                            },
                             showRuledLines = true,
                             showMarginLine = true,
                             showSpiralTop = false,
@@ -3796,10 +3895,14 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     var editSelectedList by remember { mutableStateOf("General") }
     var itemSelectedList by remember(selectedListName) { mutableStateOf(selectedListName) }
 
-    val userShoppingItems = shoppingItems.filter { (!it.isPrivate || it.addedBy == currentUser) && (selectedListName == "General" || it.listName == selectedListName) }
-    val pendingShopping = userShoppingItems.filter { !it.isBought }
-    val boughtShopping = userShoppingItems.filter { it.isBought }
-    val shownShopping = if (activeShoppingFilter == "pendientes") pendingShopping else boughtShopping
+    val userShoppingItems = remember(shoppingItems, currentUser, selectedListName) {
+        shoppingItems.filter { (!it.isPrivate || it.addedBy == currentUser) && (selectedListName == "General" || it.listName == selectedListName) }
+    }
+    val pendingShopping = remember(userShoppingItems) { userShoppingItems.filter { !it.isBought } }
+    val boughtShopping = remember(userShoppingItems) { userShoppingItems.filter { it.isBought } }
+    val shownShopping = remember(pendingShopping, boughtShopping, activeShoppingFilter) {
+        if (activeShoppingFilter == "pendientes") pendingShopping else boughtShopping
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -3890,7 +3993,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     },
                     text = {
                         androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp) ){
-                            items(listNames) { listName ->
+                            items(listNames, key = { it }) { listName ->
                                 val isEditing = listNameToEdit == listName
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -4352,7 +4455,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("Lista de destino:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp) ){
-                        items(listNames) { list ->
+                        items(listNames, key = { it }) { list ->
                             val isSelected = itemSelectedList == list
                             Box(
                                 modifier = Modifier
@@ -4734,8 +4837,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         }
 
         if (activeSubTab == "deseos") {
-            val pendingGoals = goals.filter { !it.isCompleted }
-            val completedGoals = goals.filter { it.isCompleted }
+            val pendingGoals = remember(goals) { goals.filter { !it.isCompleted } }
+            val completedGoals = remember(goals) { goals.filter { it.isCompleted } }
             
             item {
                 ModernFilterPills(
@@ -4749,7 +4852,9 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            val shownGoals = if (activeGoalFilter == "pendientes") pendingGoals else completedGoals
+            val shownGoals = remember(pendingGoals, completedGoals, activeGoalFilter) {
+                if (activeGoalFilter == "pendientes") pendingGoals else completedGoals
+            }
 
             if (shownGoals.isEmpty()) {
                 item {
@@ -5071,20 +5176,23 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             }
         } else {
             // Libreta y Notitas Fami
-            val pinnedCount = notes.count { it.isPinned && !it.isCompleted }
-            val completedCount = notes.count { it.isCompleted }
-            val filteredNotes = notes.filter { n ->
-                val matchesSearch = noteSearchQuery.isBlank() ||
-                    n.title.contains(noteSearchQuery, ignoreCase = true) ||
-                    n.content.contains(noteSearchQuery, ignoreCase = true) ||
-                    n.checklist.any { it.text.contains(noteSearchQuery, ignoreCase = true) }
-                val matchesFilter = when (noteFilter) {
-                    "Todas" -> !n.isCompleted
-                    "Fijadas" -> n.isPinned && !n.isCompleted
-                    "Archivadas" -> n.isCompleted
-                    else -> n.category.equals(noteFilter, ignoreCase = true) && !n.isCompleted
+            val pinnedCount = remember(notes) { notes.count { it.isPinned && !it.isCompleted } }
+            val completedCount = remember(notes) { notes.count { it.isCompleted } }
+            val activeNotesCount = remember(notes) { notes.count { !it.isCompleted } }
+            val filteredNotes = remember(notes, noteSearchQuery, noteFilter) {
+                notes.filter { n ->
+                    val matchesSearch = noteSearchQuery.isBlank() ||
+                        n.title.contains(noteSearchQuery, ignoreCase = true) ||
+                        n.content.contains(noteSearchQuery, ignoreCase = true) ||
+                        n.checklist.any { it.text.contains(noteSearchQuery, ignoreCase = true) }
+                    val matchesFilter = when (noteFilter) {
+                        "Todas" -> !n.isCompleted
+                        "Fijadas" -> n.isPinned && !n.isCompleted
+                        "Archivadas" -> n.isCompleted
+                        else -> n.category.equals(noteFilter, ignoreCase = true) && !n.isCompleted
+                    }
+                    matchesSearch && matchesFilter
                 }
-                matchesSearch && matchesFilter
             }
 
             item {
@@ -5095,7 +5203,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     onSelectFilter = { noteFilter = it },
                     isGridMode = isNoteGridMode,
                     onToggleGridMode = { isNoteGridMode = !isNoteGridMode },
-                    totalCount = notes.count { !it.isCompleted },
+                    totalCount = activeNotesCount,
                     pinnedCount = pinnedCount,
                     completedCount = completedCount
                 )
@@ -5129,8 +5237,11 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     )
                 }
             } else if (isNoteGridMode) {
-                val noteRows = filteredNotes.chunked(2)
-                items(noteRows) { rowNotes ->
+                val noteRows = remember(filteredNotes) { filteredNotes.chunked(2) }
+                items(
+                    noteRows,
+                    key = { row -> row.joinToString("_") { it.id.ifEmpty { "${it.title}_${it.createdDate}" } } }
+                ) { rowNotes ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

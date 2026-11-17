@@ -1,13 +1,17 @@
 package com.example.database
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import com.google.firebase.database.PropertyName
 
+@Immutable
 data class TransactionItem(
     val name: String = "",
     val amount: Double = 0.0,
     val category: String = ""
 )
 
+@Stable
 data class Transaction(
     var id: String = "",
     val amount: Double = 0.0,
@@ -31,6 +35,7 @@ data class Transaction(
     var isTransfer: Boolean = false
 )
 
+@Stable
 data class CategoryDetail(
     var categoryName: String = "",
     val limitAmount: Double = 0.0,
@@ -39,6 +44,7 @@ data class CategoryDetail(
     var limitsPerMonth: Map<String, Double> = emptyMap()
 )
 
+@Stable
 data class Chore(
     var id: String = "",
     val title: String = "",
@@ -55,6 +61,7 @@ data class Chore(
     var isPrivate: Boolean = false
 )
 
+@Stable
 data class ShoppingItem(
     var id: String = "",
     val name: String = "",
@@ -68,6 +75,7 @@ data class ShoppingItem(
     val listName: String = "General"
 )
 
+@Stable
 data class ActivityLog(
     var id: String = "",
     val timestamp: Long = 0L,
@@ -76,6 +84,7 @@ data class ActivityLog(
     val user: String = ""
 )
 
+@Stable
 data class UserProfile(
     var name: String = "",
     val colorHex: String = "",
@@ -83,6 +92,7 @@ data class UserProfile(
     val role: String = ""
 )
 
+@Stable
 data class Wallet(
     var id: String = "",
     val name: String = "",
@@ -93,11 +103,13 @@ data class Wallet(
     val ownerName: String = ""
 )
 
+@Stable
 data class AppSetting(
     var key: String = "",
     val value: String = ""
 )
 
+@Stable
 data class Goal(
     var id: String = "",
     val title: String = "",
@@ -112,12 +124,14 @@ data class Goal(
     var isPrivate: Boolean = false
 )
 
+@Stable
 data class NoteCheckItem(
     val text: String = "",
     @get:PropertyName("isDone") @set:PropertyName("isDone")
     var isDone: Boolean = false
 )
 
+@Stable
 data class Note(
     var id: String = "",
     val title: String = "",
@@ -136,6 +150,7 @@ data class Note(
     val checklist: List<NoteCheckItem> = emptyList()
 )
 
+@Stable
 data class RecurringPayment(
     var id: String = "",
     val name: String = "",

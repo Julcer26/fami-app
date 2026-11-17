@@ -7,7 +7,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.currency.CountryCurrencyConfig
+import com.example.security.LocalCryptoBox
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -74,8 +76,10 @@ class DataStoreManager(private val context: Context) {
     val hasCompletedInAppTourFlow: Flow<Boolean> = context.dataStore.data.map { it[HAS_COMPLETED_IN_APP_TOUR] ?: false }
     val viewInSecondaryFlow: Flow<Boolean> = context.dataStore.data.map { it[VIEW_IN_SECONDARY] ?: false }
     val unlockMethodFlow: Flow<String> = context.dataStore.data.map { it[UNLOCK_METHOD] ?: "unset" }
-    val savedEmailFlow: Flow<String> = context.dataStore.data.map { it[SAVED_EMAIL] ?: "" }
-    val savedAuthSecretFlow: Flow<String> = context.dataStore.data.map { it[SAVED_AUTH_SECRET] ?: "" }
+    val savedEmailFlow: Flow<String> = context.dataStore.data.map { raw ->
+        raw[SAVED_EMAIL]?.let { LocalCryptoBox.decrypt(it) }.orEmpty()
+    }
+    val savedAuthSecretFlow: Flow<String> = context.dataStore.data.map { "" }
     val authProviderFlow: Flow<String> = context.dataStore.data.map { it[AUTH_PROVIDER] ?: "email" }
     val pendingUserAliasFlow: Flow<String> = context.dataStore.data.map { it[PENDING_USER_ALIAS] ?: "" }
 
@@ -224,9 +228,26 @@ class DataStoreManager(private val context: Context) {
     }
 
     suspend fun updatePin(pin: String) {
+        val clean = pin.trim()
+        if (clean.isBlank() || clean == "00000") return
         context.dataStore.edit { prefs ->
-            prefs[USER_PIN] = pin
+            prefs[USER_PIN] = LocalCryptoBox.hashPin(clean)
         }
+    }
+
+    suspend fun verifyUserPin(inputPin: String): Boolean {
+        val stored = userPinFlow.firstOrNull()
+        val ok = LocalCryptoBox.verifyPin(stored, inputPin)
+        // Automatically migrate legacy plaintext PIN to salted Keystore-encrypted hash on first match
+        if (ok && stored != null && !stored.startsWith("ENCv1:")) {
+            updatePin(inputPin)
+        }
+        return ok
+    }
+
+    suspend fun hasConfiguredUserPin(): Boolean {
+        val stored = userPinFlow.firstOrNull()
+        return LocalCryptoBox.hasValidPinConfigured(stored)
     }
 
     suspend fun saveAuthData(
@@ -235,14 +256,22 @@ class DataStoreManager(private val context: Context) {
         pin: String,
         email: String = "",
         authProvider: String = "email",
-        authSecret: String = ""
+        @Suppress("UNUSED_PARAMETER") authSecret: String = ""
     ) {
         context.dataStore.edit { prefs ->
             prefs[FAMILY_ID] = familyId
             prefs[USER_NAME] = userName
-            prefs[USER_PIN] = pin
-            if (email.isNotBlank()) prefs[SAVED_EMAIL] = email
-            if (authSecret.isNotBlank()) prefs[SAVED_AUTH_SECRET] = authSecret
+            val cleanPin = pin.trim()
+            if (cleanPin.length == 5 && cleanPin != "00000" && cleanPin.all { it.isDigit() }) {
+                prefs[USER_PIN] = LocalCryptoBox.hashPin(cleanPin)
+            } else if (cleanPin.startsWith("ENCv1:")) {
+                prefs[USER_PIN] = cleanPin
+            }
+            if (email.isNotBlank()) {
+                prefs[SAVED_EMAIL] = LocalCryptoBox.encrypt(email.trim())
+            }
+            // Never persist plaintext account passwords locally
+            prefs.remove(SAVED_AUTH_SECRET)
             prefs[AUTH_PROVIDER] = authProvider
         }
     }

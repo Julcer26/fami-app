@@ -1,6 +1,7 @@
 package com.example.api
 
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import com.example.database.CategoryDetail
 import com.example.database.Transaction
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
+@Immutable
 data class CategorySpendBreakdown(
     val name: String,
     val amountUsd: Double,
@@ -21,6 +23,7 @@ data class CategorySpendBreakdown(
     val colorHex: String = ""
 )
 
+@Immutable
 data class FinanceAiReport(
     val summary: String,
     val topSpendingCategory: String,
@@ -56,7 +59,7 @@ object FinanceAiAnalyzer {
         customUserKey: String? = null
     ): Result<FinanceAiReport> = withContext(Dispatchers.IO) {
         try {
-            val expenses = transactions.filter { !it.isIncome }
+            val expenses = transactions.filter { !it.isIncome && !it.isTransfer }
             if (expenses.isEmpty()) {
                 return@withContext Result.success(
                     FinanceAiReport(
@@ -198,36 +201,59 @@ object FinanceAiAnalyzer {
                 })
             }
 
-            val apiKeys = GeminiConfig.getApiKeys(customUserKey)
-            val requestBody = jsonPayload.toString().toRequestBody("application/json".toMediaType())
             var rawResponse: String? = null
 
-            for (apiKey in apiKeys) {
+            if (!GeminiConfig.hasUsableCustomKey(customUserKey)) {
                 for (model in MODELS) {
-                    val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
                     try {
-                        val request = Request.Builder()
-                            .url(url)
-                            .post(requestBody)
-                            .build()
-
-                        client.newCall(request).execute().use { response ->
-                            if (response.isSuccessful) {
-                                val body = response.body?.string()
-                                if (!body.isNullOrEmpty()) {
-                                    rawResponse = body
-                                    break
-                                }
-                            } else {
-                                Log.w(TAG, "Model $model returned code ${response.code}")
-                            }
+                        val proxyResp = GeminiConfig.executeViaAuthenticatedCloudProxy(model, jsonPayload)
+                        if (!proxyResp.isNullOrEmpty()) {
+                            rawResponse = proxyResp
+                            break
                         }
-                        if (rawResponse != null) break
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Error querying $model", e)
+                    } catch (ce: kotlinx.coroutines.CancellationException) {
+                        throw ce
+                    } catch (_: Exception) {
+                        // Fall through
                     }
                 }
-                if (rawResponse != null) break
+            }
+
+            if (rawResponse == null) {
+                val apiKeys = GeminiConfig.resolveApiKeysSuspend(customUserKey)
+                val requestBody = jsonPayload.toString().toRequestBody("application/json".toMediaType())
+
+                for (apiKey in apiKeys) {
+                    for (model in MODELS) {
+                        val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+                        try {
+                            val request = Request.Builder()
+                                .url(url)
+                                .post(requestBody)
+                                .build()
+
+                            client.newCall(request).execute().use { response ->
+                                if (response.isSuccessful) {
+                                    val body = response.body?.string()?.trim()
+                                    if (!body.isNullOrEmpty()) {
+                                        rawResponse = body
+                                        break
+                                    } else {
+                                        Log.w(TAG, "Model $model returned empty 2xx body")
+                                    }
+                                } else {
+                                    Log.w(TAG, "Model $model returned code ${response.code}")
+                                }
+                            }
+                            if (rawResponse != null) break
+                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                            throw ce
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error querying $model", e)
+                        }
+                    }
+                    if (rawResponse != null) break
+                }
             }
 
             val responseStr = rawResponse ?: return@withContext Result.success(fallbackReport)
@@ -291,6 +317,8 @@ object FinanceAiAnalyzer {
                     categoryBreakdown = breakdownList
                 )
             )
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error in financial AI analysis", e)
             Result.failure(e)

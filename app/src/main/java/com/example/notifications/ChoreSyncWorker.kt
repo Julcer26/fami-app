@@ -10,10 +10,16 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.example.database.Chore
 import com.example.database.DataStoreManager
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseException
 import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.tasks.await
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 class ChoreSyncWorker(
@@ -30,7 +36,7 @@ class ChoreSyncWorker(
             return Result.success()
         }
 
-        return runCatching {
+        return try {
             val snapshot = FirebaseDatabase.getInstance().reference
                 .child("families")
                 .child(familyId)
@@ -51,7 +57,7 @@ class ChoreSyncWorker(
                     familyId,
                     chores.map { it.id }
                 )
-                return@runCatching Result.success()
+                return Result.success()
             }
 
             chores.forEach { chore ->
@@ -69,13 +75,56 @@ class ChoreSyncWorker(
                 }
             }
             Result.success()
-        }.getOrElse {
-            Result.retry()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (isTransientNetworkError(e) && runAttemptCount < MAX_TRANSIENT_RETRIES) {
+                Result.retry()
+            } else {
+                Result.failure()
+            }
         }
+    }
+
+    private fun isTransientNetworkError(error: Throwable): Boolean {
+        var current: Throwable? = error
+        var depth = 0
+        while (current != null && depth < 8) {
+            if (current is SecurityException) return false
+            if (current is DatabaseException) {
+                val msg = current.message.orEmpty().lowercase()
+                if (msg.contains("permission")) return false
+                if (msg.contains("network") || msg.contains("disconnected") || msg.contains("timeout") || msg.contains("unavailable")) {
+                    return true
+                }
+            }
+            if (current is FirebaseNetworkException ||
+                current is IOException ||
+                current is SocketTimeoutException ||
+                current is UnknownHostException
+            ) {
+                return true
+            }
+            val msg = current.message.orEmpty().lowercase()
+            if (msg.contains("network") ||
+                msg.contains("timeout") ||
+                msg.contains("timed out") ||
+                msg.contains("unable to resolve host") ||
+                msg.contains("failed to connect") ||
+                msg.contains("connection reset") ||
+                msg.contains("disconnected")
+            ) {
+                return true
+            }
+            current = current.cause
+            depth++
+        }
+        return false
     }
 
     companion object {
         private const val UNIQUE_WORK_NAME = "fami_chore_sync_worker"
+        private const val MAX_TRANSIENT_RETRIES = 5
 
         fun schedule(context: Context) {
             val constraints = Constraints.Builder()

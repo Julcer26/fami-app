@@ -1,9 +1,11 @@
 package com.example.ui
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import java.text.DateFormatSymbols
 import java.util.Locale
 
+@Immutable
 data class FamiLocalizedText(
     // Onboarding & Navigation (existing)
     val setupTitle: String,

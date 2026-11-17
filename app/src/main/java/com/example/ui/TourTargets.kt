@@ -5,10 +5,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import kotlin.math.abs
 
 class TourTargetRegistry {
@@ -36,15 +35,12 @@ val LocalTourRegistry = staticCompositionLocalOf<TourTargetRegistry?> { null }
 @Composable
 fun rememberTourTargetRegistry(): TourTargetRegistry = remember { TourTargetRegistry() }
 
-fun Modifier.tourTarget(id: String): Modifier = composed {
-    val registry = LocalTourRegistry.current
-    if (registry == null) {
-        this
-    } else {
-        this.onGloballyPositioned { coords ->
-            if (coords.isAttached) {
-                registry.update(id, coords.boundsInRoot())
-            }
+@Composable
+fun Modifier.tourTarget(id: String): Modifier {
+    val registry = LocalTourRegistry.current ?: return this
+    return this.onPlaced { coords ->
+        if (coords.isAttached) {
+            registry.update(id, coords.boundsInRoot())
         }
     }
 }

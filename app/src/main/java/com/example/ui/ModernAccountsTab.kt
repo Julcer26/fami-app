@@ -531,7 +531,8 @@ fun ModernAccountsTab(
                                     "gastos" to s.financesFilterExpenses,
                                     "ingresos" to s.financesFilterIncome,
                                     "transferencias" to s.financesFilterTransfers
-                                )
+                                ),
+                                key = { it.first }
                             ) { (typeId, typeLabel) ->
                                 val isTypeSelected = selectedTypeFilter == typeId
                                 Surface(
@@ -578,7 +579,7 @@ fun ModernAccountsTab(
                                     )
                                 }
                             }
-                            items(categories) { cat ->
+                            items(categories, key = { it.categoryName }) { cat ->
                                 val isSelected = selectedCategoryFilter.equals(cat.categoryName, ignoreCase = true)
                                 Tactile3DButton(
                                     onClick = {
@@ -2736,7 +2737,7 @@ private fun CategoryFormBottomSheet(
 
             // Selector rápido de Emojis
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(quickEmojis) { emoji ->
+                items(quickEmojis, key = { it }) { emoji ->
                     val selected = emojiInput == emoji
                     Box(
                         modifier = Modifier
@@ -2887,19 +2888,39 @@ private fun ReceiptViewerDialog(photoUrl: String, onDismiss: () -> Unit) {
     ) {
         var scale by remember { mutableFloatStateOf(1f) }
         var offset by remember { mutableStateOf(Offset.Zero) }
+        var bmp by remember(photoUrl) { mutableStateOf<android.graphics.Bitmap?>(null) }
+        var isLoading by remember(photoUrl) { mutableStateOf(true) }
 
-        val bmp = remember(photoUrl) {
-            try {
-                val base64Str = if (photoUrl.contains("base64,")) {
-                    photoUrl.substringAfter("base64,")
-                } else {
-                    photoUrl
+        LaunchedEffect(photoUrl) {
+            isLoading = true
+            bmp = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    if (photoUrl.startsWith("https://", ignoreCase = true) ||
+                        photoUrl.startsWith("http://", ignoreCase = true)
+                    ) {
+                        val bytes = runCatching {
+                            com.google.firebase.storage.FirebaseStorage.getInstance()
+                                .getReferenceFromUrl(photoUrl)
+                                .getBytes(10L * 1024L * 1024L)
+                                .let { com.google.android.gms.tasks.Tasks.await(it) }
+                        }.getOrNull() ?: java.net.URL(photoUrl).openStream().use { it.readBytes() }
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    } else {
+                        val base64Str = if (photoUrl.contains("base64,")) {
+                            photoUrl.substringAfter("base64,")
+                        } else {
+                            photoUrl
+                        }
+                        val imageBytes = Base64.decode(base64Str, Base64.DEFAULT)
+                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    }
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                    null
                 }
-                val imageBytes = Base64.decode(base64Str, Base64.DEFAULT)
-                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            } catch (e: Exception) {
-                null
             }
+            isLoading = false
         }
 
         Surface(
@@ -2968,9 +2989,12 @@ private fun ReceiptViewerDialog(photoUrl: String, onDismiss: () -> Unit) {
                         .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (bmp != null) {
+                    val loadedBmp = bmp
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White)
+                    } else if (loadedBmp != null) {
                         Image(
-                            bitmap = bmp.asImageBitmap(),
+                            bitmap = loadedBmp.asImageBitmap(),
                             contentDescription = "Recibo",
                             modifier = Modifier
                                 .fillMaxSize()
@@ -3164,24 +3188,42 @@ fun WalletTransferDialog(
     val fromAmountVal = fromAmountText.toDoubleOrNull() ?: 0.0
 
     var liveConvertedAmount by remember { mutableStateOf(0.0) }
+    var rateUnavailable by remember { mutableStateOf(false) }
     LaunchedEffect(fromAmountVal, fromCurr, toCurr, bcvRate) {
+        rateUnavailable = false
         if (fromAmountVal <= 0.0) {
             liveConvertedAmount = 0.0
-        } else if (fromCurr.equals(toCurr, ignoreCase = true)) {
+        } else if (CountryCurrencyConfig.normalizeCurrencyCode(fromCurr) ==
+            CountryCurrencyConfig.normalizeCurrencyCode(toCurr)
+        ) {
             liveConvertedAmount = fromAmountVal
         } else {
+            val normFrom = CountryCurrencyConfig.normalizeCurrencyCode(fromCurr)
+            val normTo = CountryCurrencyConfig.normalizeCurrencyCode(toCurr)
+            val normLocal = CountryCurrencyConfig.normalizeCurrencyCode(localCurrency)
             val fromRateToUsd = when {
-                fromCurr.equals("USD", ignoreCase = true) -> 1.0
-                fromCurr.equals(localCurrency, ignoreCase = true) && bcvRate > 0.0 -> bcvRate
-                else -> BcvExchangeRateService.fetchUsdToCurrencyRate(fromCurr).takeIf { it > 0.0 } ?: bcvRate.coerceAtLeast(1.0)
+                normFrom == "USD" -> 1.0
+                normFrom == normLocal && bcvRate > 0.0 -> bcvRate
+                else -> BcvExchangeRateService.fetchUsdToCurrencyRate(normFrom)
             }
             val toRateToUsd = when {
-                toCurr.equals("USD", ignoreCase = true) -> 1.0
-                toCurr.equals(localCurrency, ignoreCase = true) && bcvRate > 0.0 -> bcvRate
-                else -> BcvExchangeRateService.fetchUsdToCurrencyRate(toCurr).takeIf { it > 0.0 } ?: bcvRate.coerceAtLeast(1.0)
+                normTo == "USD" -> 1.0
+                normTo == normLocal && bcvRate > 0.0 -> bcvRate
+                else -> BcvExchangeRateService.fetchUsdToCurrencyRate(normTo)
             }
-            val usdEquiv = if (fromCurr.equals("USD", ignoreCase = true)) fromAmountVal else fromAmountVal / fromRateToUsd
-            liveConvertedAmount = if (toCurr.equals("USD", ignoreCase = true)) usdEquiv else usdEquiv * toRateToUsd
+            val converted = CountryCurrencyConfig.convertCrossOrNull(
+                amount = fromAmountVal,
+                fromCurrency = normFrom,
+                toCurrency = normTo,
+                fromRatePerUsd = fromRateToUsd,
+                toRatePerUsd = toRateToUsd
+            )
+            if (converted != null && converted > 0.0) {
+                liveConvertedAmount = converted
+            } else {
+                liveConvertedAmount = 0.0
+                rateUnavailable = true
+            }
         }
     }
 
@@ -3252,16 +3294,20 @@ fun WalletTransferDialog(
                 if (fromAmountVal > 0.0 && toWallet != null && !fromCurr.equals(toCurr, ignoreCase = true)) {
                     val toSym = CountryCurrencyConfig.getCurrencySymbol(toCurr)
                     Surface(
-                        color = paper.stickyMint,
+                        color = if (rateUnavailable) paper.stickyPink else paper.stickyMint,
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, paper.border.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Recibe aprox.: $toSym ${String.format(Locale.US, "%,.2f", liveConvertedAmount)} $toCurr",
+                            text = if (rateUnavailable) {
+                                "Sin conexión para obtener tasa de cambio $fromCurr → $toCurr"
+                            } else {
+                                "Recibe aprox.: $toSym ${String.format(Locale.US, "%,.2f", liveConvertedAmount)} $toCurr"
+                            },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = FamiEmerald,
+                            color = if (rateUnavailable) AlertRed else FamiEmerald,
                             modifier = Modifier.padding(10.dp)
                         )
                     }
@@ -3278,12 +3324,20 @@ fun WalletTransferDialog(
             }
         },
         confirmButton = {
+            val sameCurrency = CountryCurrencyConfig.normalizeCurrencyCode(fromCurr) ==
+                CountryCurrencyConfig.normalizeCurrencyCode(toCurr)
+            val canTransfer = fromWallet != null &&
+                toWallet != null &&
+                fromWallet?.id != toWallet?.id &&
+                fromAmountVal > 0.0 &&
+                (sameCurrency || liveConvertedAmount > 0.0)
             Button(
-                enabled = fromWallet != null && toWallet != null && fromWallet?.id != toWallet?.id && fromAmountVal > 0.0,
+                enabled = canTransfer,
                 onClick = {
                     val fw = fromWallet ?: return@Button
                     val tw = toWallet ?: return@Button
-                    val finalTo = if (liveConvertedAmount > 0.0) liveConvertedAmount else fromAmountVal
+                    val finalTo = if (sameCurrency) fromAmountVal else liveConvertedAmount
+                    if (finalTo <= 0.0) return@Button
                     onConfirmTransfer(fw, tw, fromAmountVal, finalTo, noteText.trim())
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)

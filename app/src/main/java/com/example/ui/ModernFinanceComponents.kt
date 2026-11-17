@@ -64,8 +64,10 @@ fun ModernMonthSelector(
     val paper = FamiTheme.paper
     val strings = LocalFamiStrings.current
     val activeLocale = remember(strings) { Locale.getDefault() }
-    val monthFormat = SimpleDateFormat("MMMM yyyy", activeLocale)
-    val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.titlecase(activeLocale) }
+    val monthFormat = remember(activeLocale) { SimpleDateFormat("MMMM yyyy", activeLocale) }
+    val monthStr = remember(selectedMonth.timeInMillis, activeLocale) {
+        monthFormat.format(selectedMonth.time).replaceFirstChar { it.titlecase(activeLocale) }
+    }
     val context = LocalContext.current
 
     NotebookPaperSheet(
@@ -594,9 +596,9 @@ fun ModernTransactionCard(
 
     val strings = LocalFamiStrings.current
     val activeLocale = remember(strings) { Locale.getDefault() }
-    val format = SimpleDateFormat("dd MMM, HH:mm", activeLocale)
+    val format = remember(activeLocale) { SimpleDateFormat("dd MMM, HH:mm", activeLocale) }
     val displayDate = if (tx.balanceDate > 0) tx.balanceDate else tx.date
-    val dateString = format.format(Date(displayDate))
+    val dateString = remember(displayDate, format) { format.format(Date(displayDate)) }
 
     val foundCat = categories.find { it.categoryName.equals(cleanCategory, ignoreCase = true) }
     val iconEmoji = foundCat?.iconEmoji ?: ""
@@ -1423,7 +1425,7 @@ fun ModernRecurringPaymentDialogs(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        this@LazyRow.items(emojiPresets) { em ->
+                        this@LazyRow.items(emojiPresets, key = { it }) { em ->
                             val isSelected = recEmojiInput == em
                             Surface(
                                 onClick = { onEmojiChange(em) },

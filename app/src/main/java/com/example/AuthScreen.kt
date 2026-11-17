@@ -1,8 +1,11 @@
 package com.example
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -868,12 +871,15 @@ private fun LoginContent(
     onReset: () -> Unit
 ) {
     var pin by remember { mutableStateOf("") }
-    val context = LocalContext.current as FragmentActivity
+    val context = LocalContext.current
+    val activity = remember(context) { context.findFragmentActivity() }
+    val biometricAvailable = remember(context) { canAuthenticateBiometric(context) }
+    val biometricEnabled = unlockMethod == "biometric" && biometricAvailable
     val s = com.example.ui.LocalFamiStrings.current
 
-    LaunchedEffect(unlockMethod) {
-        if (unlockMethod == "biometric") {
-            showBiometricPrompt(context, onSuccess = {
+    LaunchedEffect(biometricEnabled, activity) {
+        if (biometricEnabled && activity != null) {
+            showBiometricPrompt(activity, onSuccess = {
                 viewModel.loginBiometric()
             })
         }
@@ -897,7 +903,7 @@ private fun LoginContent(
                     .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
             ) {
                 Icon(
-                    imageVector = if (unlockMethod == "biometric") Icons.Default.Fingerprint else Icons.Default.Lock,
+                    imageVector = if (biometricEnabled) Icons.Default.Fingerprint else Icons.Default.Lock,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp)
@@ -913,7 +919,7 @@ private fun LoginContent(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = if (unlockMethod == "biometric") {
+                text = if (biometricEnabled) {
                     s.authUnlockSubBiometric
                 } else {
                     s.authUnlockSubPin
@@ -939,17 +945,19 @@ private fun LoginContent(
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconButton(
-                    onClick = {
-                        showBiometricPrompt(context, onSuccess = {
-                            viewModel.loginBiometric()
-                        })
-                    },
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp))
-                ) {
-                    Icon(Icons.Default.Fingerprint, contentDescription = "Biometric", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                if (biometricEnabled && activity != null) {
+                    IconButton(
+                        onClick = {
+                            showBiometricPrompt(activity, onSuccess = {
+                                viewModel.loginBiometric()
+                            })
+                        },
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp))
+                    ) {
+                        Icon(Icons.Default.Fingerprint, contentDescription = "Biometric", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    }
                 }
 
                 Button(
@@ -957,7 +965,7 @@ private fun LoginContent(
                         if (pin.length == 5) {
                             viewModel.loginWithPin(pin) { ok ->
                                 if (!ok) {
-                                    Toast.makeText(context, "PIN incorrecto", Toast.LENGTH_SHORT).show()
+                                    pin = ""
                                 }
                             }
                         } else {
@@ -1148,8 +1156,8 @@ private fun CreateFamilyContent(
                         Toast.makeText(context, "Ingresa un correo electrónico real y válido", Toast.LENGTH_SHORT).show()
                     } else if (password.length < 6) {
                         Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
-                    } else if (pin.length != 5) {
-                        Toast.makeText(context, "El PIN debe ser exactamente de 5 dígitos", Toast.LENGTH_SHORT).show()
+                    } else if (pin.length != 5 || pin == "00000") {
+                        Toast.makeText(context, "El PIN debe ser de 5 dígitos y distinto de 00000", Toast.LENGTH_SHORT).show()
                     } else {
                         viewModel.createFamily(
                             email = email.trim(),
@@ -1342,8 +1350,8 @@ private fun JoinFamilyContent(
 
             Button(
                 onClick = {
-                    if (code.isBlank() || name.isBlank() || !viewModel.isValidEmailFormat(email) || password.length < 6 || pin.length != 5) {
-                        Toast.makeText(context, "Completa todos los campos con un correo válido y PIN de 5 dígitos", Toast.LENGTH_SHORT).show()
+                    if (code.isBlank() || name.isBlank() || !viewModel.isValidEmailFormat(email) || password.length < 6 || pin.length != 5 || pin == "00000") {
+                        Toast.makeText(context, "Completa todos los campos con un correo válido y PIN de 5 dígitos (distinto de 00000)", Toast.LENGTH_SHORT).show()
                     } else {
                         viewModel.joinFamily(code.trim(), name.trim(), pin, email.trim(), password)
                     }
@@ -1492,10 +1500,10 @@ private fun LoginExistingFamilyContent(
 
             Button(
                 onClick = {
-                    if (viewModel.isValidEmailFormat(email) && password.length >= 6 && pin.length == 5) {
+                    if (viewModel.isValidEmailFormat(email) && password.length >= 6 && pin.length == 5 && pin != "00000") {
                         viewModel.loginExisting(email.trim(), password, pin)
                     } else {
-                        Toast.makeText(context, "Ingresa correo válido, contraseña y PIN de 5 dígitos", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Ingresa correo válido, contraseña y PIN de 5 dígitos (distinto de 00000)", Toast.LENGTH_SHORT).show()
                     }
                 },
                 enabled = !isLoading,
@@ -1783,7 +1791,8 @@ private fun ChooseUnlockMethodContent(
     isLoading: Boolean
 ) {
     val paper = FamiTheme.paper
-    val context = LocalContext.current as FragmentActivity
+    val context = LocalContext.current
+    val activity = remember(context) { context.findFragmentActivity() }
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
     val initialAlias = remember(currentUser, pendingAlias) {
@@ -1792,11 +1801,7 @@ private fun ChooseUnlockMethodContent(
     }
     var aliasInput by remember(initialAlias) { mutableStateOf(initialAlias) }
 
-    val biometricSupported = remember {
-        BiometricManager.from(context).canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        ) == BiometricManager.BIOMETRIC_SUCCESS
-    }
+    val biometricSupported = remember(context) { canAuthenticateBiometric(context) }
     var selectedOption by remember { mutableStateOf(if (biometricSupported) "biometric" else "pin") }
     var pinConfirm by remember { mutableStateOf("") }
 
@@ -1920,17 +1925,17 @@ private fun ChooseUnlockMethodContent(
                         Toast.makeText(context, "Escribe un alias (sin correo electrónico) para identificarte", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    val cleanPin = pinConfirm.takeIf { it.length == 5 }
-                    if (selectedOption == "biometric" && biometricSupported) {
-                        showBiometricPrompt(context, onSuccess = {
+                    if (pinConfirm.isNotEmpty() && (pinConfirm.length != 5 || pinConfirm == "00000")) {
+                        Toast.makeText(context, "El PIN debe tener 5 dígitos y no puede ser 00000", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    val cleanPin = pinConfirm.takeIf { it.length == 5 && it != "00000" }
+                    if (selectedOption == "biometric" && biometricSupported && activity != null) {
+                        showBiometricPrompt(activity, onSuccess = {
                             viewModel.setUnlockMethodAndEnter("biometric", cleanPin, customAlias = cleanAlias)
                         })
                     } else {
-                        if (selectedOption == "pin" && pinConfirm.isNotEmpty() && pinConfirm.length != 5) {
-                            Toast.makeText(context, "El PIN debe tener 5 dígitos", Toast.LENGTH_SHORT).show()
-                        } else {
-                            viewModel.setUnlockMethodAndEnter("pin", cleanPin, customAlias = cleanAlias)
-                        }
+                        viewModel.setUnlockMethodAndEnter("pin", cleanPin, customAlias = cleanAlias)
                     }
                 },
                 enabled = !isLoading,
@@ -1947,13 +1952,26 @@ private fun ChooseUnlockMethodContent(
 }
 
 // -------------------------------------------------------------
-// UTILIDAD: PROMPT BIOMÉTRICO (HUELLA / ROSTRO)
+// UTILIDADES: BIOMETRÍA SEGURA POR NIVEL DE API (24+ Y 30+)
 // -------------------------------------------------------------
-private fun showBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Unit) {
-    val biometricManager = BiometricManager.from(activity)
-    if (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) != BiometricManager.BIOMETRIC_SUCCESS) {
-        return
+internal tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+    is FragmentActivity -> this
+    is ContextWrapper -> baseContext.findFragmentActivity()
+    else -> null
+}
+
+internal fun canAuthenticateBiometric(context: Context): Boolean {
+    val bm = BiometricManager.from(context)
+    val authenticators = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    } else {
+        BiometricManager.Authenticators.BIOMETRIC_WEAK
     }
+    return bm.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+}
+
+internal fun showBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Unit) {
+    if (!canAuthenticateBiometric(activity)) return
 
     val executor = ContextCompat.getMainExecutor(activity)
     val biometricPrompt = BiometricPrompt(
@@ -1967,11 +1985,18 @@ private fun showBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Uni
         }
     )
 
-    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+    val builder = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Desbloquear Fami")
         .setSubtitle("Usa tu huella para acceder")
-        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-        .build()
 
-    biometricPrompt.authenticate(promptInfo)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        builder.setAllowedAuthenticators(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        )
+    } else {
+        builder.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+            .setNegativeButtonText("Usar PIN")
+    }
+
+    runCatching { biometricPrompt.authenticate(builder.build()) }
 }

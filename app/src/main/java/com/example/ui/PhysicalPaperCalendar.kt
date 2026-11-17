@@ -451,14 +451,22 @@ fun PhysicalPaperCalendar(
                         }
 
                         // Detalle del día seleccionado escrito sobre líneas de cuaderno
-                        val selectedDateTimeLabel = SimpleDateFormat("d MMMM yyyy", activeLocale).format(selectedDayCal.time)
-                        val dayTx = transactions.filter {
-                            val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
-                            isSameDay(filterDate, selectedDayCal)
+                        val selectedDateTimeLabel = remember(selectedDayCal.timeInMillis, activeLocale) {
+                            SimpleDateFormat("d MMMM yyyy", activeLocale).format(selectedDayCal.time)
                         }
-                        val dayLogs = activityLogs.filter { isSameDay(it.timestamp, selectedDayCal) }
-                        val dayCompletedChores = chores.filter {
-                            it.isCompleted && it.completedDate != null && isSameDay(it.completedDate, selectedDayCal)
+                        val dayTx = remember(selectedDayCal.timeInMillis, transactions) {
+                            transactions.filter {
+                                val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
+                                isSameDay(filterDate, selectedDayCal)
+                            }
+                        }
+                        val dayLogs = remember(selectedDayCal.timeInMillis, activityLogs) {
+                            activityLogs.filter { isSameDay(it.timestamp, selectedDayCal) }
+                        }
+                        val dayCompletedChores = remember(selectedDayCal.timeInMillis, chores) {
+                            chores.filter {
+                                it.isCompleted && it.completedDate != null && isSameDay(it.completedDate, selectedDayCal)
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))

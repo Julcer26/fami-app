@@ -321,7 +321,7 @@ fun ReceiptScanConfirmDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(categories) { cat ->
+                        items(categories, key = { it.categoryName }) { cat ->
                             val isSelected = scannedCategory == cat.categoryName
                             FilterChip(
                                 selected = isSelected,

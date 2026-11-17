@@ -174,6 +174,10 @@ fun ConfigMainContent(
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val isAdminRole by viewModel.isAdminRole.collectAsStateWithLifecycle()
     val displayAlias = currentUser.takeIf { it.isNotBlank() && !it.contains("@") } ?: "Usuario Fami"
+    val configContext = LocalContext.current
+    val biometricSupported = remember(configContext) {
+        com.example.canAuthenticateBiometric(configContext)
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -339,7 +343,17 @@ fun ConfigMainContent(
                             val isPin = unlockMethod == "pin" || unlockMethod == "unset"
 
                             Surface(
-                                onClick = { viewModel.updateUnlockPreference("biometric") },
+                                onClick = {
+                                    if (biometricSupported) {
+                                        viewModel.updateUnlockPreference("biometric")
+                                    } else {
+                                        Toast.makeText(
+                                            configContext,
+                                            "No hay huella o biometría configurada en este dispositivo",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (isBiometric) paper.stickyMint else paper.sheetCream,
                                 border = BorderStroke(
@@ -905,8 +919,9 @@ fun ConfigMainContent(
                     OutlinedTextField(
                         value = newPinInput,
                         onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) newPinInput = it },
-                        label = { Text("PIN de 5 dígitos") },
+                        label = { Text("PIN de 5 dígitos (distinto de 00000)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -915,7 +930,7 @@ fun ConfigMainContent(
             },
             confirmButton = {
                 Button(
-                    enabled = newPinInput.length == 5,
+                    enabled = newPinInput.length == 5 && newPinInput != "00000",
                     onClick = {
                         viewModel.updateUserPin(newPinInput)
                         showChangePinDialog = false
@@ -977,6 +992,50 @@ fun ConfigMainContent(
     }
 
     val dialogContext = LocalContext.current
+    val googleReauthLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+            val idToken = account.idToken
+            if (!idToken.isNullOrBlank()) {
+                isDeletingAccount = true
+                deleteAccountError = null
+                viewModel.deleteUserAccount(
+                    googleIdToken = idToken,
+                    onSuccess = {
+                        isDeletingAccount = false
+                        showDeleteAccountDialog = false
+                        deleteRequiresPassword = false
+                        deletePasswordInput = ""
+                        Toast.makeText(
+                            dialogContext,
+                            "Cuenta y datos eliminados definitivamente. Cerrando Fami...",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        (dialogContext as? android.app.Activity)?.finishAffinity()
+                    },
+                    onRequiresPassword = { email ->
+                        isDeletingAccount = false
+                        deleteRequiresPassword = true
+                        deleteAccountError = "Ingresa la contraseña de $email para confirmar la eliminación."
+                    },
+                    onError = { err ->
+                        isDeletingAccount = false
+                        deleteAccountError = err
+                    }
+                )
+            } else {
+                isDeletingAccount = false
+                deleteAccountError = "No se pudo confirmar tu cuenta de Google. Cierra sesión, vuelve a iniciar con Google e inténtalo de nuevo."
+            }
+        } catch (_: Exception) {
+            isDeletingAccount = false
+            deleteAccountError = "Re-autenticación con Google cancelada o fallida."
+        }
+    }
+
     if (showDeleteAccountDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -1040,6 +1099,23 @@ fun ConfigMainContent(
                                 isDeletingAccount = false
                                 deleteRequiresPassword = true
                                 deleteAccountError = "Por seguridad legal, ingresa la contraseña de $email para eliminarla definitivamente."
+                            },
+                            onRequiresGoogleReauth = { email ->
+                                val webClientResId = dialogContext.resources.getIdentifier("default_web_client_id", "string", dialogContext.packageName)
+                                val webClientId = if (webClientResId != 0) dialogContext.getString(webClientResId) else ""
+                                if (webClientId.isNotBlank() && !webClientId.contains("placeholder", ignoreCase = true)) {
+                                    val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
+                                        com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
+                                    )
+                                        .requestIdToken(webClientId)
+                                        .requestEmail()
+                                        .build()
+                                    val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(dialogContext, gso)
+                                    googleReauthLauncher.launch(client.signInIntent)
+                                } else {
+                                    isDeletingAccount = false
+                                    deleteAccountError = "Por seguridad de Google ($email), cierra sesión y vuelve a iniciar sesión antes de eliminar la cuenta."
+                                }
                             },
                             onError = { err: String ->
                                 isDeletingAccount = false
@@ -1143,7 +1219,10 @@ fun ConfigMainContent(
                         }
                     }
 
-                    items(com.example.currency.CountryCurrencyConfig.SUPPORTED_LANGUAGES) { lang ->
+                    items(
+                        com.example.currency.CountryCurrencyConfig.SUPPORTED_LANGUAGES,
+                        key = { it.code }
+                    ) { lang ->
                         val isSelected = currentAppLanguage.equals(lang.code, ignoreCase = true)
                         Surface(
                             modifier = Modifier

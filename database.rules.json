@@ -1,8 +1,12 @@
 {
   "rules": {
+    "secure_config": {
+      ".read": "auth != null",
+      ".write": false
+    },
     "config": {
-      ".read": true,
-      ".write": "auth != null"
+      ".read": "auth != null",
+      ".write": false
     },
     "users": {
       "$uid": {

@@ -1,8 +1,10 @@
 package com.example.currency
 
+import androidx.compose.runtime.Immutable
 import java.util.Currency
 import java.util.Locale
 
+@Immutable
 data class CountryInfo(
     val code: String,
     val name: String,
@@ -13,12 +15,14 @@ data class CountryInfo(
     val defaultSecondary: String = "USD"
 )
 
+@Immutable
 data class CurrencyOption(
     val code: String,
     val name: String,
     val symbol: String
 )
 
+@Immutable
 data class LanguageOption(
     val code: String,
     val name: String,
@@ -26,6 +30,7 @@ data class LanguageOption(
     val flag: String
 )
 
+@Immutable
 data class FamilyRoleOption(
     val id: String,
     val labelEs: String,
@@ -199,12 +204,64 @@ object CountryCurrencyConfig {
             ?: FEATURED_COUNTRIES.first()
     }
 
-    fun convert(amount: Double, fromCurrency: String, toCurrency: String, rate: Double): Double {
-        if (fromCurrency.equals(toCurrency, ignoreCase = true) || rate <= 0.0) return amount
-        return if (fromCurrency == "USD" || fromCurrency == "EUR") {
-            amount * rate
-        } else {
-            amount / rate
+    fun normalizeCurrencyCode(raw: String): String {
+        return when (val upper = raw.trim().uppercase()) {
+            "BS", "BS.", "BS.S", "BS.D", "BOV" -> "VES"
+            "" -> "USD"
+            else -> upper
         }
     }
+
+    /**
+     * Converts [amount] between [fromCurrency] and [toCurrency] given a single [rate]
+     * representing units of the non-USD currency per 1 USD (when one side is USD),
+     * or the direct multiplicative factor [fromCurrency -> toCurrency] otherwise.
+     */
+    fun convert(amount: Double, fromCurrency: String, toCurrency: String, rate: Double): Double {
+        val from = normalizeCurrencyCode(fromCurrency)
+        val to = normalizeCurrencyCode(toCurrency)
+        if (from == to) return amount
+        if (rate <= 0.0 || rate.isNaN() || rate.isInfinite()) return amount
+        return when {
+            from == "USD" -> amount * rate
+            to == "USD" -> amount / rate
+            else -> amount * rate
+        }
+    }
+
+    /**
+     * Cross-rate conversion using USD as pivot:
+     * [fromRatePerUsd] = units of [fromCurrency] per 1 USD (ignored if USD -> 1.0)
+     * [toRatePerUsd]   = units of [toCurrency] per 1 USD (ignored if USD -> 1.0)
+     * Returns null if any required non-USD rate is missing/invalid (<= 0.0).
+     */
+    fun convertCrossOrNull(
+        amount: Double,
+        fromCurrency: String,
+        toCurrency: String,
+        fromRatePerUsd: Double,
+        toRatePerUsd: Double
+    ): Double? {
+        val from = normalizeCurrencyCode(fromCurrency)
+        val to = normalizeCurrencyCode(toCurrency)
+        if (from == to) return amount
+        val effFrom = if (from == "USD") 1.0 else fromRatePerUsd
+        val effTo = if (to == "USD") 1.0 else toRatePerUsd
+        if (effFrom <= 0.0 || effTo <= 0.0 ||
+            effFrom.isNaN() || effTo.isNaN() ||
+            effFrom.isInfinite() || effTo.isInfinite()
+        ) {
+            return null
+        }
+        val usdEquiv = amount / effFrom
+        return usdEquiv * effTo
+    }
+
+    fun convertCross(
+        amount: Double,
+        fromCurrency: String,
+        toCurrency: String,
+        fromRatePerUsd: Double,
+        toRatePerUsd: Double
+    ): Double = convertCrossOrNull(amount, fromCurrency, toCurrency, fromRatePerUsd, toRatePerUsd) ?: 0.0
 }
