@@ -4571,6 +4571,32 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         showAddGoalDialog = true
     }
 
+    val pendingGoals = remember(goals) { goals.filter { !it.isCompleted } }
+    val completedGoals = remember(goals) { goals.filter { it.isCompleted } }
+    val shownGoals = remember(pendingGoals, completedGoals, activeGoalFilter) {
+        if (activeGoalFilter == "pendientes") pendingGoals else completedGoals
+    }
+
+    val notesPinnedCount = remember(notes) { notes.count { it.isPinned && !it.isCompleted } }
+    val notesCompletedCount = remember(notes) { notes.count { it.isCompleted } }
+    val activeNotesCount = remember(notes) { notes.count { !it.isCompleted } }
+    val filteredNotes = remember(notes, noteSearchQuery, noteFilter) {
+        notes.filter { n ->
+            val matchesSearch = noteSearchQuery.isBlank() ||
+                n.title.contains(noteSearchQuery, ignoreCase = true) ||
+                n.content.contains(noteSearchQuery, ignoreCase = true) ||
+                n.checklist.any { it.text.contains(noteSearchQuery, ignoreCase = true) }
+            val matchesFilter = when (noteFilter) {
+                "Todas" -> !n.isCompleted
+                "Fijadas" -> n.isPinned && !n.isCompleted
+                "Archivadas" -> n.isCompleted
+                else -> n.category.equals(noteFilter, ignoreCase = true) && !n.isCompleted
+            }
+            matchesSearch && matchesFilter
+        }
+    }
+    val noteRows = remember(filteredNotes) { filteredNotes.chunked(2) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -4837,9 +4863,6 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         }
 
         if (activeSubTab == "deseos") {
-            val pendingGoals = remember(goals) { goals.filter { !it.isCompleted } }
-            val completedGoals = remember(goals) { goals.filter { it.isCompleted } }
-            
             item {
                 ModernFilterPills(
                     options = listOf(
@@ -4850,10 +4873,6 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     onSelect = { activeGoalFilter = it }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-            }
-
-            val shownGoals = remember(pendingGoals, completedGoals, activeGoalFilter) {
-                if (activeGoalFilter == "pendientes") pendingGoals else completedGoals
             }
 
             if (shownGoals.isEmpty()) {
@@ -5176,25 +5195,6 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             }
         } else {
             // Libreta y Notitas Fami
-            val pinnedCount = remember(notes) { notes.count { it.isPinned && !it.isCompleted } }
-            val completedCount = remember(notes) { notes.count { it.isCompleted } }
-            val activeNotesCount = remember(notes) { notes.count { !it.isCompleted } }
-            val filteredNotes = remember(notes, noteSearchQuery, noteFilter) {
-                notes.filter { n ->
-                    val matchesSearch = noteSearchQuery.isBlank() ||
-                        n.title.contains(noteSearchQuery, ignoreCase = true) ||
-                        n.content.contains(noteSearchQuery, ignoreCase = true) ||
-                        n.checklist.any { it.text.contains(noteSearchQuery, ignoreCase = true) }
-                    val matchesFilter = when (noteFilter) {
-                        "Todas" -> !n.isCompleted
-                        "Fijadas" -> n.isPinned && !n.isCompleted
-                        "Archivadas" -> n.isCompleted
-                        else -> n.category.equals(noteFilter, ignoreCase = true) && !n.isCompleted
-                    }
-                    matchesSearch && matchesFilter
-                }
-            }
-
             item {
                 com.example.ui.NotesToolbar(
                     searchQuery = noteSearchQuery,
@@ -5204,8 +5204,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     isGridMode = isNoteGridMode,
                     onToggleGridMode = { isNoteGridMode = !isNoteGridMode },
                     totalCount = activeNotesCount,
-                    pinnedCount = pinnedCount,
-                    completedCount = completedCount
+                    pinnedCount = notesPinnedCount,
+                    completedCount = notesCompletedCount
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -5237,7 +5237,6 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     )
                 }
             } else if (isNoteGridMode) {
-                val noteRows = remember(filteredNotes) { filteredNotes.chunked(2) }
                 items(
                     noteRows,
                     key = { row -> row.joinToString("_") { it.id.ifEmpty { "${it.title}_${it.createdDate}" } } }

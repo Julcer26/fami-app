@@ -3294,7 +3294,7 @@ fun WalletTransferDialog(
                 if (fromAmountVal > 0.0 && toWallet != null && !fromCurr.equals(toCurr, ignoreCase = true)) {
                     val toSym = CountryCurrencyConfig.getCurrencySymbol(toCurr)
                     Surface(
-                        color = if (rateUnavailable) paper.stickyPink else paper.stickyMint,
+                        color = if (rateUnavailable) paper.alertBg else paper.stickyMint,
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, paper.border.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()

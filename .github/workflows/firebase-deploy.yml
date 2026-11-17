@@ -28,22 +28,26 @@ jobs:
       - name: Install Cloud Functions dependencies
         run: npm --prefix functions install --omit=dev
 
-      - name: Configure Firebase Service Account
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/firebase-sa.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json" >> $GITHUB_ENV
-
       - name: Deploy to Firebase
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          if [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -z "${{ secrets.FIREBASE_TOKEN }}" ]; then
+          if [ -n "$FIREBASE_SA" ]; then
+            printf '%s' "$FIREBASE_SA" > /tmp/firebase-sa.json
+            export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
+            npx --yes firebase-tools@latest deploy \
+              --project hogar-finanzas-2026 \
+              --only "${{ github.event.inputs.targets }}"
+          elif [ -n "$FIREBASE_TOKEN" ]; then
+            npx --yes firebase-tools@latest deploy \
+              --project hogar-finanzas-2026 \
+              --only "${{ github.event.inputs.targets }}" \
+              --token "$FIREBASE_TOKEN"
+          else
             echo "::error::Configura el secreto FIREBASE_SERVICE_ACCOUNT (JSON de cuenta de servicio) o FIREBASE_TOKEN en GitHub Settings -> Secrets and variables -> Actions."
             exit 1
           fi
-          npx --yes firebase-tools@latest deploy \
-            --project hogar-finanzas-2026 \
-            --only "${{ github.event.inputs.targets }}" \
-            ${{ secrets.FIREBASE_TOKEN != '' && format('--token "{0}"', secrets.FIREBASE_TOKEN) || '' }}
 
       - name: Cleanup credentials
         if: always()
