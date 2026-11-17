@@ -15,8 +15,8 @@ android {
     applicationId = "app.somosfami"
     minSdk = 24
     targetSdk = 35
-    versionCode = 23
-    versionName = "3.9.7"
+    versionCode = 24
+    versionName = "3.9.8"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -47,8 +47,8 @@ android {
     }
     release {
       isCrunchPngs = false
-      isMinifyEnabled = true
-      isShrinkResources = true
+      isMinifyEnabled = false
+      isShrinkResources = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }

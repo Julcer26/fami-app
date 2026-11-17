@@ -21,14 +21,33 @@
 -keep class kotlin.Metadata { *; }
 
 # Firebase Realtime Database models & @PropertyName serialization
--keepclassmembers class com.example.database.** { *; }
--keepnames class com.example.database.**
+-keep class com.example.database.** { *; }
 -keepclassmembers class * {
     @com.google.firebase.database.PropertyName <methods>;
     @com.google.firebase.database.PropertyName <fields>;
     @com.google.firebase.database.Exclude <methods>;
     @com.google.firebase.database.Exclude <fields>;
 }
+
+# WorkManager & Firebase Messaging runtime services
+-keep class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+    public *;
+}
+-keep class * extends androidx.work.CoroutineWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+    public *;
+}
+-keep class com.example.notifications.ChoreSyncWorker { *; }
+-keep class com.example.notifications.FamiMessagingService { *; }
+
+# DataStore Preferences Protobuf reflection schemas
+-keep class * extends androidx.datastore.preferences.protobuf.GeneratedMessageLite { *; }
+
+# Biometric, Credentials & Security
+-keep class androidx.biometric.** { *; }
+-keep class androidx.credentials.** { *; }
+-keep class com.example.security.LocalCryptoBox { *; }
 
 # Firebase Auth / Play Services / Coroutines
 -dontwarn com.google.errorprone.annotations.**
