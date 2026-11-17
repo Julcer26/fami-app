@@ -212,9 +212,10 @@ fun StickyNoteCard(
     val noteBg = StickyNotePalette.resolveColor(note.colorKey, note.isCompleted, paper)
     val tapeBg = StickyNotePalette.resolveTapeColor(note.colorKey, note.isCompleted, paper)
     val dateTimestamp = maxOf(note.updatedDate, note.createdDate)
-    val formattedDate = remember(dateTimestamp) {
+    val strings = LocalFamiStrings.current
+    val formattedDate = remember(dateTimestamp, strings) {
         if (dateTimestamp > 0L) {
-            SimpleDateFormat("dd MMM", Locale("es", "ES")).format(Date(dateTimestamp))
+            SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(dateTimestamp))
         } else ""
     }
     var confirmDelete by remember { mutableStateOf(false) }

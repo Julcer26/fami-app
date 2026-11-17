@@ -154,6 +154,7 @@ fun ConfigMainContent(
     onOpenGuide: () -> Unit = {}
 ) {
     val paper = FamiTheme.paper
+    val s = LocalFamiStrings.current
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var deleteAccountError by remember { mutableStateOf<String?>(null) }
     var deleteRequiresPassword by remember { mutableStateOf(false) }
@@ -224,7 +225,7 @@ fun ConfigMainContent(
                                         color = paper.ink
                                     )
                                     Text(
-                                        text = "Tu alias visible en la app",
+                                        text = s.settingsAliasSubtitle,
                                         fontSize = 10.5.sp,
                                         color = paper.inkMuted
                                     )
@@ -242,16 +243,16 @@ fun ConfigMainContent(
                                 lipHeight = 3.dp,
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                             ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Cambiar alias", tint = paper.ink, modifier = Modifier.size(13.dp))
+                                Icon(Icons.Default.Edit, contentDescription = s.settingsAliasBtn, tint = paper.ink, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Alias", fontSize = 11.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                                Text(s.settingsAliasBtn, fontSize = 11.sp, fontWeight = FontWeight.Black, color = paper.ink)
                             }
                         }
 
                         HorizontalDivider(color = paper.border.copy(alpha = 0.18f))
 
                         Text(
-                            text = "🧑 MI AVATAR DE CUENTA FAMI",
+                            text = s.settingsAvatarTitle,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
@@ -411,7 +412,7 @@ fun ConfigMainContent(
                         ) {
                             Icon(Icons.Default.LockReset, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Cambiar PIN de 5 dígitos", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
+                            Text(s.settingsChangePin, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                         }
                     }
                 }
@@ -436,7 +437,7 @@ fun ConfigMainContent(
                         Icon(Icons.Default.MenuBook, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Guía de Uso",
+                            text = s.settingsGuideBtn,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
@@ -456,7 +457,7 @@ fun ConfigMainContent(
                         Icon(Icons.Default.SupportAgent, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Ayuda / Fallas",
+                            text = s.settingsHelpBtn,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
@@ -494,13 +495,13 @@ fun ConfigMainContent(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Tema Visual (Claro / Oscuro)",
+                                    s.settingsThemeTitle,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
                                 )
                                 Text(
-                                    "Alterna entre modo claro y modo azul oscuro oficial",
+                                    s.settingsThemeSubtitle,
                                     fontSize = 11.sp,
                                     color = paper.inkMuted
                                 )
@@ -544,20 +545,20 @@ fun ConfigMainContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Language,
-                                contentDescription = "Idioma de la App",
+                                contentDescription = s.settingsLangTitle,
                                 tint = FamiCoral
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Idioma de la App",
+                                    s.settingsLangTitle,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
                                 )
                                 Text(
                                     "${activeLangOption.flag} ${activeLangOption.nativeName}" +
-                                        if (isUsingSystemLang) " (Del teléfono)" else "",
+                                        if (isUsingSystemLang) " ${s.settingsLangPhoneTag}" else "",
                                     fontSize = 11.sp,
                                     color = paper.inkMuted
                                 )
@@ -570,7 +571,7 @@ fun ConfigMainContent(
                             border = BorderStroke(1.2.dp, paper.border)
                         ) {
                             Text(
-                                text = "Cambiar",
+                                text = s.changeBtn,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Black,
                                 color = paper.ink,
@@ -596,13 +597,13 @@ fun ConfigMainContent(
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(
-                            "Código Familiar",
+                            s.settingsFamilyCodeTitle,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
                         )
                         Text(
-                            "Comparte este código para que otros miembros se unan al hogar Fami como '$displayAlias'.",
+                            "${s.settingsFamilyCodeSubPrefix} '$displayAlias'.",
                             fontSize = 11.sp,
                             color = paper.inkMuted
                         )
@@ -619,7 +620,7 @@ fun ConfigMainContent(
                                 border = BorderStroke(1.4.dp, paper.border)
                             ) {
                                 Text(
-                                    text = familyId ?: "CARGANDO...",
+                                    text = familyId ?: "...",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink,
@@ -630,9 +631,9 @@ fun ConfigMainContent(
                             Tactile3DButton(
                                 onClick = {
                                     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Código Familiar", familyId ?: "")
+                                    val clip = ClipData.newPlainText(s.settingsFamilyCodeTitle, familyId ?: "")
                                     clipboardManager.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Código copiado", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, s.settingsCopiedToast, Toast.LENGTH_SHORT).show()
                                 },
                                 faceColor = FamiCoral,
                                 lipColor = Lip3DCoral,
@@ -641,14 +642,14 @@ fun ConfigMainContent(
                                 lipHeight = 3.dp,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color.White, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.ContentCopy, contentDescription = s.settingsCopyBtn, tint = Color.White, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Copiar", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                Text(s.settingsCopyBtn, fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Privacidad y Legal",
+                            s.settingsPrivacyLegalTitle,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
@@ -665,7 +666,7 @@ fun ConfigMainContent(
                             ) {
                                 Icon(Icons.Default.PrivacyTip, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Privacidad", fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
+                                Text(s.settingsPrivacyBtn, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
                             }
                             OutlinedButton(
                                 onClick = { legalDialogTab = "terms" },
@@ -674,7 +675,7 @@ fun ConfigMainContent(
                             ) {
                                 Icon(Icons.Default.Description, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Términos", fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
+                                Text(s.settingsTermsBtn, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
                             }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
@@ -685,7 +686,7 @@ fun ConfigMainContent(
                         ) {
                             Icon(Icons.Default.Gavel, contentDescription = null, tint = paper.ink, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Aviso Legal e Información de Versión", fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
+                            Text(s.settingsLegalNoticeBtn, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Tactile3DButton(
@@ -697,9 +698,9 @@ fun ConfigMainContent(
                             lipHeight = 3.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Logout, contentDescription = "Cerrar Sesión", tint = paper.ink, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Logout, contentDescription = s.settingsLogoutBtn, tint = paper.ink, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Cerrar Sesión", fontSize = 12.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                            Text(s.settingsLogoutBtn, fontSize = 12.sp, fontWeight = FontWeight.Black, color = paper.ink)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(
@@ -708,9 +709,9 @@ fun ConfigMainContent(
                             border = BorderStroke(1.2.dp, AlertRed.copy(alpha = 0.6f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = "Eliminar Cuenta", modifier = Modifier.size(14.dp), tint = AlertRed)
+                            Icon(Icons.Default.DeleteForever, contentDescription = s.settingsDeleteAccountBtn, modifier = Modifier.size(14.dp), tint = AlertRed)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Eliminar mi Cuenta y Datos", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                            Text(s.settingsDeleteAccountBtn, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AlertRed)
                         }
                     }
                 }
@@ -733,7 +734,7 @@ fun ConfigMainContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Miembros del Hogar",
+                                s.settingsMembersTitle,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = paper.ink
@@ -748,18 +749,18 @@ fun ConfigMainContent(
                                     lipHeight = 3.dp,
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
                                 ) {
-                                    Icon(Icons.Default.Add, contentDescription = "Nuevo perfil", tint = Color.White, modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Default.Add, contentDescription = s.settingsAddMemberBtn, tint = Color.White, modifier = Modifier.size(13.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Añadir", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    Text(s.settingsAddMemberBtn, fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (isAdminRole) {
-                                "Perfiles registrados en el hogar para la asignación de tareas y gastos."
+                                s.settingsMembersSubAdmin
                             } else {
-                                "Solo los administradores del hogar pueden añadir o modificar perfiles."
+                                s.settingsMembersSubMember
                             },
                             fontSize = 11.sp,
                             color = paper.inkMuted
@@ -1088,7 +1089,7 @@ fun ConfigMainContent(
             containerColor = paper.sheet,
             title = {
                 Text(
-                    "Idioma de la App",
+                    s.settingsLangTitle,
                     fontWeight = FontWeight.Black,
                     color = paper.ink
                 )
@@ -1124,13 +1125,13 @@ fun ConfigMainContent(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "🌐 Automático (Idioma del teléfono)",
+                                        text = s.settingsLangAutoOption,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink
                                     )
                                     Text(
-                                        text = "Detectado: ${systemLangOpt.flag} ${systemLangOpt.nativeName}",
+                                        text = "${s.settingsLangAutoDetected} ${systemLangOpt.flag} ${systemLangOpt.nativeName}",
                                         fontSize = 11.sp,
                                         color = paper.inkMuted
                                     )
@@ -1194,7 +1195,7 @@ fun ConfigMainContent(
             },
             confirmButton = {
                 TextButton(onClick = { showLanguageDialog = false }) {
-                    Text("Cerrar", fontWeight = FontWeight.Bold, color = paper.ink)
+                    Text(s.close, fontWeight = FontWeight.Bold, color = paper.ink)
                 }
             }
         )
@@ -1211,6 +1212,7 @@ fun ConfigMainContent(
 @Composable
 fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
     val paper = FamiTheme.paper
+    val s = LocalFamiStrings.current
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val activityLogs by viewModel.activityLogs.collectAsStateWithLifecycle()
@@ -1226,7 +1228,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
 
     val profileAvatarColors = listOf("#D0BCFF", "#EFB8C8", "#81C784", "#64B5F6", "#FFD54F", "#BA68C8", "#E0E0E0")
     var selectedCategory by remember { mutableStateOf(0) }
-    val categoriesList = listOf("General", "Miembros", "Ayuda")
+    val categoriesList = listOf(s.settingsCatGeneral, s.settingsCatMembers, s.settingsCatHelp)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWideScreen = maxWidth > 600.dp
@@ -1279,7 +1281,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "Ajustes de Fami",
+                    text = s.settingsTitle,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = paper.ink,
@@ -1456,7 +1458,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
                 ) {
                     Text(
-                        if (isEditingProfile) "Guardar" else "Registrar",
+                        if (isEditingProfile) s.save else s.settingsAddMemberBtn,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
                         fontSize = 12.sp
@@ -1471,7 +1473,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                     profileNameInput = ""
                     profileColorHexSelected = "#D0BCFF"
                 }) {
-                    Text("Cancelar", color = paper.inkMuted)
+                    Text(s.cancel, color = paper.inkMuted)
                 }
             }
         )
@@ -1485,6 +1487,7 @@ fun ConfigDialog(
     onOpenGuide: () -> Unit = {}
 ) {
     val paper = FamiTheme.paper
+    val s = LocalFamiStrings.current
     Dialog(
         onDismissRequest = onDismiss
     ) {
@@ -1505,7 +1508,7 @@ fun ConfigDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Ajustes de Fami",
+                        text = s.settingsTitle,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
                         color = paper.ink
@@ -1513,7 +1516,7 @@ fun ConfigDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
+                            contentDescription = s.close,
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }

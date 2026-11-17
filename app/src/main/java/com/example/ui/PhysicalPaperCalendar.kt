@@ -66,6 +66,8 @@ fun PhysicalPaperCalendar(
     getMonthName: (Int) -> String
 ) {
     val paper = FamiTheme.paper
+    val s = LocalFamiStrings.current
+    val activeLocale = remember(appLanguage) { FamiStrings.localeFor(appLanguage) }
     var calendarMonth by remember(selectedMonth) {
         mutableStateOf(Calendar.getInstance().apply {
             set(Calendar.YEAR, selectedMonth.get(Calendar.YEAR))
@@ -289,7 +291,7 @@ fun PhysicalPaperCalendar(
                                         letterSpacing = 1.sp
                                     )
                                     Text(
-                                        text = "DESLIZA O TOCA PARA PASAR HOJA",
+                                        text = s.monthSwipeHint,
                                         fontSize = 7.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White.copy(alpha = 0.85f),
@@ -308,7 +310,7 @@ fun PhysicalPaperCalendar(
                                 ) {
                                     Icon(
                                         Icons.Default.ChevronRight,
-                                        contentDescription = "Mes siguiente",
+                                        contentDescription = "Next month",
                                         tint = paper.ink,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -319,11 +321,7 @@ fun PhysicalPaperCalendar(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         // Días de la semana sobre franja crema
-                        val weekHeaders = when (appLanguage.lowercase()) {
-                            "en" -> listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
-                            "pt" -> listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
-                            else -> listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do")
-                        }
+                        val weekHeaders = FamiStrings.weekDayHeaders(appLanguage)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -453,7 +451,7 @@ fun PhysicalPaperCalendar(
                         }
 
                         // Detalle del día seleccionado escrito sobre líneas de cuaderno
-                        val selectedDateTimeLabel = SimpleDateFormat("dd 'de' MMMM, yyyy", Locale("es")).format(selectedDayCal.time)
+                        val selectedDateTimeLabel = SimpleDateFormat("d MMMM yyyy", activeLocale).format(selectedDayCal.time)
                         val dayTx = transactions.filter {
                             val filterDate = if (it.balanceDate > 0L) it.balanceDate else it.date
                             isSameDay(filterDate, selectedDayCal)

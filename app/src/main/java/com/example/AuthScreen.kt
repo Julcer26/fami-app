@@ -692,20 +692,21 @@ private fun SelectModeContent(
     onContinueWithGoogle: () -> Unit
 ) {
     val context = LocalContext.current
+    val s = com.example.ui.LocalFamiStrings.current
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Bienvenido a Fami",
+            text = s.authWelcomeTitle,
             fontSize = 28.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
             letterSpacing = (-0.5).sp
         )
         Text(
-            text = "Finanzas inteligentes y colaborativas para el hogar",
+            text = s.authWelcomeSubtitle,
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -714,26 +715,26 @@ private fun SelectModeContent(
 
         FeatureHighlightPill(
             icon = Icons.Outlined.AutoAwesome,
-            title = "Lector de Facturas IA",
-            subtitle = "Escanea tickets y extrae productos y montos al instante con Gemini"
+            title = s.authFeature1Title,
+            subtitle = s.authFeature1Sub
         )
         Spacer(modifier = Modifier.height(10.dp))
         FeatureHighlightPill(
             icon = Icons.Outlined.PeopleAlt,
-            title = "Economía Familiar o Personal",
-            subtitle = "Sincronización en tiempo real de gastos, billeteras, metas y tareas"
+            title = s.authFeature2Title,
+            subtitle = s.authFeature2Sub
         )
         Spacer(modifier = Modifier.height(10.dp))
         FeatureHighlightPill(
             icon = Icons.Outlined.CurrencyExchange,
-            title = "Multi-Moneda Automática",
-            subtitle = "Control en moneda local y divisas con tasa oficial actualizada automáticamente"
+            title = s.authFeature3Title,
+            subtitle = s.authFeature3Sub
         )
 
         Spacer(modifier = Modifier.height(22.dp))
 
         GoogleSignInButton(
-            text = "Continuar con Google",
+            text = s.authGoogleBtn,
             enabled = !isLoading,
             onClick = onContinueWithGoogle
         )
@@ -751,7 +752,7 @@ private fun SelectModeContent(
         ) {
             Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(19.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Crear Cuenta con Correo", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(s.authEmailBtn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -766,14 +767,14 @@ private fun SelectModeContent(
         ) {
             Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Tengo un Código Familiar", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(s.authJoinCodeBtn, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         TextButton(onClick = onLoginExisting) {
             Text(
-                text = "¿Ya tienes cuenta en Fami? Iniciar Sesión",
+                text = s.authExistingAccountBtn,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
@@ -797,17 +798,17 @@ private fun SelectModeContent(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Al continuar aceptas nuestros ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${s.settingsPrivacyLegalTitle}: ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                text = "Términos",
+                text = s.settingsTermsBtn,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { legalTab = "terms" }
             )
-            Text(" y ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(" • ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                text = "Privacidad",
+                text = s.settingsPrivacyBtn,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -868,6 +869,7 @@ private fun LoginContent(
 ) {
     var pin by remember { mutableStateOf("") }
     val context = LocalContext.current as FragmentActivity
+    val s = com.example.ui.LocalFamiStrings.current
 
     LaunchedEffect(unlockMethod) {
         if (unlockMethod == "biometric") {
@@ -905,16 +907,16 @@ private fun LoginContent(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Desbloquear Fami",
+                text = s.authUnlockTitle,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = if (unlockMethod == "biometric") {
-                    "Usa tu huella digital o ingresa tu PIN de respaldo"
+                    s.authUnlockSubBiometric
                 } else {
-                    "Ingresa tu PIN de 5 dígitos para entrar a Fami"
+                    s.authUnlockSubPin
                 },
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -925,7 +927,7 @@ private fun LoginContent(
             OutlinedTextField(
                 value = pin,
                 onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pin = it },
-                label = { Text("PIN de seguridad (5 dígitos)") },
+                label = { Text(s.authPinLabel) },
                 leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 visualTransformation = PasswordVisualTransformation(),
@@ -947,7 +949,7 @@ private fun LoginContent(
                         .size(52.dp)
                         .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp))
                 ) {
-                    Icon(Icons.Default.Fingerprint, contentDescription = "Huella", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.Fingerprint, contentDescription = "Biometric", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 }
 
                 Button(
@@ -959,7 +961,7 @@ private fun LoginContent(
                                 }
                             }
                         } else {
-                            Toast.makeText(context, "Introduce los 5 dígitos del PIN", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, s.authUnlockSubPin, Toast.LENGTH_SHORT).show()
                         }
                     },
                     enabled = !isLoading,
@@ -969,14 +971,14 @@ private fun LoginContent(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Entrar", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(s.authEnterBtn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TextButton(onClick = onReset) {
-                Text("Cambiar de cuenta o usar otro método", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(s.authSwitchMethodBtn, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

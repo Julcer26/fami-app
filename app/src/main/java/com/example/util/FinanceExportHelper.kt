@@ -36,7 +36,7 @@ object FinanceExportHelper {
                 return
             }
 
-            val monthFormat = SimpleDateFormat("MMMM_yyyy", Locale("es", "ES"))
+            val monthFormat = SimpleDateFormat("MMMM_yyyy", Locale.getDefault())
             val monthLabel = monthFormat.format(monthCalendar.time).replace(" ", "_")
             val fileName = "Gastos_Hogar_$monthLabel.csv"
 
@@ -45,7 +45,7 @@ object FinanceExportHelper {
 
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-            val monthNameFormat = SimpleDateFormat("MMMM yyyy", Locale("es", "ES"))
+            val monthNameFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
 
             FileOutputStream(file).use { fos ->
                 // Write UTF-8 BOM for complete Excel & Google Sheets character compatibility

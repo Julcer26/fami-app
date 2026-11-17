@@ -539,10 +539,13 @@ fun MainScreen(
     val hasCompletedInAppTour by viewModel.hasCompletedInAppTour.collectAsStateWithLifecycle()
     val pendingUserAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
 
+    val famiStrings = remember(appLanguageState) {
+        java.util.Locale.setDefault(com.example.ui.FamiStrings.localeFor(appLanguageState))
+        com.example.ui.FamiStrings.get(appLanguageState)
+    }
+
     LaunchedEffect(appLanguageState) {
-        if (appLanguageState.isNotBlank()) {
-            java.util.Locale.setDefault(java.util.Locale(appLanguageState))
-        }
+        java.util.Locale.setDefault(com.example.ui.FamiStrings.localeFor(appLanguageState))
     }
 
     LaunchedEffect(isAuthenticated) {
@@ -551,6 +554,9 @@ fun MainScreen(
         }
     }
 
+    CompositionLocalProvider(
+        com.example.ui.LocalFamiStrings provides famiStrings
+    ) {
     if (!isAuthenticated) {
         Box(modifier = Modifier.fillMaxSize()) {
             AuthScreen(viewModel = viewModel)
@@ -622,7 +628,7 @@ fun MainScreen(
                 val spokenText = matches?.firstOrNull()?.trim().orEmpty()
                 if (spokenText.isNotEmpty()) {
                     viewModel.registerFromNaturalLanguage(spokenText, "")
-                    Toast.makeText(context, "Registrando: \"$spokenText\"", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, spokenText, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -635,20 +641,16 @@ fun MainScreen(
                         showWidgetQuickWriteDialog = true
                     }
                     com.example.widget.FamiQuickWidgetProvider.ACTION_VOICE -> {
-                        val speechLocale = when (appLanguageState.lowercase()) {
-                            "en" -> "en-US"
-                            "pt" -> "pt-BR"
-                            else -> "es-ES"
-                        }
+                        val speechLocale = com.example.ui.FamiStrings.speechLocaleFor(appLanguageState)
                         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                             putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechLocale)
-                            putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla para anotar tu gasto o ingreso")
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, famiStrings.voicePrompt)
                         }
                         try {
                             widgetSpeechLauncher.launch(intent)
                         } catch (_: ActivityNotFoundException) {
-                            Toast.makeText(context, "Dictado por voz no disponible en este dispositivo", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Voice dictation unavailable", Toast.LENGTH_SHORT).show()
                         }
                     }
                     com.example.widget.FamiQuickWidgetProvider.ACTION_SCAN -> {
@@ -829,7 +831,7 @@ fun MainScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "FAMI · NOTITA RÁPIDA",
+                                        text = famiStrings.quickNoteTitle,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paperDialog.inkMuted
@@ -840,14 +842,14 @@ fun MainScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Cerrar",
+                                            contentDescription = famiStrings.close,
                                             tint = paperDialog.ink,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
                                 Text(
-                                    text = "Registrar movimiento",
+                                    text = famiStrings.financesActionMovement,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paperDialog.ink
@@ -857,7 +859,7 @@ fun MainScreen(
                                     onValueChange = { quickText = it },
                                     placeholder = {
                                         Text(
-                                            "Ej: 120 café en Starbucks",
+                                            famiStrings.quickNotePlaceholder,
                                             fontSize = 13.sp,
                                             color = paperDialog.inkMuted
                                         )
@@ -923,7 +925,7 @@ fun MainScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "GUARDAR MOVIMIENTO",
+                                        text = famiStrings.save.uppercase(),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
                                         color = Color.White
@@ -1026,6 +1028,7 @@ fun MainScreen(
             }
         }
         }
+    }
     }
 }
 
@@ -1173,8 +1176,9 @@ fun MonthSelector(
     selectedMonth: java.util.Calendar,
     onMonthChange: (java.util.Calendar) -> Unit
 ) {
-    val monthFormat = java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale("es", "ES"))
-    val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.uppercase() }
+    val activeLocale = java.util.Locale.getDefault()
+    val monthFormat = java.text.SimpleDateFormat("MMMM yyyy", activeLocale)
+    val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.titlecase(activeLocale) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Row(
@@ -1290,6 +1294,7 @@ fun DashboardTab(
     val selectedCountryCode by viewModel.countryCode.collectAsStateWithLifecycle()
     val savedEmailState by viewModel.savedEmail.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
+    val s = com.example.ui.LocalFamiStrings.current
 
     var nlpInputText by remember { mutableStateOf("") }
     var selectedNlpWalletId by remember(wallets) { mutableStateOf(wallets.firstOrNull()?.id.orEmpty()) }
@@ -1494,8 +1499,8 @@ fun DashboardTab(
                             Text(
                                 text = when {
                                     customFamilyName.isNotBlank() -> customFamilyName
-                                    managementMode == "individual" -> "Espacio Personal"
-                                    else -> "Hogar Familiar"
+                                    managementMode == "individual" -> s.homePersonalSpace
+                                    else -> s.homeFamilySpace
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
@@ -1504,7 +1509,7 @@ fun DashboardTab(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "${if (managementMode == "individual") "👤 Personal" else "🏡 Familiar"} • $familyRole",
+                                text = "${if (managementMode == "individual") s.homePersonalBadge else s.homeFamilyBadge} • $familyRole",
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = FamiCoralDeep,
@@ -1537,7 +1542,7 @@ fun DashboardTab(
                             )
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Cambiar país",
+                                contentDescription = "Country",
                                 tint = paper.ink,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -1556,7 +1561,7 @@ fun DashboardTab(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
-                                contentDescription = "Ajustes",
+                                contentDescription = s.settingsTitle,
                                 tint = paper.ink,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -1637,7 +1642,7 @@ fun DashboardTab(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "📅 RESUMEN DEL MES",
+                                    text = s.monthSheet,
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
@@ -1645,7 +1650,7 @@ fun DashboardTab(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = if (showBalance) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Ocultar",
+                                    contentDescription = "Toggle balance",
                                     tint = FamiCoral,
                                     modifier = Modifier
                                         .size(14.dp)
@@ -1674,7 +1679,7 @@ fun DashboardTab(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.SwapHoriz,
-                                            contentDescription = "Cambiar moneda",
+                                            contentDescription = "Switch currency",
                                             tint = paper.ink,
                                             modifier = Modifier.size(12.dp)
                                         )
@@ -1718,17 +1723,17 @@ fun DashboardTab(
                     }
 
                     val secondaryDisplayText = when {
-                        wallets.isEmpty() -> "Agrega tus billeteras en Finanzas para reflejar tu saldo"
+                        wallets.isEmpty() -> s.walletsEmptyHint
                         otherCurrency != null && totalWalletsOther != null -> {
                             val otherSymbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(otherCurrency)
-                            "Suma de ${wallets.size} billetera(s) • ≈ $otherSymbol ${String.format(Locale.US, "%,.2f", totalWalletsOther)} $otherCurrency"
+                            "${wallets.size} ${s.walletsCountSuffix} • ≈ $otherSymbol ${String.format(Locale.US, "%,.2f", totalWalletsOther)} $otherCurrency"
                         }
-                        else -> "Suma total de ${wallets.size} billetera(s)"
+                        else -> "${wallets.size} ${s.walletsCountSuffix}"
                     }
 
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "SALDO DISPONIBLE ($displayCurrency)",
+                            text = "${s.availableBalance} ($displayCurrency)",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             color = FamiCoralDeep,
@@ -1767,7 +1772,7 @@ fun DashboardTab(
                             border = BorderStroke(1.5.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text("INGRESOS", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                Text(s.income, fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = if (showBalance) "$${String.format(Locale.US, "%,.0f", baseLimitUsd)}" else "••••",
                                     fontSize = 13.sp,
@@ -1784,7 +1789,7 @@ fun DashboardTab(
                             border = BorderStroke(1.5.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text("PRESUPUESTO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                Text(s.budget, fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = if (showBalance) "$${String.format(Locale.US, "%,.0f", presupuestadoUsd)}" else "••••",
                                     fontSize = 13.sp,
@@ -1801,7 +1806,7 @@ fun DashboardTab(
                             border = BorderStroke(1.5.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text("GASTADO", fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                Text(s.spent, fontSize = 8.5.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = if (showBalance) "$${String.format(Locale.US, "%,.2f", totalSpentUsd)}" else "••••",
                                     fontSize = 13.sp,
@@ -1839,9 +1844,9 @@ fun DashboardTab(
                     Spacer(modifier = Modifier.height(8.dp))
                     com.example.ui.RuledNotebookText(
                         text = when {
-                            spentPercentage > 100 -> "⚠️ Excediste el presupuesto mensual por $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
-                            spentPercentage >= 85 -> "📌 Atención: Has ejecutado el $spentPercentage% de tu presupuesto mensual"
-                            else -> "✅ Presupuesto al día: $spentPercentage% utilizado"
+                            spentPercentage > 100 -> "${s.budgetExceededPrefix} $${String.format(Locale.US, "%,.2f", totalSpentUsd - baseLimitUsd)} USD"
+                            spentPercentage >= 85 -> "${s.budgetWarnPrefix} $spentPercentage%"
+                            else -> "${s.budgetOkPrefix} $spentPercentage%"
                         },
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
@@ -1884,18 +1889,18 @@ fun DashboardTab(
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
-                                Text(
-                                    text = "NOTA RÁPIDA CON FAMI IA ✏️",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = paper.ink
-                                )
-                                Text(
-                                    text = "Escribe o dicta tu gasto y Fami lo clasifica solo",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = paper.inkMuted
-                                )
+                                 Text(
+                                     text = s.quickNoteTitle,
+                                     fontSize = 12.sp,
+                                     fontWeight = FontWeight.Black,
+                                     color = paper.ink
+                                 )
+                                 Text(
+                                     text = s.quickNoteSubtitle,
+                                     fontSize = 11.sp,
+                                     fontWeight = FontWeight.SemiBold,
+                                     color = paper.inkMuted
+                                 )
                             }
                         }
                     }
@@ -1946,7 +1951,7 @@ fun DashboardTab(
                             ),
                             value = nlpInputText,
                             onValueChange = { nlpInputText = it },
-                            placeholder = { Text("Escribe o dicta tu gasto...", fontSize = 12.5.sp, color = paper.inkMuted) },
+                            placeholder = { Text(s.quickNotePlaceholder, fontSize = 12.5.sp, color = paper.inkMuted) },
                             modifier = Modifier
                                 .weight(1f)
                                 .background(paper.sheet, RoundedCornerShape(14.dp)),
@@ -1954,7 +1959,7 @@ fun DashboardTab(
                             trailingIcon = {
                                 if (nlpInputText.isNotEmpty() && !isRegisteringNlp) {
                                     IconButton(onClick = { nlpInputText = "" }, modifier = Modifier.size(28.dp)) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = paper.ink, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Clear, contentDescription = s.clear, tint = paper.ink, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             },
@@ -1969,20 +1974,16 @@ fun DashboardTab(
 
                         com.example.ui.Tactile3DButton(
                             onClick = {
-                                val speechLocale = when (appLanguage.lowercase()) {
-                                    "en" -> "en-US"
-                                    "pt" -> "pt-BR"
-                                    else -> "es-ES"
-                                }
+                                val speechLocale = com.example.ui.FamiStrings.speechLocaleFor(appLanguage)
                                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, speechLocale)
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla para anotar tu gasto o ingreso")
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, s.voicePrompt)
                                 }
                                 try {
                                     speechLauncher.launch(intent)
                                 } catch (_: ActivityNotFoundException) {
-                                    Toast.makeText(context, "Dictado por voz no disponible en este dispositivo", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Voice dictation unavailable", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             faceColor = paper.stickyMint,
@@ -1994,7 +1995,7 @@ fun DashboardTab(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Mic,
-                                contentDescription = "Dictar gasto por voz",
+                                contentDescription = s.voicePrompt,
                                 tint = paper.ink,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -2023,7 +2024,7 @@ fun DashboardTab(
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Send,
-                                    contentDescription = "Enviar gasto",
+                                    contentDescription = s.save,
                                     tint = Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -2057,9 +2058,9 @@ fun DashboardTab(
                             lipHeight = 4.dp,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = "Escanear", tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CameraAlt, contentDescription = s.scanBtn, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("ESCANEAR", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
+                            Text(s.scanBtn, fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
                         }
 
                         com.example.ui.Tactile3DButton(
@@ -2072,9 +2073,9 @@ fun DashboardTab(
                             lipHeight = 4.dp,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.Image, contentDescription = "Galería", tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Image, contentDescription = s.galleryBtn, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("GALERÍA", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
+                            Text(s.galleryBtn, fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
                         }
                     }
                     }
@@ -2094,7 +2095,7 @@ fun DashboardTab(
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = FamiCoral)
                                 Text(
-                                    text = "Fami IA leyendo el recibo y registrando el gasto...",
+                                    text = s.scanningReceipt,
                                     fontSize = 11.sp,
                                     color = paper.ink,
                                     fontWeight = FontWeight.Bold
@@ -2119,7 +2120,7 @@ fun DashboardTab(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = errorMessageScan!!, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 IconButton(onClick = { onSetErrorMessageScan(null) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Close, contentDescription = s.close, tint = paper.ink, modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
@@ -2137,11 +2138,11 @@ fun DashboardTab(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.CheckCircle, "Éxito", tint = FamiEmerald, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.CheckCircle, "OK", tint = FamiEmerald, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = successMessageScan!!, fontSize = 11.sp, color = paper.ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 IconButton(onClick = { onSetSuccessMessageScan(null) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = paper.ink, modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Close, contentDescription = s.close, tint = paper.ink, modifier = Modifier.size(14.dp))
                                 }
                             }
                         }
@@ -2176,12 +2177,17 @@ fun DashboardTab(
                     recEmojiInput = "⚡"
                     showAddRecurringDialog = true
                 },
-                onSeedDefaultPayments = {
-                    viewModel.createOrEditRecurringPayment(com.example.database.RecurringPayment(name = "Condominio", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🏢", dueDay = 5))
-                    viewModel.createOrEditRecurringPayment(com.example.database.RecurringPayment(name = "Seguro Médico / Familiar", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🛡️", dueDay = 10))
-                    viewModel.createOrEditRecurringPayment(com.example.database.RecurringPayment(name = "Servicio Eléctrico (Luz)", defaultAmount = 0.0, category = "Servicios", iconEmoji = "⚡", dueDay = 15))
-                    viewModel.createOrEditRecurringPayment(com.example.database.RecurringPayment(name = "Internet / WiFi", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🌐", dueDay = 20))
-                    viewModel.createOrEditRecurringPayment(com.example.database.RecurringPayment(name = "Seguro Vehicular", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🚗", dueDay = 25))
+                onEditPaymentClick = { rec ->
+                    selectedRecurringPayment = rec
+                    recNameInput = rec.name
+                    recAmountInput = if (rec.defaultAmount > 0.0) rec.defaultAmount.toString() else ""
+                    recCurrencySelected = rec.currency
+                    recDueDayInput = rec.dueDay.toString()
+                    recEmojiInput = rec.iconEmoji.ifBlank { "⚡" }
+                    showAddRecurringDialog = true
+                },
+                onDeletePaymentClick = { rec ->
+                    viewModel.deleteRecurringPayment(rec)
                 }
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -2203,7 +2209,7 @@ fun DashboardTab(
                     appLanguage = appLanguage,
                     isSameDay = { ts, cal -> isSameDay(ts, cal) },
                     toColor = { hex -> hex.toColor() },
-                    getMonthName = { m -> getMonthNameSpanish(m) }
+                    getMonthName = { m -> com.example.ui.FamiStrings.monthName(m, appLanguage) }
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -2996,6 +3002,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
+    val s = com.example.ui.LocalFamiStrings.current
 
     var showChoreDialog by remember { mutableStateOf(false) }
     var isEditingChore by remember { mutableStateOf(false) }
@@ -3043,9 +3050,9 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         item {
             Spacer(modifier = Modifier.height(10.dp))
             ModernTabHeader(
-                title = "Tareas del Hogar",
-                subtitle = "Progreso: ${completedChores.size}/${userChores.size} completadas",
-                actionText = "Nueva",
+                title = s.choresTitle,
+                subtitle = "${completedChores.size}/${userChores.size} ${s.choresCompletedSuffix}",
+                actionText = s.choresNewBtn,
                 onActionClick = {
                     isEditingChore = false
                     editingChore = null
@@ -3238,8 +3245,8 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         item {
             ModernFilterPills(
                 options = listOf(
-                    "pendientes" to "Pendientes (${pendingChores.size})",
-                    "completadas" to "Completadas (${completedChores.size})"
+                    "pendientes" to "${s.choresPendingTab} (${pendingChores.size})",
+                    "completadas" to "${s.choresCompletedTab} (${completedChores.size})"
                 ),
                 selectedId = activeTaskFilter,
                 onSelect = { activeTaskFilter = it }
@@ -3259,6 +3266,12 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                 val priorities = listOf("Todas", "Alto", "Medio", "Bajo")
                 priorities.forEach { priority ->
                     val isSelected = selectedPriorityFilter == priority
+                    val priorityLabel = when (priority) {
+                        "Alto" -> s.choresHighPriority
+                        "Medio" -> s.choresMedPriority
+                        "Bajo" -> s.choresLowPriority
+                        else -> s.choresAllFilter
+                    }
                     val count = when (priority) {
                         "Todas" -> (if (activeTaskFilter == "pendientes") pendingChores else completedChores).filter {
                             selectedListName.equals("Todas", ignoreCase = true) || it.category.equals(selectedListName, ignoreCase = true)
@@ -3305,7 +3318,7 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 )
                             }
                             Text(
-                                text = "$priority ($count)",
+                                text = "$priorityLabel ($count)",
                                 fontSize = 9.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) paper.ink else paper.inkMuted,
@@ -3324,9 +3337,9 @@ fun TasksTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             item {
                 ModernEmptyState(
                     icon = if (activeTaskFilter == "pendientes") Icons.Default.CheckCircle else Icons.Default.DoneAll,
-                    title = if (activeTaskFilter == "pendientes") "¡Todo listo por ahora!" else "No hay tareas completadas",
-                    subtitle = if (activeTaskFilter == "pendientes") "No tienes labores pendientes en esta lista. ¡Excelente trabajo!" else "Completa tareas para ver su registro aquí.",
-                    actionText = if (activeTaskFilter == "pendientes") "+ Nueva Tarea" else null,
+                    title = if (activeTaskFilter == "pendientes") s.choresEmptyPendingTitle else s.choresEmptyDoneTitle,
+                    subtitle = if (activeTaskFilter == "pendientes") s.choresEmptyPendingSub else s.choresEmptyDoneSub,
+                    actionText = if (activeTaskFilter == "pendientes") "+ ${s.choresNewBtn}" else null,
                     onActionClick = {
                         isEditingChore = false
                         editingChore = null
@@ -3755,6 +3768,7 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
+    val s = com.example.ui.LocalFamiStrings.current
     val shoppingItems by viewModel.shoppingItems.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
@@ -3796,9 +3810,9 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         item {
             Spacer(modifier = Modifier.height(10.dp))
             ModernTabHeader(
-                title = "Lista de Compras",
-                subtitle = "${boughtShopping.size}/${userShoppingItems.size} artículos listos",
-                actionText = "Nuevo",
+                title = s.marketTitle,
+                subtitle = "${boughtShopping.size}/${userShoppingItems.size} ${s.marketReadySuffix}",
+                actionText = s.marketNewBtn,
                 onActionClick = {
                     itemNameInput = ""
                     itemQtyInput = ""
@@ -3978,8 +3992,8 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         item {
             ModernFilterPills(
                 options = listOf(
-                    "pendientes" to "Por Comprar (${pendingShopping.size})",
-                    "comprados" to "Comprados (${boughtShopping.size})"
+                    "pendientes" to "${s.marketPendingTab} (${pendingShopping.size})",
+                    "comprados" to "${s.marketBoughtTab} (${boughtShopping.size})"
                 ),
                 selectedId = activeShoppingFilter,
                 onSelect = { activeShoppingFilter = it }
@@ -3992,9 +4006,9 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             item {
                 ModernEmptyState(
                     icon = Icons.Default.ShoppingCart,
-                    title = if (activeShoppingFilter == "pendientes") "¡Despensa al día!" else "No hay compras registradas",
-                    subtitle = if (activeShoppingFilter == "pendientes") "No hay artículos pendientes por comprar en esta lista." else "Los artículos marcados como comprados aparecerán aquí.",
-                    actionText = if (activeShoppingFilter == "pendientes") "+ Agregar Artículo" else null,
+                    title = if (activeShoppingFilter == "pendientes") s.marketEmptyPendingTitle else s.marketEmptyDoneTitle,
+                    subtitle = if (activeShoppingFilter == "pendientes") s.marketEmptyPendingSub else s.marketEmptyDoneSub,
+                    actionText = if (activeShoppingFilter == "pendientes") s.marketAddItemBtn else null,
                     onActionClick = {
                         itemNameInput = ""
                         itemQtyInput = ""
@@ -4421,6 +4435,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val paper = FamiTheme.paper
+    val s = com.example.ui.LocalFamiStrings.current
 
     var activeSubTab by remember { mutableStateOf("deseos") } // "deseos" or "notas"
     var activeGoalFilter by remember { mutableStateOf("pendientes") }
@@ -4461,9 +4476,9 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
         item {
             Spacer(modifier = Modifier.height(10.dp))
             ModernTabHeader(
-                title = "Alcancía y Metas Fami",
-                subtitle = "Ahorros compartidos, proyectos y libreta familiar",
-                actionText = if (activeSubTab == "deseos") "Nueva Meta" else "Nueva Notita",
+                title = s.goalsTitle,
+                subtitle = s.goalsSubtitle,
+                actionText = if (activeSubTab == "deseos") s.goalsNewGoalBtn else s.goalsNewNoteBtn,
                 onActionClick = { 
                     if (activeSubTab == "deseos") {
                         openNewGoalDialog()
@@ -4496,8 +4511,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             } else {
                 pricedGoals.map { g ->
                     val t = g.targetAmount ?: 1.0
-                    val s = if (g.isCompleted && g.savedAmount <= 0.0) t else g.savedAmount
-                    (s / t).toFloat().coerceIn(0f, 1f)
+                    val eff = if (g.isCompleted && g.savedAmount <= 0.0) t else g.savedAmount
+                    (eff / t).toFloat().coerceIn(0f, 1f)
                 }.average().toFloat()
             }
             val animatedOverallProgress by animateFloatAsState(
@@ -4509,13 +4524,13 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             val activeCount = goals.count { !it.isCompleted }
 
             val piggySummaryText = when {
-                savedByCurr.isNotEmpty() -> "Ahorrado: " + savedByCurr.entries.joinToString(" • ") { (curr, total) ->
+                savedByCurr.isNotEmpty() -> s.goalsSavedPrefix + savedByCurr.entries.joinToString(" • ") { (curr, total) ->
                     "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(curr)}${String.format(Locale.US, "%,.0f", total)} $curr"
                 }
-                pendingByCurr.isNotEmpty() -> "Por alcanzar: " + pendingByCurr.entries.joinToString(" • ") { (curr, total) ->
+                pendingByCurr.isNotEmpty() -> s.goalsTargetPrefix + pendingByCurr.entries.joinToString(" • ") { (curr, total) ->
                     "${com.example.currency.CountryCurrencyConfig.getCurrencySymbol(curr)}${String.format(Locale.US, "%,.0f", total)} $curr"
                 }
-                else -> "Crea una meta con monto y abona a tu alcancía"
+                else -> s.goalsEmptyHint
             }
 
             StickyNoteSheet(
@@ -4552,7 +4567,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             ) {
                                 androidx.compose.foundation.Image(
                                     painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
-                                    contentDescription = "Alcancía Fami",
+                                    contentDescription = s.goalsPiggyHeader,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(2.dp),
@@ -4562,14 +4577,14 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "ALCANCÍA FAMILIAR",
+                                    text = s.goalsPiggyHeader,
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = FamiCoralDeep,
                                     letterSpacing = 0.8.sp
                                 )
                                 Text(
-                                    text = if (goals.isEmpty()) "Tu primer ahorro" else "$completedCount cumplidas • $activeCount activas",
+                                    text = if (goals.isEmpty()) s.goalsPiggyHeader else "$completedCount • $activeCount",
                                     fontSize = 15.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink

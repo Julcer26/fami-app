@@ -1,7 +1,7 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 21,
-  "latestVersionName": "3.9.5",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.5.apk",
-  "changelog": "v3.9.5: Borrado legal completo de cuenta (Firebase Auth + Realtime DB + dispositivo), flujo de registro primero y configuración después, y selector de los 10 idiomas principales en Configuración (por defecto el del teléfono)."
+  "latestVersionCode": 22,
+  "latestVersionName": "3.9.6",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.6.apk",
+  "changelog": "v3.9.6: Corrección de rutas Firebase con puntos en correos/alias, traducción completa e inmediata a los 10 idiomas en todas las pantallas y calendario, y servicios frecuentes 100% creados, editables y eliminables por el usuario."
 }

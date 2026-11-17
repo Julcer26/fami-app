@@ -372,9 +372,13 @@ class FamilyRepository {
         }
     }
 
+    private fun safeFirebaseKey(raw: String): String {
+        return raw.trim().replace(Regex("[.#\\$\\[\\]/]"), "_")
+    }
+
     suspend fun insertCategory(category: CategoryDetail, user: String) {
         val categoriesRef = getFamilyRef("categories") ?: return
-        val key = category.categoryName
+        val key = safeFirebaseKey(category.categoryName)
         if (key.isNotEmpty()) {
             categoriesRef.child(key).setValue(category).await()
             insertLog(ActivityLog(tag = "CONFIGURACIÓN", message = "${user} configuró la categoría '${category.categoryName}' con límite de $${category.limitAmount} USD", user = user))
@@ -383,7 +387,7 @@ class FamilyRepository {
 
     suspend fun deleteCategory(category: CategoryDetail, user: String) {
         val categoriesRef = getFamilyRef("categories") ?: return
-        val key = category.categoryName
+        val key = safeFirebaseKey(category.categoryName)
         if (key.isNotEmpty()) {
             categoriesRef.child(key).removeValue().await()
             insertLog(ActivityLog(tag = "CONFIGURACIÓN", message = "${user} eliminó la categoría de presupuesto: '${category.categoryName}'", user = user))
@@ -392,7 +396,7 @@ class FamilyRepository {
 
     suspend fun insertProfile(profile: UserProfile, creator: String) {
         val profilesRef = getFamilyRef("user_profiles") ?: return
-        val key = profile.name
+        val key = safeFirebaseKey(profile.name)
         if (key.isNotEmpty()) {
             profilesRef.child(key).setValue(profile).await()
             insertLog(ActivityLog(tag = "CONFIGURACIÓN", message = "${creator} creó un nuevo perfil de convivencia: '${profile.name}'", user = creator))
@@ -401,7 +405,7 @@ class FamilyRepository {
 
     suspend fun deleteProfile(profile: UserProfile, user: String) {
         val profilesRef = getFamilyRef("user_profiles") ?: return
-        val key = profile.name
+        val key = safeFirebaseKey(profile.name)
         if (key.isNotEmpty()) {
             profilesRef.child(key).removeValue().await()
             insertLog(ActivityLog(tag = "CONFIGURACIÓN", message = "${user} eliminó el perfil: '${profile.name}'", user = user))
@@ -410,11 +414,12 @@ class FamilyRepository {
 
     suspend fun insertSetting(key: String, value: String, user: String) {
         val settingsRef = getFamilyRef("app_settings") ?: return
-        if (key.isNotEmpty()) {
-            settingsRef.child(key).setValue(AppSetting(key, value)).await()
-            if (key == "bcv_rate") {
+        val safeKey = safeFirebaseKey(key)
+        if (safeKey.isNotEmpty()) {
+            settingsRef.child(safeKey).setValue(AppSetting(safeKey, value)).await()
+            if (safeKey == "bcv_rate") {
                 insertLog(ActivityLog(tag = "FINANZAS", message = "${user} actualizó la tasa de cambio oficial del BCV a: ${value} Bs/$", user = user))
-            } else if (key == "total_limit_usd") {
+            } else if (safeKey == "total_limit_usd") {
                 insertLog(ActivityLog(tag = "FINANZAS", message = "${user} reestableció el límite presupuestario mensual global a: $${value} USD", user = user))
             }
         }
@@ -743,13 +748,17 @@ class FamilyRepository {
 
     private suspend fun getSettingValueByKey(key: String): String? {
         val settingsRef = getFamilyRef("app_settings") ?: return null
-        val snapshot = settingsRef.child(key).get().await()
+        val safeKey = safeFirebaseKey(key)
+        if (safeKey.isEmpty()) return null
+        val snapshot = settingsRef.child(safeKey).get().await()
         return snapshot.getValue(AppSetting::class.java)?.value
     }
 
     private suspend fun getCategoryByName(name: String): CategoryDetail? {
         val categoriesRef = getFamilyRef("categories") ?: return null
-        val snapshot = categoriesRef.child(name).get().await()
+        val safeKey = safeFirebaseKey(name)
+        if (safeKey.isEmpty()) return null
+        val snapshot = categoriesRef.child(safeKey).get().await()
         return snapshot.getValue(CategoryDetail::class.java)
     }
 

@@ -62,8 +62,10 @@ fun ModernMonthSelector(
     modifier: Modifier = Modifier
 ) {
     val paper = FamiTheme.paper
-    val monthFormat = SimpleDateFormat("MMMM yyyy", Locale("es", "ES"))
-    val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.uppercase() }
+    val strings = LocalFamiStrings.current
+    val activeLocale = remember(strings) { Locale.getDefault() }
+    val monthFormat = SimpleDateFormat("MMMM yyyy", activeLocale)
+    val monthStr = monthFormat.format(selectedMonth.time).replaceFirstChar { it.titlecase(activeLocale) }
     val context = LocalContext.current
 
     NotebookPaperSheet(
@@ -590,7 +592,9 @@ fun ModernTransactionCard(
         .trim()
         .ifEmpty { "General" }
 
-    val format = SimpleDateFormat("dd MMM, HH:mm", Locale("es", "ES"))
+    val strings = LocalFamiStrings.current
+    val activeLocale = remember(strings) { Locale.getDefault() }
+    val format = SimpleDateFormat("dd MMM, HH:mm", activeLocale)
     val displayDate = if (tx.balanceDate > 0) tx.balanceDate else tx.date
     val dateString = format.format(Date(displayDate))
 
@@ -773,12 +777,15 @@ fun ModernRecurringPaymentsSection(
     monthKey: String,
     onPaymentClick: (RecurringPayment) -> Unit,
     onAddPaymentClick: () -> Unit,
-    onSeedDefaultPayments: () -> Unit,
+    onEditPaymentClick: (RecurringPayment) -> Unit,
+    onDeletePaymentClick: (RecurringPayment) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val paper = FamiTheme.paper
+    val s = LocalFamiStrings.current
     val paidCount = recurringPayments.count { it.paidMonths[monthKey] == true }
     val totalCount = recurringPayments.size
+    var paymentPendingDelete by remember { mutableStateOf<RecurringPayment?>(null) }
 
     Column(
         modifier = modifier
@@ -795,7 +802,7 @@ fun ModernRecurringPaymentsSection(
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
-                    text = "⚡ Servicios y Pagos Frecuentes",
+                    text = s.recurringTitle,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black,
                     color = paper.ink,
@@ -810,7 +817,7 @@ fun ModernRecurringPaymentsSection(
                         border = BorderStroke(1.dp, paper.border.copy(alpha = 0.45f))
                     ) {
                         Text(
-                            text = "$paidCount de $totalCount pagados este mes",
+                            text = "$paidCount / $totalCount ${s.recurringPaidStatusSuffix}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (paidCount == totalCount) FamiEmerald else paper.ink,
@@ -831,13 +838,13 @@ fun ModernRecurringPaymentsSection(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Nuevo servicio",
+                    contentDescription = s.recurringNewBtn,
                     tint = paper.ink,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Nuevo",
+                    text = s.recurringNewBtn,
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Black,
                     color = paper.ink
@@ -860,18 +867,26 @@ fun ModernRecurringPaymentsSection(
                         .padding(horizontal = 16.dp, vertical = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "🏢 🛡️ ⚡ 🌐", fontSize = 22.sp)
+                    Text(text = "⚡ 🧾 📌", fontSize = 22.sp)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "No has registrado servicios fijos (Condominio, Seguros, Luz, Internet...)",
-                        fontSize = 11.5.sp,
+                        text = s.recurringEmptyTitle,
+                        fontSize = 12.5.sp,
+                        color = paper.ink,
+                        fontWeight = FontWeight.Black,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = s.recurringEmptySubtitle,
+                        fontSize = 11.sp,
                         color = paper.inkMuted,
                         fontWeight = FontWeight.Medium,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Tactile3DButton(
-                        onClick = onSeedDefaultPayments,
+                        onClick = onAddPaymentClick,
                         faceColor = FamiCoral,
                         lipColor = Lip3DCoral,
                         borderColor = paper.border,
@@ -879,8 +894,15 @@ fun ModernRecurringPaymentsSection(
                         lipHeight = 3.5.dp,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "Cargar Servicios Frecuentes",
+                            text = s.recurringCreateBtn,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Black,
                             color = Color.White
@@ -894,21 +916,21 @@ fun ModernRecurringPaymentsSection(
                 contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                this@LazyRow.items(recurringPayments) { rec ->
+                this@LazyRow.items(recurringPayments, key = { it.id.ifEmpty { it.name } }) { rec ->
                     val isPaid = rec.paidMonths[monthKey] == true
                     StickyNoteSheet(
                         noteColor = if (isPaid) paper.stickyMint else paper.stickyPeach,
                         borderColor = paper.border,
                         shadowColor = paper.shadow3D,
-                        modifier = Modifier.width(185.dp)
+                        modifier = Modifier.width(195.dp)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onPaymentClick(rec) }
-                                .padding(horizontal = 12.dp, vertical = 14.dp)
+                                .padding(horizontal = 12.dp, vertical = 12.dp)
                         ) {
-                            // Top Row: Emoji & Status Pill
+                            // Top Row: Emoji, Status Pill & Edit/Delete actions
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -916,27 +938,64 @@ fun ModernRecurringPaymentsSection(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(34.dp)
+                                        .size(32.dp)
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(paper.sheet)
                                         .border(1.2.dp, paper.border, RoundedCornerShape(10.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 17.sp)
+                                    Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 16.sp)
                                 }
 
-                                Surface(
-                                    color = paper.sheet,
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, if (isPaid) FamiEmerald else FamiCoral)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text(
-                                        text = if (isPaid) "PAGADO ✓" else "POR PAGAR",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = if (isPaid) FamiEmerald else FamiCoral,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                                    Surface(
+                                        color = paper.sheet,
+                                        shape = RoundedCornerShape(6.dp),
+                                        border = BorderStroke(1.dp, if (isPaid) FamiEmerald else FamiCoral)
+                                    ) {
+                                        Text(
+                                            text = if (isPaid) s.recurringPaidBadge else s.recurringUnpaidBadge,
+                                            fontSize = 8.5.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = if (isPaid) FamiEmerald else FamiCoral,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(paper.sheet)
+                                            .border(1.dp, paper.border.copy(alpha = 0.5f), CircleShape)
+                                            .clickable { onEditPaymentClick(rec) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = s.edit,
+                                            tint = paper.ink,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(paper.sheet)
+                                            .border(1.dp, FamiCoral.copy(alpha = 0.55f), CircleShape)
+                                            .clickable { paymentPendingDelete = rec },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = s.delete,
+                                            tint = FamiCoral,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
                                 }
                             }
 
@@ -954,7 +1013,7 @@ fun ModernRecurringPaymentsSection(
                             Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                text = "📅 Vence el día ${rec.dueDay}",
+                                text = "${s.recurringDueDayPrefix} ${rec.dueDay}",
                                 fontSize = 10.5.sp,
                                 color = paper.inkMuted
                             )
@@ -976,14 +1035,14 @@ fun ModernRecurringPaymentsSection(
                                     )
                                 } else {
                                     Text(
-                                        text = "Monto variable",
+                                        text = s.recurringVariableAmount,
                                         fontSize = 11.sp,
                                         color = paper.inkMuted
                                     )
                                 }
 
                                 Text(
-                                    text = if (isPaid) "Detalles ✓" else "Pagar ➔",
+                                    text = if (isPaid) s.recurringDetailsAction else s.recurringPayAction,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Black,
                                     color = if (isPaid) FamiEmerald else FamiCoral
@@ -1023,14 +1082,14 @@ fun ModernRecurringPaymentsSection(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
-                                    contentDescription = "Agregar Servicio",
+                                    contentDescription = s.recurringAddCardLabel,
                                     tint = paper.ink,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Agregar Servicio",
+                                text = s.recurringAddCardLabel,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
                                 color = paper.ink,
@@ -1041,6 +1100,44 @@ fun ModernRecurringPaymentsSection(
                 }
             }
         }
+    }
+
+    paymentPendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { paymentPendingDelete = null },
+            containerColor = paper.sheet,
+            title = {
+                Text(
+                    text = s.recurringDeleteConfirmTitle,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
+            },
+            text = {
+                Text(
+                    text = "${target.name}\n\n${s.recurringDeleteConfirmMsg}",
+                    fontSize = 13.sp,
+                    color = paper.inkMuted
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeletePaymentClick(target)
+                        paymentPendingDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(s.delete, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { paymentPendingDelete = null }) {
+                    Text(s.cancel, color = paper.inkMuted)
+                }
+            }
+        )
     }
 }
 
@@ -1073,6 +1170,7 @@ fun ModernRecurringPaymentDialogs(
     localCurrency: String = "VES"
 ) {
     val paper = FamiTheme.paper
+    val sDialog = LocalFamiStrings.current
     val currencyChoices = remember(localCurrency) {
         listOf("USD", localCurrency.ifBlank { "VES" }).distinct()
     }
@@ -1091,7 +1189,7 @@ fun ModernRecurringPaymentDialogs(
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Registrar Pago 🟢", fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                        Text(sDialog.confirm, fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     }
                     TextButton(
                         onClick = {
@@ -1100,24 +1198,19 @@ fun ModernRecurringPaymentDialogs(
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(14.dp), tint = FamiCoral)
+                        Icon(Icons.Default.Edit, contentDescription = sDialog.edit, modifier = Modifier.size(14.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
+                        Text(sDialog.edit, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                     }
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Servicio: ${rec.name} ($monthKey)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
-                    Text(
-                        "Ingresa el monto pagado este mes o deja el monto sugerido para registrarlo en tus gastos.",
-                        fontSize = 11.5.sp,
-                        color = paper.inkMuted
-                    )
+                    Text("${rec.name} ($monthKey)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     OutlinedTextField(
                         value = recAmountInput,
                         onValueChange = onAmountChange,
-                        label = { Text("Monto Pagado (${if (rec.defaultAmount > 0) "${rec.defaultAmount} ${rec.currency}" else "Opcional"})") },
+                        label = { Text("${sDialog.recurringAmountLabel} (${if (rec.defaultAmount > 0) "${rec.defaultAmount} ${rec.currency}" else rec.currency})") },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                         ),
@@ -1162,12 +1255,12 @@ fun ModernRecurringPaymentDialogs(
                     colors = ButtonDefaults.buttonColors(containerColor = FamiEmerald),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Confirmar Pago", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(sDialog.confirm, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissMarkPaid) {
-                    Text("Cancelar", color = paper.inkMuted)
+                    Text(sDialog.cancel, color = paper.inkMuted)
                 }
             }
         )
@@ -1187,7 +1280,7 @@ fun ModernRecurringPaymentDialogs(
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Text(rec.iconEmoji.ifEmpty { "⚡" }, fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Servicio al Día 🟢", fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                        Text(sDialog.recurringPaidBadge, fontSize = 16.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     }
                     TextButton(
                         onClick = {
@@ -1196,24 +1289,39 @@ fun ModernRecurringPaymentDialogs(
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(14.dp), tint = FamiCoral)
+                        Icon(Icons.Default.Edit, contentDescription = sDialog.edit, modifier = Modifier.size(14.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
+                        Text(sDialog.edit, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                     }
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Servicio: ${rec.name}", fontSize = 14.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                    Text(rec.name, fontSize = 14.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     Text(
-                        "Estado para $monthKey: ¡Pago Registrado con Éxito!",
+                        "$monthKey • ${sDialog.recurringPaidBadge}",
                         fontSize = 12.sp,
                         color = FamiEmerald,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Día de corte mensual: Día ${rec.dueDay}", fontSize = 11.5.sp, color = paper.inkMuted)
+                    Text("${sDialog.recurringDueDayPrefix} ${rec.dueDay}", fontSize = 11.5.sp, color = paper.inkMuted)
                     if (rec.defaultAmount > 0.0) {
-                        Text("Monto base sugerido: ${rec.defaultAmount} ${rec.currency}", fontSize = 12.sp, color = paper.inkMuted)
+                        Text("${rec.defaultAmount} ${rec.currency}", fontSize = 12.sp, color = paper.inkMuted)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = {
+                            onDismissPaidDetails()
+                            onDeleteRecurring(rec)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = FamiCoral),
+                        border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.5f))
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = sDialog.delete, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(sDialog.recurringDeleteBtn, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -1223,35 +1331,28 @@ fun ModernRecurringPaymentDialogs(
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
                 ) {
-                    Text("Desmarcar Pago", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(sDialog.recurringUnpaidBadge, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissPaidDetails) {
-                    Text("Cerrar", color = paper.inkMuted)
+                    Text(sDialog.close, color = paper.inkMuted)
                 }
             }
         )
     }
 
     if (showAddRecurringDialog) {
+        val s = LocalFamiStrings.current
         var nameValidationError by remember { mutableStateOf(false) }
-        val emojiPresets = listOf("⚡", "🏢", "🌐", "🛡️", "🏥", "☎️", "🚗", "💧", "♻️", "📺")
-        val quickServices = listOf(
-            "🏢" to "Condominio",
-            "⚡" to "Electricidad (Luz)",
-            "🌐" to "Internet / WiFi",
-            "🏥" to "Seguro Médico",
-            "💧" to "Agua / Hidrológica",
-            "☎️" to "Teléfono / Plan Móvil"
-        )
+        val emojiPresets = listOf("⚡", "🌐", "💧", "📱", "🏠", "🏥", "🚗", "🎓", "♻️", "📺")
 
         AlertDialog(
             onDismissRequest = onDismissAddRecurring,
             containerColor = paper.sheet,
             title = {
                 Text(
-                    text = if (selectedRecurringPayment == null) "⚡ Nuevo Servicio o Pago Fijo" else "✏️ Editar Servicio Frecuente",
+                    text = if (selectedRecurringPayment == null) s.recurringDialogNewTitle else s.recurringDialogEditTitle,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
                     color = paper.ink
@@ -1262,50 +1363,16 @@ fun ModernRecurringPaymentDialogs(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (selectedRecurringPayment == null) {
-                        Text(
-                            text = "Sugerencias rápidas (toca para rellenar):",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = paper.inkMuted
-                        )
-                        androidx.compose.foundation.lazy.LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            this@LazyRow.items(quickServices) { (emoji, label) ->
-                                Surface(
-                                    onClick = {
-                                        onEmojiChange(emoji)
-                                        onNameChange(label)
-                                        nameValidationError = false
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = paper.stickyYellow,
-                                    border = BorderStroke(1.dp, paper.border.copy(alpha = 0.55f))
-                                ) {
-                                    Text(
-                                        text = "$emoji $label",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = paper.ink,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     OutlinedTextField(
                         value = recNameInput,
                         onValueChange = {
                             onNameChange(it)
                             if (it.isNotBlank()) nameValidationError = false
                         },
-                        label = { Text("Nombre del servicio (ej. Condominio, Luz)") },
+                        label = { Text(s.recurringNameLabel) },
                         isError = nameValidationError,
                         supportingText = if (nameValidationError) {
-                            { Text("Escribe un nombre para el servicio", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+                            { Text(s.recurringNameError, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
                         } else null,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -1315,8 +1382,8 @@ fun ModernRecurringPaymentDialogs(
                     OutlinedTextField(
                         value = recAmountInput,
                         onValueChange = onAmountChange,
-                        label = { Text("Monto Mensual Sugerido (Opcional)") },
-                        placeholder = { Text("0.00 (deja vacío si varía cada mes)") },
+                        label = { Text(s.recurringAmountLabel) },
+                        placeholder = { Text("0.00") },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                         ),
@@ -1332,7 +1399,7 @@ fun ModernRecurringPaymentDialogs(
                         OutlinedTextField(
                             value = recDueDayInput,
                             onValueChange = onDueDayChange,
-                            label = { Text("Día de pago (1-31)") },
+                            label = { Text(s.recurringDueLabel) },
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                             ),
@@ -1344,7 +1411,7 @@ fun ModernRecurringPaymentDialogs(
                         OutlinedTextField(
                             value = recEmojiInput,
                             onValueChange = onEmojiChange,
-                            label = { Text("Icono / Emoji") },
+                            label = { Text(s.recurringEmojiLabel) },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
@@ -1376,7 +1443,7 @@ fun ModernRecurringPaymentDialogs(
                         }
                     }
 
-                    Text("Moneda por defecto:", fontSize = 11.sp, color = paper.inkMuted)
+                    Text(s.recurringCurrencyLabel, fontSize = 11.sp, color = paper.inkMuted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         currencyChoices.forEach { cur ->
                             val isSelected = recCurrencySelected == cur
@@ -1409,9 +1476,9 @@ fun ModernRecurringPaymentDialogs(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = FamiCoral),
                             border = BorderStroke(1.dp, FamiCoral.copy(alpha = 0.5f))
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Delete, contentDescription = s.delete, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Eliminar este servicio", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(s.recurringDeleteBtn, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1437,12 +1504,12 @@ fun ModernRecurringPaymentDialogs(
                     colors = ButtonDefaults.buttonColors(containerColor = FamiCoral),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Guardar", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(s.save, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissAddRecurring) {
-                    Text("Cancelar", color = paper.inkMuted)
+                    Text(s.cancel, color = paper.inkMuted)
                 }
             }
         )

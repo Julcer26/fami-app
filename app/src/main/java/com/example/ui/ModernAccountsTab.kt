@@ -77,6 +77,8 @@ fun ModernAccountsTab(
     onOpenConfig: () -> Unit
 ) {
     val paper = FamiTheme.paper
+    val s = LocalFamiStrings.current
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val userAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -191,7 +193,7 @@ fun ModernAccountsTab(
     }
 
     // Agrupación cronológica por día
-    val groupedTransactions = remember(filteredTransactions) {
+    val groupedTransactions = remember(filteredTransactions, appLanguage) {
         filteredTransactions.groupBy { tx ->
             val effectiveDate = if (tx.balanceDate > 0L) tx.balanceDate else tx.date
             formatDayHeader(effectiveDate)
@@ -228,7 +230,7 @@ fun ModernAccountsTab(
         isAnalyzingAi = true
         aiErrorMessage = null
         coroutineScope.launch {
-            val monthFormat = SimpleDateFormat("MMMM yyyy", Locale("es", "ES"))
+            val monthFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
             val monthLabel = monthFormat.format(selectedMonth.time).replaceFirstChar { it.uppercase() }
             val customKey = settings.find { it.key == "gemini_api_key" }?.value
             val result = FinanceAiAnalyzer.analyze(
@@ -276,9 +278,9 @@ fun ModernAccountsTab(
             // 0. Cabecera Finanzas Fami con acción rápida
             item {
                 ModernTabHeader(
-                    title = "Finanzas Fami",
-                    subtitle = "Ingresos, billeteras multi-moneda y presupuestos",
-                    actionText = "Movimiento",
+                    title = s.financesTitle,
+                    subtitle = s.financesSubtitle,
+                    actionText = s.financesActionMovement,
                     onActionClick = {
                         editingTransaction = null
                         showTxSheet = true
@@ -310,7 +312,7 @@ fun ModernAccountsTab(
                             border = BorderStroke(1.4.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
-                                Text("INGRESOS ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiEmerald)
+                                Text("${s.income} ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiEmerald)
                                 Text(
                                     text = "$localSym${String.format(Locale.US, "%,.0f", incomeLocal)}",
                                     fontSize = 13.sp,
@@ -328,7 +330,7 @@ fun ModernAccountsTab(
                             border = BorderStroke(1.4.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
-                                Text("GASTOS ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiCoralDeep)
+                                Text("${s.financesExpensesLabel} ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiCoralDeep)
                                 Text(
                                     text = "$localSym${String.format(Locale.US, "%,.0f", spentLocal)}",
                                     fontSize = 13.sp,
@@ -346,7 +348,7 @@ fun ModernAccountsTab(
                             border = BorderStroke(1.4.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
-                                Text("BILLETERAS ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
+                                Text("${s.financesWalletsLabel} ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = paper.inkMuted)
                                 Text(
                                     text = "$localSym${String.format(Locale.US, "%,.0f", totalWalletsLocal)}",
                                     fontSize = 13.sp,
@@ -448,13 +450,13 @@ fun ModernAccountsTab(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         SegmentedTabButton(
-                            title = "Movimientos (${monthTransactions.size})",
+                            title = "${s.financesMovementsTab} (${monthTransactions.size})",
                             isSelected = activeSection == "gastos",
                             modifier = Modifier.weight(1f),
                             onClick = { activeSection = "gastos" }
                         )
                         SegmentedTabButton(
-                            title = "Presupuestos (${categories.size})",
+                            title = "${s.financesBudgetsTab} (${categories.size})",
                             isSelected = activeSection == "categorias",
                             modifier = Modifier.weight(1f),
                             onClick = { activeSection = "categorias" }
@@ -477,7 +479,7 @@ fun ModernAccountsTab(
                         ) {
                             Icon(
                                 imageVector = if (showSearchBar) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = "Buscar",
+                                contentDescription = s.financesSearchHint,
                                 tint = if (showSearchBar) Color.White else paper.ink,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -495,12 +497,12 @@ fun ModernAccountsTab(
                             OutlinedTextField(
                                 value = searchQuery,
                                 onValueChange = { searchQuery = it },
-                                placeholder = { Text("Buscar por concepto, categoría o miembro...", fontSize = 13.sp, color = paper.inkMuted) },
+                                placeholder = { Text(s.financesSearchHint, fontSize = 13.sp, color = paper.inkMuted) },
                                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = paper.ink) },
                                 trailingIcon = {
                                     if (searchQuery.isNotEmpty()) {
                                         IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = paper.inkMuted)
+                                            Icon(Icons.Default.Clear, contentDescription = s.clear, tint = paper.inkMuted)
                                         }
                                     }
                                 },
@@ -525,10 +527,10 @@ fun ModernAccountsTab(
                         ) {
                             items(
                                 listOf(
-                                    "todos" to "📒 Todos",
-                                    "gastos" to "💸 Gastos",
-                                    "ingresos" to "💵 Ingresos",
-                                    "transferencias" to "🔄 Transferencias"
+                                    "todos" to s.financesFilterAll,
+                                    "gastos" to s.financesFilterExpenses,
+                                    "ingresos" to s.financesFilterIncome,
+                                    "transferencias" to s.financesFilterTransfers
                                 )
                             ) { (typeId, typeLabel) ->
                                 val isTypeSelected = selectedTypeFilter == typeId
@@ -569,7 +571,7 @@ fun ModernAccountsTab(
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        "Todas",
+                                        s.financesAllCategories,
                                         fontWeight = FontWeight.Black,
                                         fontSize = 11.5.sp,
                                         color = if (isSel) Color.White else paper.ink
@@ -619,13 +621,13 @@ fun ModernAccountsTab(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Filtro: ${filteredTransactions.size} reg. • Gastos: $${String.format(Locale.US, "%.2f", filteredSpentUsd)} USD",
+                                        text = "${filteredTransactions.size} • $${String.format(Locale.US, "%.2f", filteredSpentUsd)} USD",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink
                                     )
                                     Text(
-                                        text = "Limpiar",
+                                        text = s.clear,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
                                         color = FamiCoral,
@@ -663,12 +665,17 @@ fun ModernAccountsTab(
                                 recEmojiInput = "⚡"
                                 showAddRecurringDialog = true
                             },
-                            onSeedDefaultPayments = {
-                                viewModel.createOrEditRecurringPayment(RecurringPayment(name = "Condominio", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🏢", dueDay = 5))
-                                viewModel.createOrEditRecurringPayment(RecurringPayment(name = "Seguro Médico / Familiar", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🛡️", dueDay = 10))
-                                viewModel.createOrEditRecurringPayment(RecurringPayment(name = "Servicio Eléctrico (Luz)", defaultAmount = 0.0, category = "Servicios", iconEmoji = "⚡", dueDay = 15))
-                                viewModel.createOrEditRecurringPayment(RecurringPayment(name = "Internet / WiFi", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🌐", dueDay = 20))
-                                viewModel.createOrEditRecurringPayment(RecurringPayment(name = "Seguro Vehicular", defaultAmount = 0.0, category = "Servicios", iconEmoji = "🚗", dueDay = 25))
+                            onEditPaymentClick = { rec ->
+                                selectedRecurringPayment = rec
+                                recNameInput = rec.name
+                                recAmountInput = if (rec.defaultAmount > 0.0) rec.defaultAmount.toString() else ""
+                                recCurrencySelected = rec.currency
+                                recDueDayInput = rec.dueDay.toString()
+                                recEmojiInput = rec.iconEmoji.ifBlank { "⚡" }
+                                showAddRecurringDialog = true
+                            },
+                            onDeletePaymentClick = { rec ->
+                                viewModel.deleteRecurringPayment(rec)
                             }
                         )
                     }
@@ -679,8 +686,8 @@ fun ModernAccountsTab(
                     item {
                         EmptyStateCard(
                             emoji = "🧾",
-                            title = "Sin movimientos en esta hoja",
-                            subtitle = "Anota un gasto o ingreso tocando '+ Movimiento' arriba o escanea una factura."
+                            title = s.financesEmptyTitle,
+                            subtitle = s.financesEmptySubtitle
                         )
                     }
                 } else {
@@ -3003,15 +3010,38 @@ private fun formatDayHeader(timestampMillis: Long): String {
     val targetCal = Calendar.getInstance().apply { timeInMillis = timestampMillis }
     val todayCal = Calendar.getInstance()
     val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+    val loc = Locale.getDefault()
 
     return when {
         targetCal.get(Calendar.YEAR) == todayCal.get(Calendar.YEAR) &&
-            targetCal.get(Calendar.DAY_OF_YEAR) == todayCal.get(Calendar.DAY_OF_YEAR) -> "Hoy"
+            targetCal.get(Calendar.DAY_OF_YEAR) == todayCal.get(Calendar.DAY_OF_YEAR) -> when (loc.language.lowercase()) {
+                "en" -> "Today"
+                "pt" -> "Hoje"
+                "fr" -> "Aujourd'hui"
+                "it" -> "Oggi"
+                "de" -> "Heute"
+                "zh" -> "今天"
+                "ja" -> "今日"
+                "ko" -> "오늘"
+                "ar" -> "اليوم"
+                else -> "Hoy"
+            }
         targetCal.get(Calendar.YEAR) == yesterdayCal.get(Calendar.YEAR) &&
-            targetCal.get(Calendar.DAY_OF_YEAR) == yesterdayCal.get(Calendar.DAY_OF_YEAR) -> "Ayer"
-        else -> SimpleDateFormat("EEEE, d MMMM", Locale("es", "ES"))
+            targetCal.get(Calendar.DAY_OF_YEAR) == yesterdayCal.get(Calendar.DAY_OF_YEAR) -> when (loc.language.lowercase()) {
+                "en" -> "Yesterday"
+                "pt" -> "Ontem"
+                "fr" -> "Hier"
+                "it" -> "Ieri"
+                "de" -> "Gestern"
+                "zh" -> "昨天"
+                "ja" -> "昨日"
+                "ko" -> "어제"
+                "ar" -> "أمس"
+                else -> "Ayer"
+            }
+        else -> SimpleDateFormat("EEEE, d MMMM", loc)
             .format(Date(timestampMillis))
-            .replaceFirstChar { it.uppercase() }
+            .replaceFirstChar { it.titlecase(loc) }
     }
 }
 

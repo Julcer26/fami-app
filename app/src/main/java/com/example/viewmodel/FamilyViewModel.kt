@@ -1051,6 +1051,17 @@ class FamilyViewModel(
         }
     }
 
+    private fun sanitizeAliasFromEmail(email: String): String {
+        val localPart = email.substringBefore("@").trim()
+        val cleaned = localPart
+            .replace(Regex("[.#\\$\\[\\]/_]+"), " ")
+            .trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
+        return cleaned.ifBlank { "Usuario Fami" }
+    }
+
     fun handleGoogleFirebaseUser(
         firebaseUser: com.google.firebase.auth.FirebaseUser,
         joinFamilyCode: String = "",
@@ -1066,12 +1077,11 @@ class FamilyViewModel(
                 val uid = firebaseUser.uid
                 val email = firebaseUser.email.orEmpty()
                 val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
-                val emailFallbackAlias = email.substringBefore("@").replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }
+                val emailFallbackAlias = sanitizeAliasFromEmail(email)
                 val preferredAlias = customUserAlias.trim().takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: emailFallbackAlias
-                    ?: "Usuario Fami"
 
                 val snapshot = repository.getUserMapping(uid)
                 val existingFid = snapshot.child("familyId").getValue(String::class.java)
@@ -1082,9 +1092,10 @@ class FamilyViewModel(
                 val isNewSetup: Boolean
 
                 if (!existingFid.isNullOrBlank() && !existingName.isNullOrBlank()) {
+                    val hasInvalidChars = existingName.contains("@") || existingName.contains(".") || existingName.contains("#") || existingName.contains("$") || existingName.contains("[") || existingName.contains("]")
                     finalFid = existingFid
-                    finalUserName = if (existingName.contains("@")) preferredAlias else existingName
-                    if (existingName.contains("@")) {
+                    finalUserName = if (hasInvalidChars) sanitizeAliasFromEmail(existingName) else existingName
+                    if (hasInvalidChars) {
                         runCatching { repository.registerUserMapping(uid, finalFid, finalUserName) }
                     }
                     isNewSetup = false
@@ -1248,7 +1259,7 @@ class FamilyViewModel(
                     val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
                     finalUserName = pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
                         ?: firebaseUser.displayName?.trim()?.takeIf { it.isNotBlank() && !it.contains("@") }
-                        ?: cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }.ifBlank { "Usuario Fami" }
+                        ?: sanitizeAliasFromEmail(cleanEmail)
 
                     repository.registerUserMapping(uid, finalFid, finalUserName)
                     repository.registerFamilyMember(finalFid, uid)
@@ -1257,8 +1268,12 @@ class FamilyViewModel(
                     repository.populateDefaultsIfNeeded()
                     syncPendingNotebookSetup(userName = finalUserName, colorHex = "#D0BCFF")
                 } else {
+                    val hasInvalidChars = userName.contains("@") || userName.contains(".") || userName.contains("#") || userName.contains("$") || userName.contains("[") || userName.contains("]")
                     finalFid = fid
-                    finalUserName = userName
+                    finalUserName = if (hasInvalidChars) sanitizeAliasFromEmail(userName) else userName
+                    if (hasInvalidChars) {
+                        runCatching { repository.registerUserMapping(uid, finalFid, finalUserName) }
+                    }
                 }
 
                 dataStoreManager.saveAuthData(
@@ -1327,6 +1342,11 @@ class FamilyViewModel(
         syncFcmTokenAndWorker()
         viewModelScope.launch {
             try {
+                val cur = _currentUser.value.trim()
+                if (cur.contains(".") || cur.contains("@") || cur.contains("#") || cur.contains("$") || cur.contains("[") || cur.contains("]")) {
+                    val cleaned = if (cur.contains("@")) sanitizeAliasFromEmail(cur) else sanitizeAliasFromEmail("$cur@fami")
+                    applyAliasUpdateInternal(cleaned)
+                }
                 syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value)
             } catch (_: Exception) { }
         }
