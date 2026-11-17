@@ -735,7 +735,7 @@ fun StickyNoteEditorDialog(
                                     ) {
                                         Icon(
                                             imageVector = if (item.isDone) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                                            contentDescription = null,
+                                            contentDescription = if (item.isDone) "Desmarcar elemento" else "Marcar elemento",
                                             tint = if (item.isDone) FamiEmerald else FamiCoral,
                                             modifier = Modifier.size(18.dp)
                                         )

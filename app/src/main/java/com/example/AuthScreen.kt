@@ -522,7 +522,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                                 IconButton(onClick = { showLinkPasswordText = !showLinkPasswordText }) {
                                     Icon(
                                         if (showLinkPasswordText) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = null
+                                        contentDescription = if (showLinkPasswordText) "Ocultar contraseña" else "Mostrar contraseña"
                                     )
                                 }
                             },
@@ -1322,7 +1322,7 @@ private fun JoinFamilyContent(
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
                             if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = null
+                            contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña"
                         )
                     }
                 },
@@ -1472,7 +1472,7 @@ private fun LoginExistingFamilyContent(
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
                             if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = null
+                            contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña"
                         )
                     }
                 },
@@ -1744,7 +1744,10 @@ private fun ForgotPasswordContent(
                     label = { Text("Nueva contraseña (mín. 6 caracteres)") },
                     trailingIcon = {
                         IconButton(onClick = { showNewPassword = !showNewPassword }) {
-                            Icon(if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null)
+                            Icon(
+                                if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showNewPassword) "Ocultar contraseña" else "Mostrar contraseña"
+                            )
                         }
                     },
                     visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
