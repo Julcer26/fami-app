@@ -1,7 +1,8 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 22,
-  "latestVersionName": "3.9.6",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.6.apk",
-  "changelog": "v3.9.6: Corrección de rutas Firebase con puntos en correos/alias, traducción completa e inmediata a los 10 idiomas en todas las pantallas y calendario, y servicios frecuentes 100% creados, editables y eliminables por el usuario."
+  "latestVersionCode": 23,
+  "latestVersionName": "3.9.7",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.9.7/Fami_v3.9.7.apk",
+  "apkSha256": "CB473F9AEF8F94A627532965DAD3C90EA3419F4645AABB9094D174B889294F37",
+  "changelog": "v3.9.7 (Build 23): Seguridad reforzada (proxy IA y cifrado local), sincronización atómica Firebase, optimización Compose, accesibilidad TalkBack y verificación SHA-256 en OTA."
 }
