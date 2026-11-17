@@ -28,7 +28,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Core Unit Tests
-        run: ./gradlew testDebugUnitTest --tests "com.example.CountryCurrencyConfigTest" --tests "com.example.OtaUpdateManagerTest" --tests "com.example.TaskNotificationHelperTest" --tests "com.example.FamiStringsLocalizationTest" --tests "com.example.GeminiParserAndSecurityTest" --tests "com.example.ExampleUnitTest" --no-daemon
+        run: ./gradlew testDebugUnitTest --tests "com.example.CountryCurrencyConfigTest" --tests "com.example.OtaUpdateManagerTest" --tests "com.example.TaskNotificationHelperTest" --tests "com.example.FamiStringsLocalizationTest" --tests "com.example.LocalCryptoBoxTest" --tests "com.example.GeminiParserTest" --tests "com.example.ExampleUnitTest" --no-daemon
 
       - name: Build Release and Debug APKs
         run: ./gradlew assembleRelease assembleDebug --no-daemon

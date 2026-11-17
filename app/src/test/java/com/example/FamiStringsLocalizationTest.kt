@@ -64,7 +64,7 @@ class FamiStringsLocalizationTest {
             Locale.setDefault(Locale.FRANCE)
             assertEquals("fr", CountryCurrencyConfig.detectSystemLanguageCode())
 
-            Locale.setDefault(Locale("ru", "RU"))
+            Locale.setDefault(Locale.forLanguageTag("ru-RU"))
             assertEquals("es", CountryCurrencyConfig.detectSystemLanguageCode())
         } finally {
             Locale.setDefault(prev)
