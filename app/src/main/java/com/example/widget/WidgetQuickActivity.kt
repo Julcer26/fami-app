@@ -119,16 +119,12 @@ private fun WidgetQuickOverlayScreen(
     onFinishOverlay: () -> Unit
 ) {
     val context = LocalContext.current
-    val activity = remember(context) { context.findFragmentActivity() }
     val coroutineScope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val paper = FamiTheme.paper
 
     val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
-    val familyId by viewModel.familyId.collectAsStateWithLifecycle()
-    val unlockMethod by viewModel.unlockMethod.collectAsStateWithLifecycle()
-    val authError by viewModel.authError.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val wallets by viewModel.wallets.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -140,11 +136,10 @@ private fun WidgetQuickOverlayScreen(
 
     var hasCheckedAuthInit by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(180)
+        viewModel.unlockForWidgetIfSignedIn()
         hasCheckedAuthInit = true
     }
 
-    var pinInput by remember { mutableStateOf("") }
     var inputText by remember { mutableStateOf("") }
     var selectedWalletId by remember { mutableStateOf("") }
     var isScanningReceipt by remember { mutableStateOf(false) }
