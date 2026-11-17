@@ -58,4 +58,18 @@ class MainActivityLaunchTest {
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().assertExists()
     }
+
+    @Test
+    fun widgetQuickActivity_launchesWithoutCrashing() {
+        val controller = Robolectric.buildActivity(com.example.widget.WidgetQuickActivity::class.java).setup()
+        try {
+            val activity = controller.get()
+            assertNotNull(activity)
+            assertFalse(activity.isFinishing)
+            assertFalse(activity.isDestroyed)
+            assertNotNull(activity.window)
+        } finally {
+            controller.pause().stop().destroy()
+        }
+    }
 }

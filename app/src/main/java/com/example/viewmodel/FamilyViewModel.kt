@@ -713,6 +713,27 @@ class FamilyViewModel(
         }
     }
 
+    suspend fun unlockForWidgetIfSignedIn(): Boolean {
+        val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return false
+        val isEmailProvider = firebaseUser.providerData.any { it.providerId == "password" }
+        if (isEmailProvider && !firebaseUser.isEmailVerified) {
+            return false
+        }
+        val fid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull()
+        val name = _currentUser.value.ifBlank { dataStoreManager.userNameFlow.firstOrNull().orEmpty() }
+        if (fid.isNullOrBlank() || name.isBlank()) {
+            return false
+        }
+        failedPinAttempts = 0
+        pinLockoutUntilMs = 0L
+        _familyId.value = fid
+        _currentUser.value = name
+        repository.setFamilyId(fid)
+        _authError.value = null
+        _isAuthenticated.value = true
+        return true
+    }
+
     fun setUnlockMethodAndEnter(method: String, customPin: String? = null, customAlias: String? = null) {
         viewModelScope.launch {
             val cleanPin = customPin?.trim().orEmpty()

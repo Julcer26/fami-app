@@ -38,8 +38,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -50,10 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.MainActivity
 import com.example.api.GeminiParser
 import com.example.api.ParsedReceiptItem
-import com.example.canAuthenticateBiometric
 import com.example.database.TransactionItem
-import com.example.findFragmentActivity
-import com.example.showBiometricPrompt
 import com.example.ui.BankWalletSelectorChip
 import com.example.ui.ReceiptScanConfirmDialog
 import com.example.ui.StickyNoteSheet
@@ -62,8 +57,6 @@ import com.example.ui.theme.*
 import com.example.uriToBitmap
 import com.example.viewmodel.FamilyViewModel
 import com.example.viewmodel.FamilyViewModelFactory
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -326,17 +319,7 @@ private fun WidgetQuickOverlayScreen(
         }
     }
 
-    val biometricSupported = remember(context) { canAuthenticateBiometric(context) }
-
-    LaunchedEffect(isAuthenticated, familyId, unlockMethod, hasCheckedAuthInit, activity) {
-        if (!isAuthenticated && familyId != null && unlockMethod == "biometric" && biometricSupported && activity != null) {
-            showBiometricPrompt(activity, onSuccess = {
-                viewModel.loginBiometric()
-            })
-        }
-    }
-
-    // Disparo automático inmediato según el botón tocado en el widget una vez desbloqueado
+    // Disparo automático inmediato según el botón tocado en el widget una vez verificada la sesión
     LaunchedEffect(triggerKey, initialAction, isAuthenticated) {
         if (!isAuthenticated) return@LaunchedEffect
         viewModel.clearNlpError()
@@ -380,10 +363,7 @@ private fun WidgetQuickOverlayScreen(
         contentAlignment = Alignment.Center
     ) {
         if (!isAuthenticated) {
-            val hasFirebaseUser = remember(familyId, hasCheckedAuthInit) {
-                FirebaseAuth.getInstance().currentUser != null && familyId != null
-            }
-            if (hasCheckedAuthInit || familyId != null) {
+            if (hasCheckedAuthInit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -411,7 +391,7 @@ private fun WidgetQuickOverlayScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (hasFirebaseUser) "🔐 DESBLOQUEA FAMI" else "👋 INICIA SESIÓN EN FAMI",
+                                    text = "👋 INICIA SESIÓN EN FAMI",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
@@ -429,101 +409,28 @@ private fun WidgetQuickOverlayScreen(
                                 }
                             }
 
-                            if (!hasFirebaseUser) {
-                                Text(
-                                    text = "Abre Fami para iniciar sesión o crear tu hogar antes de usar el acceso rápido.",
-                                    fontSize = 12.sp,
-                                    color = paper.inkMuted
-                                )
-                                Tactile3DButton(
-                                    onClick = {
-                                        val openMain = Intent(context, MainActivity::class.java).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                        }
-                                        context.startActivity(openMain)
-                                        onFinishOverlay()
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    faceColor = FamiCoral,
-                                    lipColor = Lip3DCoral,
-                                    borderColor = paper.border,
-                                    cornerRadius = 12.dp,
-                                    lipHeight = 4.dp,
-                                    contentPadding = PaddingValues(vertical = 10.dp)
-                                ) {
-                                    Text("ABRIR FAMI", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
-                                }
-                            } else {
-                                Text(
-                                    text = "Confirma tu acceso para proteger las finanzas de tu hogar.",
-                                    fontSize = 11.5.sp,
-                                    color = paper.inkMuted
-                                )
-                                OutlinedTextField(
-                                    value = pinInput,
-                                    onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pinInput = it },
-                                    label = { Text("PIN de 5 dígitos") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        if (pinInput.length == 5) {
-                                            viewModel.loginWithPin(pinInput) { ok -> if (!ok) pinInput = "" }
-                                        }
-                                    }),
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(paper.sheet, RoundedCornerShape(14.dp))
-                                )
-                                if (!authError.isNullOrBlank()) {
-                                    Text(
-                                        text = authError.orEmpty(),
-                                        color = FamiAlertRed,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    if (unlockMethod == "biometric" && biometricSupported && activity != null) {
-                                        Tactile3DButton(
-                                            onClick = {
-                                                showBiometricPrompt(activity, onSuccess = {
-                                                    viewModel.loginBiometric()
-                                                })
-                                            },
-                                            faceColor = paper.stickyMint,
-                                            lipColor = Lip3DMint,
-                                            borderColor = paper.border,
-                                            cornerRadius = 12.dp,
-                                            lipHeight = 4.dp,
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
-                                        ) {
-                                            Icon(Icons.Default.Fingerprint, contentDescription = "Huella", tint = paper.ink, modifier = Modifier.size(20.dp))
-                                        }
+                            Text(
+                                text = "Abre Fami para iniciar sesión o crear tu hogar antes de usar el acceso rápido.",
+                                fontSize = 12.sp,
+                                color = paper.inkMuted
+                            )
+                            Tactile3DButton(
+                                onClick = {
+                                    val openMain = Intent(context, MainActivity::class.java).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                     }
-                                    Tactile3DButton(
-                                        onClick = {
-                                            if (pinInput.length == 5) {
-                                                viewModel.loginWithPin(pinInput) { ok -> if (!ok) pinInput = "" }
-                                            } else {
-                                                Toast.makeText(context, "Ingresa tu PIN de 5 dígitos", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        faceColor = FamiCoral,
-                                        lipColor = Lip3DCoral,
-                                        borderColor = paper.border,
-                                        cornerRadius = 12.dp,
-                                        lipHeight = 4.dp,
-                                        contentPadding = PaddingValues(vertical = 10.dp)
-                                    ) {
-                                        Text("DESBLOQUEAR", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
-                                    }
-                                }
+                                    context.startActivity(openMain)
+                                    onFinishOverlay()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                faceColor = FamiCoral,
+                                lipColor = Lip3DCoral,
+                                borderColor = paper.border,
+                                cornerRadius = 12.dp,
+                                lipHeight = 4.dp,
+                                contentPadding = PaddingValues(vertical = 10.dp)
+                            ) {
+                                Text("ABRIR FAMI", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
                             }
                         }
                     }
