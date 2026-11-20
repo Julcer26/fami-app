@@ -180,6 +180,27 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
+    suspend fun setManagementMode(mode: String) {
+        val clean = if (mode.trim().equals("individual", ignoreCase = true)) "individual" else "familiar"
+        context.dataStore.edit { prefs ->
+            prefs[MANAGEMENT_MODE] = clean
+            if (clean == "individual") {
+                prefs[FAMILY_ACTION] = "create"
+            }
+        }
+    }
+
+    suspend fun setFamilyAction(action: String) {
+        val clean = when (action.trim().lowercase()) {
+            "join" -> "join"
+            "individual" -> "individual"
+            else -> "create"
+        }
+        context.dataStore.edit { prefs ->
+            prefs[FAMILY_ACTION] = clean
+        }
+    }
+
     suspend fun setUserAvatarId(avatarId: String) {
         context.dataStore.edit { prefs ->
             prefs[USER_AVATAR_ID] = avatarId

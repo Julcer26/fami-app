@@ -61,6 +61,8 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val isIndividualMode = managementMode == "individual"
     val paper = FamiTheme.paper
     val s = com.example.ui.LocalFamiStrings.current
     val shoppingItems by viewModel.shoppingItems.collectAsStateWithLifecycle()
@@ -374,20 +376,22 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     lineHeight = 24.sp,
                                     textDecoration = if (item.isBought) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                val cleanAdder = cleanMemberAlias(item.addedBy)
-                                com.example.ui.MemberAvatarBadge(
-                                    memberName = cleanAdder,
-                                    profiles = profiles,
-                                    currentUser = currentUser,
-                                    currentUserAvatarId = userAvatarIdState,
-                                    size = 24.dp,
-                                    showAliasBelow = true,
-                                    aliasText = cleanAdder,
-                                    aliasFontSize = 9.sp,
-                                    aliasColor = paper.inkMuted,
-                                    aliasMaxWidth = 58.dp
-                                )
+                                if (!isIndividualMode) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    val cleanAdder = cleanMemberAlias(item.addedBy)
+                                    com.example.ui.MemberAvatarBadge(
+                                        memberName = cleanAdder,
+                                        profiles = profiles,
+                                        currentUser = currentUser,
+                                        currentUserAvatarId = userAvatarIdState,
+                                        size = 24.dp,
+                                        showAliasBelow = true,
+                                        aliasText = cleanAdder,
+                                        aliasFontSize = 9.sp,
+                                        aliasColor = paper.inkMuted,
+                                        aliasMaxWidth = 58.dp
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -516,16 +520,18 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         )
                     )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.Switch(
-                            checked = itemIsPrivate,
-                            onCheckedChange = { itemIsPrivate = it },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
+                    if (!isIndividualMode) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Switch(
+                                checked = itemIsPrivate,
+                                onCheckedChange = { itemIsPrivate = it },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
                     // Lista dropdown selector
                     var expandedShopListDropdown by remember { mutableStateOf(false) }
                     Box(modifier = Modifier.fillMaxWidth() ){
@@ -636,18 +642,20 @@ fun ComprasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             unfocusedTextColor = paper.ink
                         )
                     )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        androidx.compose.material3.Switch(
-                            checked = itemIsPrivate,
-                            onCheckedChange = { itemIsPrivate = it },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
+                    if (!isIndividualMode) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.Switch(
+                                checked = itemIsPrivate,
+                                onCheckedChange = { itemIsPrivate = it },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text("Lista de destino:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp) ){
                         items(listNames, key = { it }) { list ->

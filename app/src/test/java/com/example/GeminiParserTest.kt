@@ -60,4 +60,17 @@ class GeminiParserTest {
 
         assertNull(GeminiParser.extractResultJsonObject("""{"candidates":[]}"""))
     }
+
+    @Test
+    fun resolveSupportedCurrency_supportsAllLatamAndGlobalCurrencies() {
+        assertEquals("VES", GeminiParser.resolveSupportedCurrency("Bs"))
+        assertEquals("VES", GeminiParser.resolveSupportedCurrency("VES"))
+        assertEquals("COP", GeminiParser.resolveSupportedCurrency("COP"))
+        assertEquals("MXN", GeminiParser.resolveSupportedCurrency("MXN"))
+        assertEquals("ARS", GeminiParser.resolveSupportedCurrency("ARS"))
+        assertEquals("EUR", GeminiParser.resolveSupportedCurrency("€"))
+        assertEquals("EUR", GeminiParser.resolveSupportedCurrency("EUR"))
+        assertEquals("USD", GeminiParser.resolveSupportedCurrency("$"))
+        assertEquals("USD", GeminiParser.resolveSupportedCurrency(""))
+    }
 }

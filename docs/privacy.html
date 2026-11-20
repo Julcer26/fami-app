@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Política de Privacidad | Fami - Finanzas Familiares IA</title>
+    <title>Política de Privacidad | Fami - Finanzas, Hogar y Libreta con IA</title>
+    <meta name="description" content="Política de Privacidad oficial de Fami. Conoce cómo protegemos tus finanzas, notas y recibos con cifrado AES-256-GCM, proxy seguro de IA y cero rastreadores publicitarios.">
+    <link rel="canonical" href="https://somosfami.app/privacy.html">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -38,14 +40,14 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            background: rgba(99, 102, 241, 0.2);
-            border: 1px solid rgba(99, 102, 241, 0.4);
+            background: rgba(229, 70, 41, 0.2);
+            border: 1px solid rgba(229, 70, 41, 0.45);
             padding: 8px 16px;
             border-radius: 999px;
             font-size: 0.9rem;
             font-weight: 600;
             margin-bottom: 16px;
-            color: #A5B4FC;
+            color: #FF8C6B;
         }
         h1 { font-size: 2.3rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.02em; }
         .subtitle { color: #94A3B8; font-size: 1rem; }
@@ -75,13 +77,13 @@
         ul { margin-left: 24px; margin-bottom: 16px; color: #334155; }
         li { margin-bottom: 8px; }
         .alert-box {
-            background: #EEF2FF;
+            background: #FFF5F1;
             border-left: 4px solid var(--primary);
             padding: 16px 20px;
             border-radius: 8px;
             margin: 20px 0;
             font-size: 0.95rem;
-            color: #312E81;
+            color: #161B3A;
         }
         table {
             width: 100%;
@@ -98,6 +100,7 @@
         .nav-links {
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             gap: 20px;
             margin-top: 40px;
             padding-top: 24px;
@@ -118,34 +121,35 @@
 
 <header>
     <div class="header-container">
-        <div class="logo-badge">🪺 Fami • Privacidad & Transparencia</div>
+        <div class="logo-badge">🤖 Fami • Privacidad & Transparencia</div>
         <h1>Política de Privacidad</h1>
-        <p class="subtitle">Última actualización: 10 de noviembre de 2026 • Versión 1.0</p>
+        <p class="subtitle">Última actualización: 20 de noviembre de 2026 • Versión 2.0 (Fami v3.10.0)</p>
     </div>
 </header>
 
 <main class="container">
     <div class="alert-box">
-        <strong>Resumen clave:</strong> En Fami no vendemos tus datos a nadie. Tus registros financieros y fotos de recibos son privados para tu grupo familiar y se transmiten mediante canales cifrados de alta seguridad.
+        <strong>Resumen clave:</strong> En Fami no vendemos tus datos ni incluimos rastreadores publicitarios de terceros (0 ad SDKs). Tus registros financieros, notas y recibos pertenecen exclusivamente a tu cuenta y espacio (Individual o Familiar), resguardados localmente con cifrado AES-256-GCM y en tránsito mediante HTTPS/TLS 1.3.
     </div>
 
     <h2>1. Información General</h2>
-    <p>Esta Política de Privacidad describe la forma en que <strong>Fami - Finanzas y Presupuesto Familiar IA</strong> ("la Aplicación", "nosotros") recopila, utiliza y protege los datos personales y financieros de los usuarios al utilizar nuestra aplicación para dispositivos Android.</p>
-    <p>Al utilizar Fami, consientes las prácticas descritas en este documento en conformidad con las directrices de Google Play Developer Policy, el Reglamento General de Protección de Datos (RGPD / GDPR) y normativas afines.</p>
+    <p>Esta Política de Privacidad describe la forma en que <strong>Fami — Finanzas, Hogar y Libreta con IA</strong> (<code>app.somosfami</code>, "la Aplicación", "nosotros") recopila, utiliza y protege los datos personales y financieros de los usuarios al utilizar nuestra aplicación para dispositivos Android y nuestro portal web oficial (<a href="https://somosfami.app">somosfami.app</a>).</p>
+    <p>Al utilizar Fami, consientes las prácticas descritas en este documento en conformidad con las directrices de Google Play Developer Policy, el Reglamento General de Protección de Datos (RGPD / GDPR) y normativas latinoamericanas e internacionales aplicables.</p>
 
-    <h2>2. Datos que Recopilamos</h2>
+    <h2>2. Datos que Recopilamos y Cifrado Local</h2>
     <h3>A. Datos proporcionados por ti</h3>
     <ul>
-        <li><strong>Información de Cuenta:</strong> Correo electrónico y contraseña cifrada al registrarte mediante Google Firebase Auth.</li>
-        <li><strong>Perfil Familiar:</strong> Nombre de usuario o alias visible para tu hogar y el código identificador de tu familia (<code>familyId</code>).</li>
-        <li><strong>Información Financiera:</strong> Ingresos, gastos, importes, categorías, presupuestos por rubro, pagos recurrentes y metas de ahorro.</li>
-        <li><strong>Imágenes de Comprobantes:</strong> Fotografías de facturas, recibos y tickets de compra capturadas con tu cámara o seleccionadas desde tu galería.</li>
-        <li><strong>Listas y Tareas:</strong> Tareas del hogar asignadas y listas compartidas de compras.</li>
+        <li><strong>Información de Cuenta:</strong> Correo electrónico y método de autenticación (Google Sign-In o correo/contraseña) gestionados mediante Google Firebase Authentication.</li>
+        <li><strong>Perfil y Espacio (Familiar o Individual):</strong> Alias elegido, avatar ilustrado, rol dentro del hogar, modo de organización (<code>familiar</code> o <code>individual</code>) y código identificador del espacio (<code>familyId</code>).</li>
+        <li><strong>Información Financiera y Multi-Moneda:</strong> Ingresos, gastos, desglose de ítems, billeteras multi-moneda, categorías presupuestarias, pagos recurrentes y metas de ahorro.</li>
+        <li><strong>Libreta, Tareas y Compras:</strong> Tareas asignadas (con prioridad y fecha límite), listas de compras y notitas adhesivas (públicas para el hogar o marcadas como privadas "Solo para mí").</li>
+        <li><strong>Imágenes de Comprobantes:</strong> Fotografías de facturas y recibos capturadas o elegidas desde tu galería únicamente cuando decides adjuntarlas o escanearlas con IA.</li>
     </ul>
 
-    <h3>B. Datos técnicos y del dispositivo</h3>
+    <h3>B. Cifrado Local en el Dispositivo (LocalCryptoBox)</h3>
     <ul>
-        <li>Información de diagnóstico, modelo de dispositivo y versión de Android para garantizar estabilidad técnica y corrección de errores.</li>
+        <li>Las preferencias sensibles almacenadas localmente se cifran en el dispositivo mediante <strong>Android Keystore con AES-256-GCM</strong> (<code>LocalCryptoBox</code>).</li>
+        <li>Tu PIN de desbloqueo de 5 dígitos jamás se almacena en texto plano: se procesa con un <strong>hash criptográfico SHA-256 con sal aleatoria de 128 bits</strong>.</li>
     </ul>
 
     <h2>3. Permisos de la Aplicación y su Propósito</h2>
@@ -159,46 +163,56 @@
         <tbody>
             <tr>
                 <td><code>INTERNET</code></td>
-                <td>Sincronizar tus datos en la nube con Firebase en tiempo real y consultar tasas de cambio oficiales (BCV).</td>
+                <td>Sincronizar tus datos en tiempo real con Firebase, validar actualizaciones OTA y consultar tasas de cambio referenciales (BCV, TRM, Euro y divisas locales).</td>
             </tr>
             <tr>
                 <td><code>CAMERA</code></td>
-                <td>Permitir fotografiar recibos físicos para digitalizarlos con Inteligencia Artificial. Nunca se activa sin tu instrucción directa.</td>
+                <td>Fotografiar recibos físicos para digitalizarlos con Inteligencia Artificial. Solo se activa cuando pulsas "Escanear".</td>
+            </tr>
+            <tr>
+                <td><code>RECORD_AUDIO</code> / Dictado</td>
+                <td>Registrar gastos o notas por voz mediante el reconocedor del sistema cuando pulsas el icono del micrófono en la app o en el widget.</td>
             </tr>
             <tr>
                 <td><code>USE_BIOMETRIC</code></td>
-                <td>Desbloquear la app de forma rápida y segura con huella o rostro. Los datos biométricos residen exclusivamente en el hardware de tu teléfono y jamás son transmitidos.</td>
+                <td>Desbloquear tu sesión con huella o biometría. Los datos biométricos residen exclusivamente en el hardware seguro de tu teléfono y jamás son leídos ni transmitidos por Fami.</td>
             </tr>
             <tr>
                 <td><code>POST_NOTIFICATIONS</code></td>
-                <td>Recordatorios opcionales sobre pagos de servicios próximos a vencer.</td>
+                <td>Enviar avisos de tareas asignadas a miembros del hogar (Firebase Cloud Messaging) y recordatorios de pagos próximos o alertas de presupuesto.</td>
+            </tr>
+            <tr>
+                <td><code>REQUEST_INSTALL_PACKAGES</code></td>
+                <td>Permitir la instalación opcional de actualizaciones directas (OTA) descargadas desde el repositorio oficial de Fami tras verificar su firma criptográfica SHA-256.</td>
             </tr>
         </tbody>
     </table>
 
-    <h2>4. Uso de Inteligencia Artificial (Google Gemini)</h2>
-    <p>Fami utiliza modelos de lenguaje y visión computacional de <strong>Google Gemini</strong> para:</p>
+    <h2>4. Uso de Inteligencia Artificial (Proxy Autenticado Google Gemini)</h2>
+    <p>Fami utiliza modelos de visión y lenguaje de <strong>Google Gemini</strong> a través de un <strong>proxy seguro en Firebase Cloud Functions</strong> autenticado con tu token de sesión (<code>Bearer ID Token</code>), garantizando que ninguna llave de API quede expuesta en la aplicación cliente:</p>
     <ul>
-        <li>Extraer automáticamente comercios, fechas, artículos y montos a partir de las fotos de tus facturas.</li>
-        <li>Generar análisis y recomendaciones de salud financiera basadas en tus balances mensuales.</li>
+        <li>Extraer comercio, fecha, moneda, categoría y desglose de artículos a partir de fotos de recibos o texto en lenguaje natural.</li>
+        <li>Generar diagnósticos y consejos de ahorro basados en el balance mensual de tu hoja.</li>
     </ul>
-    <p>Tus datos transaccionales se procesan de manera aislada y confidencial, y no son comercializados ni usados para entrenar modelos públicos de terceros.</p>
+    <p>Tus datos no se venden a anunciantes ni se comparten con redes publicitarias de terceros.</p>
 
-    <h2>5. Seguridad y Almacenamiento</h2>
-    <p>Toda comunicación entre la app y los servidores se ejecuta mediante <strong>HTTPS/TLS 1.3</strong>. Los datos se almacenan en la infraestructura de <strong>Google Cloud (Firebase Realtime Database y Firebase Storage)</strong> con encriptación en reposo AES-256. El acceso a cada registro está estrictamente limitado a los usuarios autorizados de tu grupo familiar mediante Firebase Security Rules.</p>
+    <h2>5. Seguridad y Almacenamiento en la Nube</h2>
+    <p>Toda comunicación entre la app y los servidores se ejecuta mediante <strong>HTTPS/TLS 1.3</strong>. Los datos sincronizados se alojan en <strong>Google Cloud (Firebase Realtime Database y Firebase Storage)</strong> con cifrado en reposo AES-256 y reglas de acceso (Firebase Security Rules) que aíslan cada espacio por <code>UID</code> y membresía verificada.</p>
 
     <h2>6. Eliminación de Cuentas y Datos</h2>
-    <p>Tienes derecho absoluto a eliminar tu cuenta y cualquier dato asociado en cualquier momento:</p>
+    <p>Tienes derecho absoluto a eliminar tu cuenta y todos tus datos asociados en cualquier momento:</p>
     <ul>
-        <li><strong>Desde la App:</strong> Entra a <em>Ajustes > Eliminar mi Cuenta</em>.</li>
-        <li><strong>Vía Web:</strong> Puedes solicitarlo sin tener la app instalada en nuestro <a href="delete-account.html">Formulario de Solicitud de Eliminación de Datos</a>.</li>
+        <li><strong>Desde la App (Inmediato):</strong> Entra a <em>Ajustes > General > Eliminar mi Cuenta y Datos</em>.</li>
+        <li><strong>Vía Web:</strong> Solicítalo sin necesidad de tener la app instalada en nuestro <a href="delete-account.html">Portal de Solicitud de Eliminación de Cuenta y Datos</a> o escribiendo a <a href="mailto:hola@somosfami.app">hola@somosfami.app</a>.</li>
     </ul>
 
-    <h2>7. Contacto</h2>
-    <p>Para dudas, sugerencias o consultas relativas a tu privacidad, escríbenos a:</p>
-    <p>📧 <strong>soporte.nidoapp@gmail.com</strong></p>
+    <h2>7. Contacto Oficial</h2>
+    <p>Para dudas, ejercicio de derechos ARCO/RGPD o consultas sobre privacidad, escríbenos a:</p>
+    <p>📧 <strong><a href="mailto:hola@somosfami.app">hola@somosfami.app</a></strong></p>
 
     <div class="nav-links">
+        <a href="index.html">Volver al Inicio</a>
+        <span>•</span>
         <a href="terms.html">Términos y Condiciones</a>
         <span>•</span>
         <a href="delete-account.html">Eliminar Cuenta y Datos</a>
@@ -206,7 +220,7 @@
 </main>
 
 <footer>
-    © 2026 Fami - Finanzas Familiares IA. Todos los derechos reservados.
+    © 2026 Fami — Finanzas, Hogar y Libreta con IA • Soporte oficial: hola@somosfami.app
 </footer>
 
 </body>

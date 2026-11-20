@@ -1085,7 +1085,16 @@ class FamilyRepository {
             ?: 0.0
 
         if (catLimit > 0.0) {
-            val catSpent = transactions.filter { it.category.equals(category, ignoreCase = true) }.sumOf { it.amount }
+            val catSpent = transactions.sumOf { tx ->
+                if (tx.items.isNotEmpty()) {
+                    val rate = if (!tx.currency.equals("USD", ignoreCase = true) && tx.bcvRateUsed > 0.0) tx.bcvRateUsed else 1.0
+                    tx.items.filter { it.category.equals(category, ignoreCase = true) }.sumOf { it.amount / rate }
+                } else if (tx.category.equals(category, ignoreCase = true)) {
+                    tx.amount
+                } else {
+                    0.0
+                }
+            }
             val percentage = (catSpent / catLimit) * 100
             if (percentage >= 100) {
                 val msg = "⚠️ ¡LÍMITE EXCEDIDO! Gasto en '$category' ($${String.format(Locale.US, "%.2f", catSpent)} USD) superó el límite de $${String.format(Locale.US, "%.2f", catLimit)} USD"
@@ -1116,9 +1125,23 @@ class FamilyRepository {
         return null
     }
 
+    suspend fun verifyJoinedFamilyHasExistingData(familyId: String, joiningUid: String): Boolean {
+        val famRef = db.child("families").child(familyId)
+        val membersSnap = famRef.child("members").get().await()
+        val hasOtherMembers = membersSnap.children.any {
+            it.key != joiningUid && it.getValue(Boolean::class.java) == true
+        }
+        if (hasOtherMembers) return true
+        val hasSettings = famRef.child("app_settings").limitToFirst(1).get().await().exists()
+        val hasCategories = famRef.child("categories").limitToFirst(1).get().await().exists()
+        if (hasSettings || hasCategories) return true
+        // Rollback orphan member entry if code did not belong to an initialized family
+        runCatching { famRef.child("members").child(joiningUid).removeValue().await() }
+        return false
+    }
+
     suspend fun populateDefaultsIfNeeded() {
         val settingsRef = getFamilyRef("app_settings") ?: return
-        val profilesRef = getFamilyRef("user_profiles") ?: return
         val categoriesRef = getFamilyRef("categories") ?: return
         val logsRef = getFamilyRef("activity_logs") ?: return
 
@@ -1127,11 +1150,6 @@ class FamilyRepository {
             settingsRef.child("bcv_rate").setValue(AppSetting("bcv_rate", "36.85")).await()
             settingsRef.child("total_limit_usd").setValue(AppSetting("total_limit_usd", "1800.0")).await()
             settingsRef.child("is_dark_theme").setValue(AppSetting("is_dark_theme", "false")).await()
-        }
-
-        val hasProfiles = profilesRef.limitToFirst(1).get().await().exists()
-        if (!hasProfiles) {
-            insertProfile(UserProfile("Administrador", "#D0BCFF"), "Sistema")
         }
 
         val hasCategories = categoriesRef.limitToFirst(1).get().await().exists()
@@ -1143,10 +1161,10 @@ class FamilyRepository {
             insertCategory(CategoryDetail("Entretenimiento", 200.0, "#EA580C"), "Sistema")
             insertCategory(CategoryDetail("Otros", 200.0, "#4B5563"), "Sistema")
         }
-        
+
         val hasLogs = logsRef.limitToFirst(1).get().await().exists()
         if (!hasLogs) {
-            insertLog(ActivityLog(timestamp = System.currentTimeMillis() - 3 * 3600000L, tag = "SISTEMA", message = "Nueva Familia inicializada Correctamente.", user = "Sistema"))
+            insertLog(ActivityLog(timestamp = System.currentTimeMillis() - 3 * 3600000L, tag = "SISTEMA", message = "Espacio Fami inicializado correctamente.", user = "Sistema"))
         }
     }
 

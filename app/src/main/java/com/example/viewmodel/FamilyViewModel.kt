@@ -152,9 +152,9 @@ class FamilyViewModel(
         _startInExistingLogin.value = false
     }
 
-    val isAdminRole: StateFlow<Boolean> = familyRole
-        .map { role -> isPrivilegedRole(role) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val isAdminRole: StateFlow<Boolean> = combine(managementMode, familyRole) { mode, role ->
+        mode.equals("individual", ignoreCase = true) || isPrivilegedRole(role)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     fun isPrivilegedRole(role: String): Boolean {
         val clean = role.trim().lowercase()
@@ -165,12 +165,33 @@ class FamilyViewModel(
         )
     }
 
-    fun canEditBudgets(): Boolean = isPrivilegedRole(familyRole.value)
+    fun canEditBudgets(): Boolean =
+        managementMode.value.equals("individual", ignoreCase = true) || isPrivilegedRole(familyRole.value)
 
-    fun canManageMembers(): Boolean = isPrivilegedRole(familyRole.value)
+    fun canManageMembers(): Boolean =
+        managementMode.value.equals("individual", ignoreCase = true) || isPrivilegedRole(familyRole.value)
 
     fun canDeleteTransaction(tx: Transaction): Boolean {
-        return isPrivilegedRole(familyRole.value) || tx.registeredBy.equals(_currentUser.value, ignoreCase = true)
+        return managementMode.value.equals("individual", ignoreCase = true) ||
+            isPrivilegedRole(familyRole.value) ||
+            tx.registeredBy.equals(_currentUser.value, ignoreCase = true)
+    }
+
+    fun updateManagementMode(newMode: String) {
+        viewModelScope.launch {
+            val clean = if (newMode.trim().equals("individual", ignoreCase = true)) "individual" else "familiar"
+            dataStoreManager.setManagementMode(clean)
+            if (clean == "individual") {
+                dataStoreManager.setFamilyRole("Administrador")
+            }
+            val fid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull()
+            if (!fid.isNullOrBlank()) {
+                val user = _currentUser.value.ifBlank { "Usuario Fami" }
+                runCatching { repository.insertSetting("management_mode", clean, user) }
+            }
+            val label = if (clean == "individual") "👤 Modo Individual" else "👨‍👩‍👧‍👦 Modo Familiar"
+            notifyUser("Modo cambiado a $label ✨")
+        }
     }
 
     fun clearAuthError() {
@@ -537,7 +558,7 @@ class FamilyViewModel(
 
     private val _confettiTrigger = MutableStateFlow(0)
     val confettiTrigger: StateFlow<Int> = _confettiTrigger.asStateFlow()
-    fun triggerConfetti() { _confettiTrigger.value += 1 }
+    fun triggerConfetti() { _confettiTrigger.update { it + 1 } }
 
     private var failedPinAttempts = 0
     private var pinLockoutUntilMs = 0L
@@ -567,6 +588,28 @@ class FamilyViewModel(
                     com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
                     dataStoreManager.clearAuthData()
                     repository.setFamilyId(null)
+                }
+            }
+        }
+
+        // Observador de monedas de billeteras adicionales para conversión consolidada
+        viewModelScope.launch {
+            wallets.collect { list ->
+                val distinctCurrencies = list.map { com.example.currency.CountryCurrencyConfig.normalizeCurrencyCode(it.currency) }
+                    .filter { it.isNotBlank() && it != "USD" }
+                    .distinct()
+                for (curr in distinctCurrencies) {
+                    if ((_walletRatesToUsd.value[curr] ?: 0.0) <= 0.0) {
+                        val cached = com.example.api.BcvExchangeRateService.getCachedRate(curr)
+                        val resolved = if (cached != null && cached > 0.0) {
+                            cached
+                        } else {
+                            runCatching { com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(curr) }.getOrDefault(0.0)
+                        }
+                        if (resolved > 0.0) {
+                            _walletRatesToUsd.update { it + (curr to resolved) }
+                        }
+                    }
                 }
             }
         }
@@ -800,6 +843,10 @@ class FamilyViewModel(
 
     fun updateUnlockPreference(method: String) {
         viewModelScope.launch {
+            if (method == "pin" && !dataStoreManager.hasConfiguredUserPin()) {
+                notifyUser("Configura primero un PIN de 5 dígitos antes de cambiar a desbloqueo por PIN.")
+                return@launch
+            }
             dataStoreManager.setUnlockMethod(method)
             val label = if (method == "biometric") "Huella Digital" else "PIN de 5 dígitos"
             notifyUser("Método de desbloqueo actualizado: $label")
@@ -841,7 +888,8 @@ class FamilyViewModel(
                     isRecreatedAccount = true
                     try {
                         auth.signInWithEmailAndPassword(cleanEmail, password).await()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         throw Exception("Este correo ya tiene una cuenta registrada. Inicia sesión con tu contraseña o usa '¿Olvidaste tu contraseña?' para recuperarla.")
                     }
                 }
@@ -865,11 +913,12 @@ class FamilyViewModel(
                     authProvider = "email"
                 )
                 dataStoreManager.setUserName(userName)
+                dataStoreManager.setOnboardingCompleted(true)
                 _familyId.value = newFamilyId
                 repository.setFamilyId(newFamilyId)
 
                 repository.populateDefaultsIfNeeded()
-                syncPendingNotebookSetup(userName = userName, colorHex = "#D0BCFF", familyNameOverride = customFamilyName)
+                syncPendingNotebookSetup(userName = userName, colorHex = "#D0BCFF", familyNameOverride = customFamilyName, isJoiningExisting = false)
 
                 _currentUser.value = userName
 
@@ -884,6 +933,7 @@ class FamilyViewModel(
                     notifyUser("Te enviamos un correo de verificación a $cleanEmail")
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
                 notifyUser(msg)
@@ -898,6 +948,10 @@ class FamilyViewModel(
             val code = familyCode.trim().uppercase()
             val cleanEmail = email.trim()
             val cleanPin = pin.trim()
+            if (code.length < 4) {
+                _authError.value = "Ingresa un código familiar válido."
+                return@launch
+            }
             if (!isValidEmailFormat(cleanEmail)) {
                 _authError.value = "Ingresa un correo electrónico real y válido."
                 return@launch
@@ -918,7 +972,8 @@ class FamilyViewModel(
                     isNewAccount = false
                     try {
                         auth.signInWithEmailAndPassword(cleanEmail, password).await()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         throw Exception("Este correo ya tiene una cuenta registrada. Inicia sesión con tu contraseña o recupérala.")
                     }
                 }
@@ -931,6 +986,10 @@ class FamilyViewModel(
                     ?: "Miembro Fami"
 
                 repository.registerFamilyMember(code, uid)
+                val familyValid = repository.verifyJoinedFamilyHasExistingData(code, uid)
+                if (!familyValid) {
+                    throw Exception("El código familiar '$code' no existe. Verifica el código con el administrador del hogar.")
+                }
                 repository.registerUserMapping(uid, code, cleanName)
 
                 dataStoreManager.saveAuthData(
@@ -941,10 +1000,12 @@ class FamilyViewModel(
                     authProvider = "email"
                 )
                 dataStoreManager.setUserName(cleanName)
+                dataStoreManager.setManagementMode("familiar")
+                dataStoreManager.setOnboardingCompleted(true)
                 _familyId.value = code
                 repository.setFamilyId(code)
 
-                syncPendingNotebookSetup(userName = cleanName, colorHex = "#EFB8C8")
+                syncPendingNotebookSetup(userName = cleanName, colorHex = "#EFB8C8", isJoiningExisting = true)
                 _currentUser.value = cleanName
 
                 if (isNewAccount && !firebaseUser.isEmailVerified) {
@@ -956,6 +1017,7 @@ class FamilyViewModel(
                     _needsUnlockMethodChoice.value = true
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
                 notifyUser(msg)
@@ -985,6 +1047,7 @@ class FamilyViewModel(
                     _authError.value = "Tu correo aún no aparece verificado. Abre el enlace en tu bandeja (o Spam) y vuelve a intentarlo."
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _authError.value = "Error al verificar: ${e.localizedMessage}"
             } finally {
                 _isAuthLoading.value = false
@@ -1003,6 +1066,7 @@ class FamilyViewModel(
                     notifyUser("Correo de verificación reenviado a ${user.email}")
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _authError.value = mapFirebaseAuthError(e)
             } finally {
                 _isAuthLoading.value = false
@@ -1035,6 +1099,7 @@ class FamilyViewModel(
                 notifyUser("Correo de recuperación enviado a $cleanEmail")
                 onSuccess()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
             } finally {
@@ -1062,6 +1127,7 @@ class FamilyViewModel(
                 notifyUser("Contraseña actualizada. Ya puedes iniciar sesión.")
                 onSuccess()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _authError.value = mapFirebaseAuthError(e)
             } finally {
                 _isAuthLoading.value = false
@@ -1114,6 +1180,7 @@ class FamilyViewModel(
                     customUserAlias = customUserAlias
                 )
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _isAuthLoading.value = false
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
@@ -1161,7 +1228,22 @@ class FamilyViewModel(
                 val finalUserName: String
                 val isNewSetup: Boolean
 
-                if (!existingFid.isNullOrBlank() && !existingName.isNullOrBlank()) {
+                if (joinFamilyCode.trim().isNotBlank()) {
+                    val code = joinFamilyCode.trim().uppercase()
+                    repository.registerFamilyMember(code, uid)
+                    val familyValid = repository.verifyJoinedFamilyHasExistingData(code, uid)
+                    if (!familyValid) {
+                        throw Exception("El código familiar '$code' no existe. Verifica el código con el administrador del hogar.")
+                    }
+                    finalFid = code
+                    finalUserName = preferredAlias
+                    repository.registerUserMapping(uid, code, finalUserName)
+                    dataStoreManager.setManagementMode("familiar")
+                    _familyId.value = code
+                    repository.setFamilyId(code)
+                    syncPendingNotebookSetup(userName = finalUserName, colorHex = "#EFB8C8", isJoiningExisting = true)
+                    isNewSetup = true
+                } else if (!existingFid.isNullOrBlank() && !existingName.isNullOrBlank()) {
                     val hasInvalidChars = existingName.contains("@") || existingName.contains(".") || existingName.contains("#") || existingName.contains("$") || existingName.contains("[") || existingName.contains("]")
                     finalFid = existingFid
                     finalUserName = if (hasInvalidChars) sanitizeAliasFromEmail(existingName) else existingName
@@ -1169,16 +1251,6 @@ class FamilyViewModel(
                         runCatching { repository.registerUserMapping(uid, finalFid, finalUserName) }
                     }
                     isNewSetup = false
-                } else if (joinFamilyCode.trim().isNotBlank()) {
-                    val code = joinFamilyCode.trim().uppercase()
-                    finalFid = code
-                    finalUserName = preferredAlias
-                    repository.registerFamilyMember(code, uid)
-                    repository.registerUserMapping(uid, code, finalUserName)
-                    _familyId.value = code
-                    repository.setFamilyId(code)
-                    syncPendingNotebookSetup(userName = finalUserName, colorHex = "#EFB8C8")
-                    isNewSetup = true
                 } else {
                     finalFid = UUID.randomUUID().toString().substring(0, 8).uppercase()
                     finalUserName = preferredAlias
@@ -1190,7 +1262,8 @@ class FamilyViewModel(
                     syncPendingNotebookSetup(
                         userName = finalUserName,
                         colorHex = "#D0BCFF",
-                        familyNameOverride = customFamilyName.ifBlank { pendingFamilyName.value }
+                        familyNameOverride = customFamilyName.ifBlank { pendingFamilyName.value },
+                        isJoiningExisting = false
                     )
                     isNewSetup = true
                 }
@@ -1203,12 +1276,13 @@ class FamilyViewModel(
                     authProvider = "google"
                 )
                 dataStoreManager.setUserName(finalUserName)
-                if (!isNewSetup) {
-                    dataStoreManager.setOnboardingCompleted(true)
-                }
+                dataStoreManager.setOnboardingCompleted(true)
                 _familyId.value = finalFid
                 repository.setFamilyId(finalFid)
                 _currentUser.value = finalUserName
+                if (!isNewSetup) {
+                    syncLocalProfileAndModeFromCloud(finalFid, finalUserName)
+                }
 
                 val savedMethod = dataStoreManager.unlockMethodFlow.firstOrNull() ?: "unset"
                 if (isNewSetup || savedMethod == "unset") {
@@ -1219,6 +1293,7 @@ class FamilyViewModel(
                     notifyUser("¡Bienvenido, $finalUserName!")
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
                 notifyUser(msg)
@@ -1246,11 +1321,12 @@ class FamilyViewModel(
     private suspend fun syncPendingNotebookSetup(
         userName: String,
         colorHex: String,
-        familyNameOverride: String = ""
+        familyNameOverride: String = "",
+        isJoiningExisting: Boolean = false
     ) {
         val avatarId = dataStoreManager.userAvatarIdFlow.firstOrNull() ?: "woman_1"
-        val role = dataStoreManager.familyRoleFlow.firstOrNull() ?: "Administrador"
-        val mode = dataStoreManager.managementModeFlow.firstOrNull() ?: "familiar"
+        val role = dataStoreManager.familyRoleFlow.firstOrNull() ?: if (isJoiningExisting) "Miembro familiar" else "Administrador"
+        val mode = if (isJoiningExisting) "familiar" else (dataStoreManager.managementModeFlow.firstOrNull() ?: "familiar")
         val famName = familyNameOverride.trim().ifBlank { dataStoreManager.pendingFamilyNameFlow.firstOrNull()?.trim().orEmpty() }
         val monthlyInc = dataStoreManager.monthlyIncomeAmountFlow.firstOrNull() ?: 0.0
         val monthlyIncCurr = dataStoreManager.monthlyIncomeCurrencyFlow.firstOrNull() ?: "USD"
@@ -1261,23 +1337,26 @@ class FamilyViewModel(
             UserProfile(name = userName, colorHex = colorHex, avatarId = avatarId, role = role),
             userName
         )
-        if (famName.isNotBlank()) {
-            repository.insertSetting("family_name", famName, userName)
-        }
-        repository.insertSetting("management_mode", mode, userName)
 
-        if (monthlyInc > 0.0) {
-            val normCurr = com.example.currency.CountryCurrencyConfig.normalizeCurrencyCode(monthlyIncCurr)
-            val resolvedRate = when {
-                normCurr == "USD" -> 1.0
-                normCurr.equals(primaryCurrency.value, ignoreCase = true) && liveRate > 0.0 -> liveRate
-                else -> com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(normCurr)
+        if (!isJoiningExisting) {
+            if (famName.isNotBlank()) {
+                repository.insertSetting("family_name", famName, userName)
             }
-            repository.insertSetting("monthly_income_amount", String.format(java.util.Locale.US, "%.2f", monthlyInc), userName)
-            repository.insertSetting("monthly_income_currency", normCurr, userName)
-            if (resolvedRate > 0.0) {
-                val amountUsd = if (normCurr == "USD") monthlyInc else monthlyInc / resolvedRate
-                repository.insertSetting("total_limit_usd", String.format(java.util.Locale.US, "%.2f", amountUsd), userName)
+            repository.insertSetting("management_mode", mode, userName)
+
+            if (monthlyInc > 0.0) {
+                val normCurr = com.example.currency.CountryCurrencyConfig.normalizeCurrencyCode(monthlyIncCurr)
+                val resolvedRate = when {
+                    normCurr == "USD" -> 1.0
+                    normCurr.equals(primaryCurrency.value, ignoreCase = true) && liveRate > 0.0 -> liveRate
+                    else -> com.example.api.BcvExchangeRateService.fetchUsdToCurrencyRate(normCurr)
+                }
+                repository.insertSetting("monthly_income_amount", String.format(java.util.Locale.US, "%.2f", monthlyInc), userName)
+                repository.insertSetting("monthly_income_currency", normCurr, userName)
+                if (resolvedRate > 0.0) {
+                    val amountUsd = if (normCurr == "USD") monthlyInc else monthlyInc / resolvedRate
+                    repository.insertSetting("total_limit_usd", String.format(java.util.Locale.US, "%.2f", amountUsd), userName)
+                }
             }
         }
 
@@ -1287,6 +1366,34 @@ class FamilyViewModel(
                 repository.insertWallet(w.copy(ownerName = userName), userName)
             }
             dataStoreManager.clearPendingWallets()
+        }
+    }
+
+    private suspend fun syncLocalProfileAndModeFromCloud(familyId: String, userName: String) {
+        if (familyId.isBlank()) return
+        try {
+            val dbRef = com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                .child("families").child(familyId)
+            val modeSnap = dbRef.child("app_settings").child("management_mode").child("value").get().await()
+            val cloudMode = modeSnap.getValue(String::class.java)?.trim().orEmpty()
+            if (cloudMode.equals("individual", ignoreCase = true) || cloudMode.equals("familiar", ignoreCase = true)) {
+                dataStoreManager.setManagementMode(cloudMode.lowercase())
+            }
+            val safeKey = userName.trim().replace(Regex("[.#$\\[\\]/]"), "_")
+            if (safeKey.isNotBlank()) {
+                val profSnap = dbRef.child("user_profiles").child(safeKey).get().await()
+                val profile = profSnap.getValue(UserProfile::class.java)
+                if (profile != null) {
+                    if (profile.role.isNotBlank()) {
+                        dataStoreManager.setFamilyRole(profile.role)
+                    }
+                    if (profile.avatarId.isNotBlank()) {
+                        dataStoreManager.setUserAvatarId(profile.avatarId)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 
@@ -1316,6 +1423,7 @@ class FamilyViewModel(
 
                 val finalFid: String
                 val finalUserName: String
+                val wasRecreated: Boolean
                 if (fid.isNullOrBlank() || userName.isNullOrBlank()) {
                     // Si el usuario había eliminado su cuenta antes (borrando /users/{uid}),
                     // reconstruimos su espacio familiar automáticamente al iniciar sesión.
@@ -1330,7 +1438,8 @@ class FamilyViewModel(
                     _familyId.value = finalFid
                     repository.setFamilyId(finalFid)
                     repository.populateDefaultsIfNeeded()
-                    syncPendingNotebookSetup(userName = finalUserName, colorHex = "#D0BCFF")
+                    syncPendingNotebookSetup(userName = finalUserName, colorHex = "#D0BCFF", isJoiningExisting = false)
+                    wasRecreated = true
                 } else {
                     val hasInvalidChars = userName.contains("@") || userName.contains(".") || userName.contains("#") || userName.contains("$") || userName.contains("[") || userName.contains("]")
                     finalFid = fid
@@ -1338,6 +1447,7 @@ class FamilyViewModel(
                     if (hasInvalidChars) {
                         runCatching { repository.registerUserMapping(uid, finalFid, finalUserName) }
                     }
+                    wasRecreated = false
                 }
 
                 dataStoreManager.saveAuthData(
@@ -1348,9 +1458,13 @@ class FamilyViewModel(
                     authProvider = "email"
                 )
                 dataStoreManager.setUserName(finalUserName)
+                dataStoreManager.setOnboardingCompleted(true)
                 _familyId.value = finalFid
                 repository.setFamilyId(finalFid)
                 _currentUser.value = finalUserName
+                if (!wasRecreated) {
+                    syncLocalProfileAndModeFromCloud(finalFid, finalUserName)
+                }
 
                 val savedMethod = dataStoreManager.unlockMethodFlow.firstOrNull() ?: "unset"
                 if (savedMethod == "unset") {
@@ -1361,6 +1475,7 @@ class FamilyViewModel(
                     notifyUser("¡Bienvenido de vuelta, $finalUserName!")
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val msg = mapFirebaseAuthError(e)
                 _authError.value = msg
                 notifyUser(msg)
@@ -1408,9 +1523,13 @@ class FamilyViewModel(
             try {
                 com.example.api.GeminiConfig.refreshRemoteConfigIfNeeded()
                 val cur = _currentUser.value.trim()
+                val fid = _familyId.value.orEmpty()
                 if (cur.contains(".") || cur.contains("@") || cur.contains("#") || cur.contains("$") || cur.contains("[") || cur.contains("]")) {
                     val cleaned = if (cur.contains("@")) sanitizeAliasFromEmail(cur) else sanitizeAliasFromEmail("$cur@fami")
                     applyAliasUpdateInternal(cleaned)
+                }
+                if (fid.isNotBlank() && _currentUser.value.isNotBlank()) {
+                    syncLocalProfileAndModeFromCloud(fid, _currentUser.value)
                 }
                 syncExchangeRateFor(countryCode.value, primaryCurrency.value, secondaryCurrency.value)
             } catch (e: Exception) {
@@ -1553,14 +1672,8 @@ class FamilyViewModel(
                     _currentUser.value
                 )
                 if (_currentUser.value == oldProfile.name) {
-                    _currentUser.value = cleanName
-                    dataStoreManager.setUserName(cleanName)
                     if (avatarId.isNotBlank()) dataStoreManager.setUserAvatarId(avatarId)
-                    dataStoreManager.saveAuthData(
-                        familyId = _familyId.value ?: "",
-                        userName = cleanName,
-                        pin = dataStoreManager.userPinFlow.firstOrNull() ?: ""
-                    )
+                    applyAliasUpdateInternal(cleanName)
                     syncFcmTokenAndWorker()
                 }
             }
@@ -1629,6 +1742,23 @@ class FamilyViewModel(
         viewModelScope.launch { repository.updateChoreStatus(chore.id, chore.title, !chore.isCompleted, _currentUser.value) } }
     fun deleteChore(chore: Chore) { viewModelScope.launch { repository.deleteChore(chore, _currentUser.value) } }
     fun editChore(chore: Chore) { viewModelScope.launch { repository.insertChore(chore, _currentUser.value) } }
+
+    fun renameTaskList(oldName: String, newName: String) {
+        viewModelScope.launch {
+            val cleanNew = newName.replace(",", " ").trim()
+            if (cleanNew.isBlank()) return@launch
+            val choresToRename = chores.value.filter { it.category == oldName }
+            choresToRename.forEach { chore ->
+                repository.insertChore(chore.copy(category = cleanNew), _currentUser.value)
+            }
+            val currentSetting = settings.value.find { it.key == "task_lists" }?.value
+            if (currentSetting != null) {
+                val lists = currentSetting.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val newLists = lists.map { if (it == oldName) cleanNew else it }
+                updateValueSetting("task_lists", newLists.joinToString(","))
+            }
+        }
+    }
 
     fun addShoppingItem(name: String, quantity: String, isPrivate: Boolean = false, listName: String = "General") {
         viewModelScope.launch {

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -82,6 +83,8 @@ fun ModernAccountsTab(
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val userAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val isIndividualMode = managementMode == "individual"
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -330,7 +333,7 @@ fun ModernAccountsTab(
                             border = BorderStroke(1.4.dp, paper.border)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp)) {
-                                Text("${s.financesExpensesLabel} ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = FamiCoralDeep)
+                                Text("${s.financesExpensesLabel} ($localCurrency)", fontSize = 8.sp, fontWeight = FontWeight.Black, color = if (paper.isDark) FamiCoralLight else FamiCoralDeep)
                                 Text(
                                     text = "$localSym${String.format(Locale.US, "%,.0f", spentLocal)}",
                                     fontSize = 13.sp,
@@ -372,6 +375,7 @@ fun ModernAccountsTab(
                     localCurrency = localCurrency,
                     bcvRate = bcvRate,
                     canEdit = isAdminRole,
+                    isIndividualMode = isIndividualMode,
                     onEditClick = { showEditIncomeDialog = true }
                 )
             }
@@ -548,7 +552,7 @@ fun ModernAccountsTab(
                                         text = typeLabel,
                                         fontSize = 11.sp,
                                         fontWeight = if (isTypeSelected) FontWeight.Black else FontWeight.Bold,
-                                        color = if (isTypeSelected) FamiCoralDeep else paper.ink,
+                                        color = if (isTypeSelected) (if (paper.isDark) FamiCoralLight else FamiCoralDeep) else paper.ink,
                                         modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                                     )
                                 }
@@ -742,6 +746,7 @@ fun ModernAccountsTab(
                                 profiles = profiles,
                                 currentUser = currentUser,
                                 currentUserAvatarId = userAvatarId,
+                                isIndividualMode = isIndividualMode,
                                 onClick = {
                                     if (!tx.isTransfer) {
                                         editingTransaction = tx
@@ -776,7 +781,8 @@ fun ModernAccountsTab(
                             .filter { !it.isIncome && !it.isTransfer && (it.category.equals(category.categoryName, ignoreCase = true) || it.items.any { item -> item.category.equals(category.categoryName, ignoreCase = true) }) }
                             .sumOf { tx ->
                                 if (tx.items.isNotEmpty()) {
-                                    tx.items.filter { it.category.equals(category.categoryName, ignoreCase = true) }.sumOf { it.amount }
+                                    val rate = if (!tx.currency.equals("USD", ignoreCase = true) && tx.bcvRateUsed > 0.0) tx.bcvRateUsed else 1.0
+                                    tx.items.filter { it.category.equals(category.categoryName, ignoreCase = true) }.sumOf { it.amount / rate }
                                 } else {
                                     tx.amount
                                 }
@@ -1022,7 +1028,7 @@ fun ModernAccountsTab(
                             text = if (walletNameInput.isNotBlank()) "Logo detectado: ${detectedBrand.canonicalName}" else "Detecta el logo oficial del banco automáticamente",
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = detectedBrand.primaryColor
+                            color = if (paper.isDark) FamiCoralLight else detectedBrand.primaryColor
                         )
                     }
                 }
@@ -1286,6 +1292,7 @@ private fun MonthlyIncomeAccountCard(
     localCurrency: String,
     bcvRate: Double,
     canEdit: Boolean,
+    isIndividualMode: Boolean = false,
     onEditClick: () -> Unit
 ) {
     val paper = FamiTheme.paper
@@ -1343,7 +1350,7 @@ private fun MonthlyIncomeAccountCard(
                     )
                 } else {
                     Text(
-                        text = "Presupuesto base del hogar para este mes",
+                        text = if (isIndividualMode) "Mi presupuesto base para este mes" else "Presupuesto base del hogar para este mes",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = paper.inkMuted
@@ -1632,7 +1639,7 @@ private fun MasterFinancialHeroCard(
                     Text(
                         text = "TOTAL EJECUTADO EN HOJA",
                         fontSize = 10.sp,
-                        color = FamiCoralDeep,
+                        color = if (paper.isDark) FamiCoralLight else FamiCoralDeep,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.6.sp
                     )
@@ -1793,6 +1800,7 @@ private fun ModernTransactionCardItem(
     profiles: List<UserProfile> = emptyList(),
     currentUser: String = "",
     currentUserAvatarId: String = "",
+    isIndividualMode: Boolean = false,
     onClick: () -> Unit,
     onViewReceipt: () -> Unit,
     onDeleteRequest: () -> Unit
@@ -1923,7 +1931,7 @@ private fun ModernTransactionCardItem(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        if (authorLabel.isNotBlank()) {
+                        if (!isIndividualMode && authorLabel.isNotBlank()) {
                             MemberAvatarBadge(
                                 memberName = authorLabel,
                                 profiles = profiles,
@@ -1960,7 +1968,7 @@ private fun ModernTransactionCardItem(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.ReceiptLong,
+                                    Icons.AutoMirrored.Filled.ReceiptLong,
                                     contentDescription = "Ver Recibo",
                                     tint = FamiCoral,
                                     modifier = Modifier.size(11.dp)
@@ -2593,8 +2601,10 @@ private fun TransactionFormBottomSheet(
                                         )
                                     }
                                 }
+                                val itemCurr = (initialTransaction?.currency ?: currency).ifBlank { "USD" }.uppercase()
+                                val itemSym = CountryCurrencyConfig.getCurrencySymbol(itemCurr)
                                 Text(
-                                    text = "$${String.format(Locale.US, "%.2f", item.amount)} USD",
+                                    text = "$itemSym${String.format(Locale.US, "%,.2f", item.amount)} $itemCurr",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = FamiEmerald
@@ -2782,7 +2792,7 @@ private fun CategoryFormBottomSheet(
                 onValueChange = { limitInput = it },
                 label = { Text("Límite mensual en Dólares ($ USD)") },
                 prefix = { Text("$ ") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -2790,7 +2800,7 @@ private fun CategoryFormBottomSheet(
 
             Tactile3DButton(
                 onClick = {
-                    val limitVal = limitInput.toDoubleOrNull() ?: 200.0
+                    val limitVal = (limitInput.replace(",", ".").toDoubleOrNull() ?: 200.0).coerceAtLeast(1.0)
                     if (nameInput.isNotBlank()) {
                         onSave(initialCategory?.categoryName, nameInput.trim(), limitVal, emojiInput.trim())
                     }
@@ -3149,7 +3159,7 @@ private fun MonthlyIncomeEditDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amt = amountInput.toDoubleOrNull()
+                    val amt = amountInput.replace(",", ".").toDoubleOrNull()
                     if (amt != null && amt > 0.0) {
                         onSave(amt, selectedCurrency)
                     }
@@ -3185,7 +3195,7 @@ fun WalletTransferDialog(
 
     val fromCurr = fromWallet?.currency ?: "USD"
     val toCurr = toWallet?.currency ?: "USD"
-    val fromAmountVal = fromAmountText.toDoubleOrNull() ?: 0.0
+    val fromAmountVal = fromAmountText.replace(",", ".").toDoubleOrNull() ?: 0.0
 
     var liveConvertedAmount by remember { mutableStateOf(0.0) }
     var rateUnavailable by remember { mutableStateOf(false) }

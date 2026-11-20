@@ -16,10 +16,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -1152,7 +1152,7 @@ fun OnboardingScreen(
                         cornerRadius = 14.dp,
                         contentPadding = PaddingValues(vertical = 13.dp, horizontal = 16.dp)
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = paper.ink, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Anterior", tint = paper.ink, modifier = Modifier.size(18.dp))
                     }
                 }
 
@@ -1186,7 +1186,7 @@ fun OnboardingScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
-                        imageVector = if (pagerState.currentPage == totalPages - 1) Icons.Default.Check else Icons.Default.ArrowForward,
+                        imageVector = if (pagerState.currentPage == totalPages - 1) Icons.Default.Check else Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)

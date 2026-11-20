@@ -205,7 +205,8 @@ fun StickyNoteCard(
     onToggleComplete: () -> Unit,
     onToggleCheckItem: (Int) -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isIndividualMode: Boolean = false
 ) {
     val paper = FamiTheme.paper
     val context = LocalContext.current
@@ -260,12 +261,14 @@ fun StickyNoteCard(
                             maxLines = 1
                         )
                     }
-                    Icon(
-                        imageVector = if (note.isPrivate) Icons.Default.Lock else Icons.Default.Home,
-                        contentDescription = if (note.isPrivate) "Nota privada" else "Nota familiar",
-                        tint = paper.inkMuted,
-                        modifier = Modifier.size(12.dp)
-                    )
+                    if (!isIndividualMode) {
+                        Icon(
+                            imageVector = if (note.isPrivate) Icons.Default.Lock else Icons.Default.Home,
+                            contentDescription = if (note.isPrivate) "Nota privada" else "Nota familiar",
+                            tint = paper.inkMuted,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                 }
 
                 Row(
@@ -391,21 +394,23 @@ fun StickyNoteCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    MemberAvatarBadge(
-                        memberName = cleanAuthor,
-                        profiles = profiles,
-                        currentUser = currentUser,
-                        currentUserAvatarId = currentUserAvatarId,
-                        size = 20.dp,
-                        showAliasBelow = true,
-                        aliasText = cleanAuthor,
-                        aliasFontSize = 8.5.sp,
-                        aliasColor = paper.inkMuted,
-                        aliasMaxWidth = 52.dp
-                    )
-                    if (formattedDate.isNotBlank() && !compact) {
+                    if (!isIndividualMode) {
+                        MemberAvatarBadge(
+                            memberName = cleanAuthor,
+                            profiles = profiles,
+                            currentUser = currentUser,
+                            currentUserAvatarId = currentUserAvatarId,
+                            size = 20.dp,
+                            showAliasBelow = true,
+                            aliasText = cleanAuthor,
+                            aliasFontSize = 8.5.sp,
+                            aliasColor = paper.inkMuted,
+                            aliasMaxWidth = 52.dp
+                        )
+                    }
+                    if (formattedDate.isNotBlank() && (!compact || isIndividualMode)) {
                         Text(
-                            text = "• $formattedDate",
+                            text = if (isIndividualMode) formattedDate else "• $formattedDate",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = paper.inkMuted,
@@ -504,7 +509,8 @@ fun StickyNoteEditorDialog(
         isPrivate: Boolean,
         checklist: List<NoteCheckItem>
     ) -> Unit,
-    onDelete: (() -> Unit)? = null
+    onDelete: (() -> Unit)? = null,
+    isIndividualMode: Boolean = false
 ) {
     val paper = FamiTheme.paper
     var title by remember(initialNote) { mutableStateOf(initialNote?.title.orEmpty()) }
@@ -512,7 +518,9 @@ fun StickyNoteEditorDialog(
     var colorKey by remember(initialNote) { mutableStateOf(initialNote?.colorKey?.ifBlank { "yellow" } ?: "yellow") }
     var category by remember(initialNote) { mutableStateOf(initialNote?.category?.ifBlank { "General" } ?: "General") }
     var isPinned by remember(initialNote) { mutableStateOf(initialNote?.isPinned ?: false) }
-    var isPrivate by remember(initialNote) { mutableStateOf(initialNote?.isPrivate ?: true) }
+    var isPrivate by remember(initialNote, isIndividualMode) {
+        mutableStateOf(if (isIndividualMode) false else (initialNote?.isPrivate ?: true))
+    }
     var checklist by remember(initialNote) { mutableStateOf(initialNote?.checklist ?: emptyList()) }
     var newCheckText by remember { mutableStateOf("") }
 
@@ -801,46 +809,48 @@ fun StickyNoteEditorDialog(
                         }
                     }
 
-                    // Visibilidad: Privada vs Familiar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(paper.sheet)
-                            .border(1.2.dp, paper.border.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    // Visibilidad: Privada vs Familiar (oculto en modo individual)
+                    if (!isIndividualMode) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(paper.sheet)
+                                .border(1.2.dp, paper.border.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Home,
-                                contentDescription = null,
-                                tint = FamiCoral,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = if (isPrivate) "Nota privada" else "Compartida con el hogar",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = paper.ink
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Home,
+                                    contentDescription = null,
+                                    tint = FamiCoral,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Text(
-                                    text = if (isPrivate) "Solo tú puedes ver esta notita" else "Visible para todos en tu grupo familiar",
-                                    fontSize = 10.sp,
-                                    color = paper.inkMuted
-                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = if (isPrivate) "Nota privada" else "Compartida con el hogar",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
+                                    Text(
+                                        text = if (isPrivate) "Solo tú puedes ver esta notita" else "Visible para todos en tu grupo familiar",
+                                        fontSize = 10.sp,
+                                        color = paper.inkMuted
+                                    )
+                                }
                             }
+                            Switch(
+                                checked = !isPrivate,
+                                onCheckedChange = { shared -> isPrivate = !shared }
+                            )
                         }
-                        Switch(
-                            checked = !isPrivate,
-                            onCheckedChange = { shared -> isPrivate = !shared }
-                        )
                     }
                 }
 

@@ -1,87 +1,55 @@
-# Términos y Condiciones de Uso de Nido
+# Términos y Condiciones de Uso de Fami
 
-**Última actualización:** 10 de noviembre de 2026  
-**Fecha de entrada en vigor:** 10 de noviembre de 2026  
-**Aplicación:** Nido - Finanzas y Presupuesto Familiar IA  
-**Contacto legal:** soporte.nidoapp@gmail.com  
+**Última actualización:** 20 de noviembre de 2026  
+**Fecha de entrada en vigor:** 20 de noviembre de 2026  
+**Aplicación:** Fami — Finanzas, Hogar y Libreta con IA (`app.somosfami`)  
+**Contacto legal y soporte:** `hola@somosfami.app`  
+**Sitio web oficial:** `https://somosfami.app`  
 
 ---
 
-## 1. Aceptación de los Términos
-Al descargar, acceder o utilizar la aplicación móvil **Nido** (en adelante, "la Aplicación" o "el Servicio"), celebras un contrato vinculante con el equipo desarrollador de Nido. Si no estás de acuerdo con la totalidad de estos Términos y Condiciones, debes abstenerte de utilizar la Aplicación.
+## 1. Aceptación de los Términos y Modos de Uso
+Al descargar, acceder o utilizar la aplicación móvil **Fami** (`app.somosfami`, en adelante "la Aplicación" o "el Servicio"), aceptas estos Términos y Condiciones. Fami puede utilizarse tanto en **Modo Individual** (gestión personal privada) como en **Modo Familiar** (gestión colaborativa entre miembros de un hogar), pudiendo cambiar de modo en cualquier momento desde *Ajustes > General*.
 
 ---
 
 ## 2. Descripción del Servicio y Ausencia de Asesoramiento Financiero
 
 ### A. Objeto de la Aplicación
-Nido es una herramienta de gestión y productividad familiar diseñada para registrar transacciones personales y familiares, organizar presupuestos, proyectar gastos, almacenar fotos de comprobantes, consultar tasas de cambio referenciales y recibir resúmenes analíticos asistidos por Inteligencia Artificial (Google Gemini).
+Fami es una herramienta de organización presupuestaria, libreta digital y productividad del hogar diseñada para registrar ingresos y gastos multi-moneda, gestionar billeteras, organizar tareas, listas de compras, metas de ahorro y notas adhesivas, así como escanear comprobantes con asistencia de Inteligencia Artificial (Google Gemini).
 
 ### B. Descargo de Responsabilidad Financiera y Legal
-> **IMPORTANTE:** Nido **NO** es una institución financiera, banco, entidad crediticia, casa de cambio, ni asesoría contable o fiscal matriculada. 
-> - La información generada por la aplicación y los consejos del Asistente IA son meramente referenciales, educativos y de orientación personal.
-> - El usuario es el único responsable de la exactitud de los datos ingresados y de sus decisiones financieras o patrimoniales.
-> - Nido no se responsabiliza por pérdidas económicas, errores de cálculo derivados de datos mal introducidos, fluctuaciones cambiarias o discrepancias en tasas de referencia.
+> **IMPORTANTE:** Fami **NO** es una institución financiera, banco, casa de cambio ni asesoría contable o fiscal certificada.
+> - Las tasas de cambio mostradas (BCV, TRM, Euro y divisas locales) y los diagnósticos del Asistente Fami IA son estrictamente referenciales y educativos.
+> - El usuario es el único responsable de verificar la exactitud de los importes antes de tomar decisiones económicas.
 
 ---
 
-## 3. Cuentas de Usuario y Seguridad
+## 3. Cuentas de Usuario, Grupos Familiares y Seguridad
 
-1. **Responsabilidad de las Credenciales:** Eres responsable de mantener la confidencialidad de tu correo, contraseña y de los códigos de acceso familiar (`familyId`). Toda actividad realizada bajo tu cuenta se considerará autorizada por ti.
-2. **Acceso Familiar Compartido:** Al invitar o admitir a otros usuarios en tu grupo familiar, reconoces que dichos miembros tendrán acceso a los registros financieros, tareas, listas y recibos vinculados a ese grupo.
-3. **Bloqueo Biométrico:** La función de acceso biométrico utiliza la seguridad integrada de tu dispositivo móvil. Nido no almacena tus datos biométricos.
-
----
-
-## 4. Planes de Suscripción, Pagos y Facturación (Google Play Billing)
-
-Nido ofrece una versión con funciones básicas gratuitas y planes de suscripción digital de pago ("Nido Pro" / "Nido Familiar Plus"):
-
-1. **Facturación y Cobro:** Todas las compras integradas y suscripciones periódicas se procesan de forma exclusiva a través de la pasarela de pagos oficial de **Google Play Billing** de Google LLC.
-2. **Renovación Automática:** Salvo que canceles tu suscripción al menos 24 horas antes del vencimiento del periodo de facturación en curso, la suscripción se renovará automáticamente al precio acordado y se cargará a tu método de pago registrado en Google Play.
-3. **Cancelación:** Puedes cancelar tu suscripción en cualquier momento accediendo a **Google Play Store > Pagos y suscripciones > Suscripciones**. Al cancelar, mantendrás acceso a las funciones Pro hasta que finalice el ciclo de facturación pagado.
-4. **Política de Reembolsos:** Las solicitudes de reembolso se rigen de acuerdo con las políticas oficiales de devolución de **Google Play Store**. Para solicitar un reembolso, debes gestionarlo directamente a través del centro de ayuda de Google Play.
-5. **Modificación de Precios:** Nos reservamos el derecho de ajustar los precios de las suscripciones. Cualquier modificación será notificada con antelación conforme a las directrices de Google Play.
+1. **Responsabilidad de las Credenciales:** Eres responsable de resguardar el acceso a tu cuenta y tu Código Familiar (`familyId`).
+2. **Acceso Familiar Compartido y Elementos Privados:** Al compartir tu Código Familiar en Modo Familiar, autorizas a los integrantes que se unan a colaborar en los registros compartidos del hogar. Los elementos marcados con la opción *"Solo para mí (Privado)"* solo son visibles para su creador.
+3. **Bloqueo Biométrico y PIN Cifrado:** El desbloqueo biométrico se valida en el hardware de tu teléfono y el PIN de 5 dígitos se resguarda con hash SHA-256 salado y cifrado Android Keystore AES-256-GCM.
 
 ---
 
-## 5. Uso de Funciones de Inteligencia Artificial (IA)
+## 4. Uso de Funciones de Inteligencia Artificial (IA)
 
-1. El usuario reconoce que las funciones de lectura automática de facturas y los reportes de finanzas IA son procesados mediante algoritmos de inteligencia artificial.
-2. Aunque procuramos la máxima precisión, los modelos de IA pueden ocasionalmente omitir caracteres o interpretar incorrectamente cifras manuscritas o de baja resolución. El usuario debe verificar los datos extraídos antes de confirmar transacciones críticas.
-3. El uso indebido de los servicios de IA (intentos de inyección de prompts maliciosos, saturación deliberada de cuotas o extracción automatizada no autorizada) facultará a Nido para suspender temporal o permanentemente el acceso del usuario.
-
----
-
-## 6. Propiedad Intelectual
-
-Todos los derechos de propiedad intelectual sobre el código fuente, diseño gráfico, logotipos, marcas comerciales, textos e interfaces de Nido pertenecen a sus desarrolladores originales. Se otorga al usuario una licencia personal, no exclusiva, intransferible y revocable para utilizar la app con fines estrictamente personales y no comerciales.
-
-Queda prohibida la ingeniería inversa, descompilación, venta no autorizada, redistribución o explotación comercial de la Aplicación o de sus elementos constitutivos.
+1. El escaneo automático de recibos, la entrada por voz/texto natural y los reportes financieros son procesados mediante Google Gemini a través de un proxy autenticado en Firebase Cloud Functions.
+2. Debido a que los modelos de IA pueden presentar márgenes de error al interpretar fotografías borrosas o textos ambiguos, el usuario se compromete a revisar los montos y categorías extraídos antes de guardarlos.
 
 ---
 
-## 7. Disponibilidad y Limitación de Responsabilidad
+## 5. Actualizaciones Directas (OTA) y Propiedad Intelectual
 
-1. Nido se proporciona "tal cual" (*as is*) y "según disponibilidad". No garantizamos que el servicio sea ininterrumpido, esté 100% libre de errores o que los servidores en la nube de Firebase o servicios de terceros operen sin interrupciones ajenas a nuestro control.
-2. En la máxima medida permitida por la ley aplicable, Nido y sus desarrolladores no serán responsables por daños indirectos, incidentales, punitivos o consecuentes derivados del uso o imposibilidad de uso del Servicio.
-
----
-
-## 8. Modificaciones a los Términos
-
-Nos reservamos el derecho de modificar estos Términos en cualquier momento. Notificaremos cambios sustanciales a través de una actualización en la app o en nuestro portal web. El uso continuado de Nido tras la entrada en vigor de los nuevos términos constituye la aceptación tácita de los mismos.
+1. **Verificación SHA-256:** Las actualizaciones directas descargadas por la aplicación verifican criptográficamente el hash SHA-256 del paquete APK oficial antes de iniciar la instalación.
+2. **Propiedad Intelectual:** El código fuente, diseño visual de cuaderno/libreta, mascota Fami Robot, logotipos y marca **Fami** pertenecen a sus creadores. Queda prohibida su reproducción o redistribución comercial no autorizada.
 
 ---
 
-## 9. Ley Aplicable y Jurisdicción
+## 6. Contacto de Asistencia Legal y Soporte
 
-Estos Términos se regirán e interpretarán de acuerdo con las leyes aplicables al comercio electrónico y protección de usuarios digitales, sometiéndose las partes a los mecanismos de resolución amigable o a los tribunales competentes.
-
----
-
-## 10. Contacto de Asistencia Legal
-
-Si tienes alguna pregunta sobre estos Términos o requieres soporte respecto a tu suscripción, contáctanos en:
-- **Correo Electrónico:** `soporte.nidoapp@gmail.com`  
-- **Soporte Web:** `https://hogar-finanzas-2026.web.app`
+Para cualquier consulta legal, técnica o solicitud sobre tu cuenta, contáctanos en:
+- **Correo Electrónico Oficial:** `hola@somosfami.app`  
+- **Sitio Web Oficial:** `https://somosfami.app`  
+- **Eliminación de Cuenta y Datos:** `https://somosfami.app/delete-account.html`  

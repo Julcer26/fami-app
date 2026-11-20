@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -61,9 +62,6 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.OAuthProvider
 import kotlinx.coroutines.delay
 
-private const val PRIVACY_URL = "https://somosfami.app/privacy.html"
-private const val TERMS_URL = "https://somosfami.app/terms.html"
-
 @Composable
 fun AuthScreen(viewModel: FamilyViewModel) {
     val familyId by viewModel.familyId.collectAsStateWithLifecycle()
@@ -86,7 +84,15 @@ fun AuthScreen(viewModel: FamilyViewModel) {
     val context = LocalContext.current
     val paper = FamiTheme.paper
 
-    var currentMode by remember(familyId, pendingEmailVerification, needsUnlockMethodChoice, startInExistingLogin) {
+    var currentMode by remember(
+        familyId,
+        pendingEmailVerification,
+        needsUnlockMethodChoice,
+        startInExistingLogin,
+        hasCompletedOnboarding,
+        familyAction,
+        managementMode
+    ) {
         mutableStateOf(
             when {
                 pendingEmailVerification -> "verify_email"
@@ -108,6 +114,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
     }
 
     var googleJoinCodePending by remember { mutableStateOf("") }
+    var googleCustomFamilyNamePending by remember { mutableStateOf("") }
+    var googleCustomAliasPending by remember { mutableStateOf("") }
     var googleErrorLocal by remember { mutableStateOf<String?>(null) }
     var isGoogleLaunching by remember { mutableStateOf(false) }
     var pendingGoogleEmailToLink by remember { mutableStateOf<String?>(null) }
@@ -127,7 +135,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                 viewModel.authenticateWithGoogleEmail(
                     email = selectedEmail,
                     joinFamilyCode = googleJoinCodePending,
-                    customFamilyName = pendingFamilyName,
+                    customFamilyName = googleCustomFamilyNamePending.ifBlank { pendingFamilyName },
+                    customUserAlias = googleCustomAliasPending,
                     onNeedsExistingPassword = { emailNeedingPass ->
                         linkPasswordInput = ""
                         pendingGoogleEmailToLink = emailNeedingPass
@@ -178,7 +187,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.handleGoogleFirebaseUser(
                                 firebaseUser = user,
                                 joinFamilyCode = googleJoinCodePending,
-                                customFamilyName = pendingFamilyName
+                                customFamilyName = googleCustomFamilyNamePending.ifBlank { pendingFamilyName },
+                                customUserAlias = googleCustomAliasPending
                             )
                         }
                     }
@@ -188,7 +198,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.authenticateWithGoogleEmail(
                                 email = email,
                                 joinFamilyCode = googleJoinCodePending,
-                                customFamilyName = pendingFamilyName,
+                                customFamilyName = googleCustomFamilyNamePending.ifBlank { pendingFamilyName },
+                                customUserAlias = googleCustomAliasPending,
                                 onNeedsExistingPassword = { emailNeedingPass ->
                                     linkPasswordInput = ""
                                     pendingGoogleEmailToLink = emailNeedingPass
@@ -203,7 +214,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                 viewModel.authenticateWithGoogleEmail(
                     email = email,
                     joinFamilyCode = googleJoinCodePending,
-                    customFamilyName = pendingFamilyName,
+                    customFamilyName = googleCustomFamilyNamePending.ifBlank { pendingFamilyName },
+                    customUserAlias = googleCustomAliasPending,
                     onNeedsExistingPassword = { emailNeedingPass ->
                         linkPasswordInput = ""
                         pendingGoogleEmailToLink = emailNeedingPass
@@ -233,8 +245,14 @@ fun AuthScreen(viewModel: FamilyViewModel) {
         }
     }
 
-    fun launchGoogleAuth(joinCode: String = "") {
+    fun launchGoogleAuth(
+        joinCode: String = "",
+        customFamilyName: String = "",
+        customUserAlias: String = ""
+    ) {
         googleJoinCodePending = joinCode
+        googleCustomFamilyNamePending = customFamilyName.trim()
+        googleCustomAliasPending = customUserAlias.trim()
         googleErrorLocal = null
         viewModel.clearAuthError()
         val webClientResId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
@@ -314,10 +332,19 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     }
                 }
 
+                val canReopenOnboardingFromAuth = familyId == null && !pendingEmailVerification && !needsUnlockMethodChoice
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = paper.stickyYellow,
-                    border = BorderStroke(1.3.dp, paper.border)
+                    border = BorderStroke(1.3.dp, paper.border),
+                    modifier = if (canReopenOnboardingFromAuth) {
+                        Modifier.clickable {
+                            viewModel.clearAuthError()
+                            viewModel.reopenInitialConfig()
+                        }
+                    } else {
+                        Modifier
+                    }
                 ) {
                     val pendingAliasHeader by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
                     val currentAliasHeader by viewModel.currentUser.collectAsStateWithLifecycle()
@@ -339,11 +366,23 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             aliasMaxWidth = 56.dp
                         )
                         Text(
-                            text = "${if (managementMode == "individual") "👤 Individual" else "👨‍👩‍👧‍👦 Familiar"} • $familyRole",
+                            text = if (managementMode == "individual") {
+                                "👤 Modo Individual"
+                            } else {
+                                "👨‍👩‍👧‍👦 Familiar • $familyRole"
+                            },
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             color = paper.ink
                         )
+                        if (canReopenOnboardingFromAuth) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Cambiar modo o configuración inicial",
+                                tint = FamiCoral,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -396,6 +435,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
             ) { mode ->
                 when (mode) {
                     "select" -> SelectModeContent(
+                        managementMode = managementMode,
                         isLoading = isAuthLoading || isGoogleLaunching,
                         onCreateFamily = {
                             viewModel.clearAuthError()
@@ -403,11 +443,16 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                         },
                         onJoinFamily = {
                             viewModel.clearAuthError()
+                            viewModel.updateManagementMode("familiar")
                             currentMode = "join_family"
                         },
                         onLoginExisting = {
                             viewModel.clearAuthError()
                             currentMode = "login_existing"
+                        },
+                        onReopenSetup = {
+                            viewModel.clearAuthError()
+                            viewModel.reopenInitialConfig()
                         },
                         onContinueWithGoogle = { launchGoogleAuth() }
                     )
@@ -437,7 +482,9 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.clearAuthError()
                             currentMode = "forgot_password"
                         },
-                        onContinueWithGoogle = { launchGoogleAuth() }
+                        onContinueWithGoogle = { customFamName, customAlias ->
+                            launchGoogleAuth(customFamilyName = customFamName, customUserAlias = customAlias)
+                        }
                     )
                     "join_family" -> JoinFamilyContent(
                         viewModel = viewModel,
@@ -450,7 +497,9 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.clearAuthError()
                             currentMode = "forgot_password"
                         },
-                        onContinueWithGoogle = { code -> launchGoogleAuth(joinCode = code) }
+                        onContinueWithGoogle = { code, customAlias ->
+                            launchGoogleAuth(joinCode = code, customUserAlias = customAlias)
+                        }
                     )
                     "login_existing" -> LoginExistingFamilyContent(
                         viewModel = viewModel,
@@ -688,13 +737,14 @@ private fun GoogleSignInButton(
 // -------------------------------------------------------------
 @Composable
 private fun SelectModeContent(
+    managementMode: String = "familiar",
     isLoading: Boolean = false,
     onCreateFamily: () -> Unit,
     onJoinFamily: () -> Unit,
     onLoginExisting: () -> Unit,
+    onReopenSetup: () -> Unit = {},
     onContinueWithGoogle: () -> Unit
 ) {
-    val context = LocalContext.current
     val s = com.example.ui.LocalFamiStrings.current
 
     Column(
@@ -758,33 +808,49 @@ private fun SelectModeContent(
             Text(s.authEmailBtn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
+        if (managementMode != "individual") {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = onJoinFamily,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+            ) {
+                Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(s.authJoinCodeBtn, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
 
-        OutlinedButton(
-            onClick = onJoinFamily,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(s.authJoinCodeBtn, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onReopenSetup) {
+                Text(
+                    text = "⚙️ Cambiar modo / país",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onLoginExisting) {
+                Text(
+                    text = s.authExistingAccountBtn,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        TextButton(onClick = onLoginExisting) {
-            Text(
-                text = s.authExistingAccountBtn,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = "somosfami.app • @hola.fami",
@@ -793,7 +859,7 @@ private fun SelectModeContent(
             fontWeight = FontWeight.Medium
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         var legalTab by remember { mutableStateOf<String?>(null) }
         Row(
@@ -807,7 +873,9 @@ private fun SelectModeContent(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { legalTab = "terms" }
+                modifier = Modifier
+                    .clickable { legalTab = "terms" }
+                    .padding(vertical = 8.dp, horizontal = 4.dp)
             )
             Text(" • ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
@@ -815,7 +883,9 @@ private fun SelectModeContent(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { legalTab = "privacy" }
+                modifier = Modifier
+                    .clickable { legalTab = "privacy" }
+                    .padding(vertical = 8.dp, horizontal = 4.dp)
             )
         }
         legalTab?.let { tab ->
@@ -1004,7 +1074,7 @@ private fun CreateFamilyContent(
     onBack: () -> Unit,
     onSwitchToLogin: () -> Unit,
     onForgotPassword: () -> Unit = {},
-    onContinueWithGoogle: () -> Unit
+    onContinueWithGoogle: (String, String) -> Unit
 ) {
     val context = LocalContext.current
     val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
@@ -1030,7 +1100,7 @@ private fun CreateFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
@@ -1053,7 +1123,7 @@ private fun CreateFamilyContent(
             GoogleSignInButton(
                 text = "Crear rápido con Google",
                 enabled = !isLoading,
-                onClick = onContinueWithGoogle
+                onClick = { onContinueWithGoogle(familyNameInput.trim(), userNameInput.trim()) }
             )
 
             Row(
@@ -1209,7 +1279,7 @@ private fun JoinFamilyContent(
     isLoading: Boolean,
     onBack: () -> Unit,
     onForgotPassword: () -> Unit,
-    onContinueWithGoogle: (String) -> Unit
+    onContinueWithGoogle: (String, String) -> Unit
 ) {
     val context = LocalContext.current
     val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
@@ -1235,7 +1305,7 @@ private fun JoinFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
@@ -1274,7 +1344,7 @@ private fun JoinFamilyContent(
                     if (code.isBlank()) {
                         Toast.makeText(context, "Primero ingresa el código familiar arriba", Toast.LENGTH_SHORT).show()
                     } else {
-                        onContinueWithGoogle(code.trim())
+                        onContinueWithGoogle(code.trim(), name.trim())
                     }
                 }
             )
@@ -1415,7 +1485,7 @@ private fun LoginExistingFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
@@ -1666,7 +1736,7 @@ private fun ForgotPasswordContent(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBackToLogin, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {

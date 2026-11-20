@@ -1,109 +1,85 @@
-# Política de Privacidad de Nido (Presupuesto Familiar IA)
+# Política de Privacidad de Fami (Finanzas, Hogar y Libreta con IA)
 
-**Última actualización:** 10 de noviembre de 2026  
-**Fecha de entrada en vigor:** 10 de noviembre de 2026  
-**Aplicación:** Nido - Finanzas y Presupuesto Familiar IA  
-**Contacto de privacidad:** soporte.nidoapp@gmail.com  
+**Última actualización:** 20 de noviembre de 2026  
+**Fecha de entrada en vigor:** 20 de noviembre de 2026  
+**Aplicación:** Fami — Finanzas, Hogar y Libreta con IA (`app.somosfami`)  
+**Contacto oficial de privacidad:** `hola@somosfami.app`  
+**Sitio web oficial:** `https://somosfami.app`  
 
 ---
 
 ## 1. Introducción y Alcance
-En **Nido** ("nosotros", "nuestro" o "la Aplicación"), nos tomamos muy en serio la privacidad y seguridad de la información de tu hogar. Esta Política de Privacidad explica de forma transparente cómo recopilamos, utilizamos, almacenamos, protegemos y eliminamos tus datos personales y financieros cuando utilizas nuestra aplicación móvil Android y los servicios asociados.
+En **Fami** ("nosotros", "nuestro" o "la Aplicación"), protegemos la privacidad y seguridad de tu información personal y familiar. Esta Política de Privacidad explica de forma transparente cómo recopilamos, utilizamos, almacenamos, ciframos y eliminamos tus datos cuando utilizas nuestra aplicación móvil Android y nuestro sitio web oficial (`https://somosfami.app`).
 
-Al descargar, instalar o utilizar Nido, aceptas las prácticas descritas en esta política. Si no estás de acuerdo con estos términos, por favor no utilices la Aplicación.
+Al descargar, instalar o utilizar Fami, aceptas las prácticas descritas en esta política.
 
 ---
 
-## 2. Información que Recopilamos
+## 2. Información que Recopilamos y Cifrado Local
 
 ### A. Información que proporcionas voluntariamente
 1. **Datos de Registro y Cuenta:**
-   - Dirección de correo electrónico y contraseña (gestionados a través de autenticación cifrada con Google Firebase Auth).
-   - Nombre de perfil o alias familiar (ej. "Papá", "Mamá", "Julio").
-   - Identificador familiar (`familyId`) generado para compartir presupuestos dentro de tu grupo del hogar.
+   - Dirección de correo electrónico y credenciales gestionadas mediante Google Firebase Authentication (Google Sign-In o correo/contraseña).
+   - Alias visible (ej. "Papá", "Mamá", "Julio"), avatar seleccionado, rol y modo de organización (`familiar` o `individual`).
+   - Código identificador del espacio (`familyId`) para sincronización entre miembros autorizados del hogar.
 
-2. **Datos Financieros y Transaccionales:**
-   - Registro de ingresos, gastos, transacciones manuales, montos, descripciones, fechas y categorías asociadas.
-   - Divisas utilizadas (ej. USD, VES) y tasas de cambio de referencia aplicadas (ej. Banco Central de Venezuela - BCV).
-   - Metas de ahorro, límites de presupuesto mensual por categoría y recordatorios de pagos recurrentes o servicios.
+2. **Datos Financieros y Multi-Moneda:**
+   - Ingresos, gastos, desglose de artículos de recibos, billeteras multi-moneda, límites de presupuesto por categoría, pagos recurrentes y metas de ahorro.
+   - Divisas configuradas (USD, VES, COP, MXN, ARS, EUR, CLP, PEN, BRL, etc.) y tasas referenciales aplicadas.
 
-3. **Imágenes de Recibos y Facturas (Cámara y Galería):**
-   - Fotografías de comprobantes de pago, tickets de compra o facturas que decides escanear o adjuntar voluntariamente para el control de gastos.
+3. **Libreta, Tareas y Compras:**
+   - Tareas del hogar (con prioridad, fecha límite y miembro asignado), listas de compras y notitas adhesivas (compartidas con el hogar o marcadas como privadas *"Solo para mí"*).
 
-4. **Gestión Familiar y del Hogar:**
-   - Listas de compras compartidas, notas de gastos y asignación de tareas del hogar.
+4. **Imágenes de Recibos y Facturas:**
+   - Fotografías de comprobantes o tickets que decides escanear o adjuntar voluntariamente.
 
-### B. Información recopilada automáticamente
-1. **Datos Técnicos y de Diagnóstico:**
-   - Versión del sistema operativo Android, modelo de dispositivo, versión instalada de la aplicación y registros de errores o rendimiento técnico (vía Firebase Crashlytics / Analytics).
-   - Dirección IP (utilizada exclusivamente con fines de seguridad de red, prevención de abusos y geolocalización regional para tasas de cambio).
+### B. Cifrado Local en el Dispositivo (`LocalCryptoBox`)
+- Las preferencias sensibles guardadas en el dispositivo se cifran con **AES-256-GCM** respaldado por el hardware **Android Keystore** (`LocalCryptoBox`).
+- Tu PIN de acceso local de 5 dígitos nunca se guarda en texto plano: se almacena únicamente como un **hash SHA-256 con sal criptográfica aleatoria de 128 bits**.
 
 ---
 
 ## 3. Permisos del Dispositivo y su Finalidad
 
-Nido solicita únicamente los permisos indispensables para su funcionamiento esencial:
-
 | Permiso Android | Finalidad Específica |
 | :--- | :--- |
-| `android.permission.INTERNET` | Sincronización en tiempo real con Firebase (base de datos de tu familia) y consulta de tasas de cambio oficiales. |
-| `android.permission.CAMERA` | Permitir tomar fotos de facturas o comprobantes para su extracción automática mediante IA. **Nunca accedemos a la cámara sin tu acción directa.** |
-| `android.permission.USE_BIOMETRIC` | Permitir el desbloqueo rápido y seguro mediante huella dactilar o reconocimiento facial. **Los datos biométricos permanecen en el hardware seguro de tu dispositivo y jamás salen de él ni son transmitidos a nuestros servidores.** |
-| `android.permission.POST_NOTIFICATIONS` | Enviar recordatorios opcionales sobre vencimientos de pagos recurrentes o sincronizaciones familiares (solo en Android 13 o superior). |
+| `android.permission.INTERNET` | Sincronización en tiempo real con Firebase, validación de actualizaciones OTA y consulta de tasas de cambio oficiales. |
+| `android.permission.CAMERA` | Tomar fotos de facturas o comprobantes para su extracción automática con IA. **Nunca accedemos a la cámara sin tu acción directa.** |
+| `android.permission.RECORD_AUDIO` / Dictado | Dictar gastos o notas mediante el reconocedor de voz cuando pulsas el botón de micrófono. |
+| `android.permission.USE_BIOMETRIC` | Desbloqueo local mediante huella o biometría. **Los datos biométricos permanecen en el hardware seguro de tu teléfono y jamás salen de él.** |
+| `android.permission.POST_NOTIFICATIONS` | Enviar avisos de tareas asignadas (FCM) y recordatorios de pagos o presupuestos. |
+| `android.permission.REQUEST_INSTALL_PACKAGES` | Instalar actualizaciones directas (OTA) oficiales tras verificar su firma criptográfica SHA-256. |
 
 ---
 
-## 4. Uso de Inteligencia Artificial (Google Gemini)
+## 4. Uso de Inteligencia Artificial (Proxy Seguro hacia Google Gemini)
 
-Nido integra capacidades de Inteligencia Artificial mediante los modelos de **Google Gemini** para facilitar la gestión financiera:
-- **Lectura Inteligente de Recibos (OCR + AI):** Al subir una foto de un recibo, la imagen o el texto extraído se procesa temporalmente mediante la API de Google Gemini para identificar ítems, cantidades, montos y categorías sugeridas.
-- **Asistente y Análisis Financiero:** Analiza resúmenes numéricos de tus gastos mensuales para generar consejos personalizados de ahorro y alertas de desviaciones presupuestarias.
-- **Compromiso de Privacidad IA:** Tus datos financieros no son vendidos ni utilizados para entrenar modelos públicos de terceros sin anonimización previa.
-
----
-
-## 5. Almacenamiento y Seguridad de los Datos
-
-1. **Cifrado en Tránsito y Reposo:** Toda comunicación entre tu teléfono y nuestros servidores se realiza mediante protocolos seguros `HTTPS / TLS 1.3`. Los datos alojados en **Google Cloud / Firebase Realtime Database** y **Firebase Storage** se almacenan con cifrado de nivel bancario (AES-256).
-2. **Aislamiento por Familia:** La arquitectura de base de datos implementa Reglas de Seguridad (*Firebase Security Rules*) estrictas. Solo los miembros autenticados que poseen el código de familia correspondiente pueden leer o modificar los datos financieros de ese grupo.
-3. **No Comercialización de Datos:** **Nido no vende, no alquila y no comparte tus datos personales o financieros con corredores de datos ni con redes publicitarias de terceros.**
+Fami procesa las funciones de IA a través de un **proxy autenticado en Firebase Cloud Functions** (`Bearer ID Token`) conectado a **Google Gemini**, evitando exponer llaves de API en el dispositivo:
+- **Lectura Inteligente de Recibos y Lenguaje Natural:** Identifica comercio, fecha, moneda, categoría y desglose de artículos.
+- **Diagnóstico Financiero:** Analiza el resumen mensual de tu hoja para ofrecer sugerencias de ahorro.
+- **Compromiso de Privacidad IA:** Tus datos no se venden a anunciantes ni existen SDKs publicitarios de terceros en Fami.
 
 ---
 
-## 6. Proveedores de Servicios Terceros
+## 5. Almacenamiento y Seguridad en la Nube
 
-Para operar la plataforma, nos apoyamos en los siguientes proveedores tecnológicos líderes:
-- **Google LLC (Firebase & Google Cloud):** Autenticación de usuarios, base de datos en la nube y almacenamiento seguro de imágenes.
-- **Google AI (Gemini API):** Procesamiento de lenguaje natural y visión computacional para recibos.
-- **Google Play Services:** Distribución de la aplicación y procesamiento de compras/suscripciones bajo Google Play Billing.
-
----
-
-## 7. Retención y Eliminación de Datos
-
-Conservamos tu información únicamente mientras mantengas una cuenta activa en Nido. En cualquier momento puedes solicitar la eliminación total de tus datos:
-1. **Desde la Aplicación:** Accede a `Ajustes / Perfil` -> `Zona de Peligro` -> `Eliminar mi Cuenta`.
-2. **Vía Web o Correo Electrónico:** Puedes solicitar el borrado permanente completando el formulario en `https://hogar-finanzas-2026.web.app/delete-account.html` o escribiendo directamente a `soporte.nidoapp@gmail.com`.
-3. Al procesar la solicitud, se eliminarán de forma irrevocable tu usuario de autenticación, tu perfil, los comprobantes almacenados y las referencias de tus transacciones en un plazo no mayor a 30 días hábiles.
+1. **Cifrado en Tránsito y Reposo:** Toda comunicación utiliza `HTTPS / TLS 1.3`. Los datos en **Firebase Realtime Database** y **Firebase Storage** se almacenan cifrados en reposo con AES-256.
+2. **Aislamiento por Espacio y Membresía:** Las reglas de seguridad (*Firebase Security Rules*) restringen la lectura y escritura exclusivamente a los usuarios autenticados que pertenecen al espacio (`familyId`) o a su propio nodo `/users/{uid}`.
+3. **Cero Rastreadores Publicitarios:** Fami no vende, no alquila ni comparte tus datos personales o financieros con corredores de datos ni redes publicitarias.
 
 ---
 
-## 8. Privacidad de Menores
+## 6. Retención y Eliminación de Datos
 
-Nido no está dirigida a menores de 13 años (o la edad mínima legal en tu jurisdicción). No recopilamos intencionalmente datos personales de niños. Si detectamos que un menor nos ha proporcionado datos sin el consentimiento de sus tutores, los eliminaremos de inmediato.
-
----
-
-## 9. Cambios a esta Política de Privacidad
-
-Podemos actualizar esta política periódicamente para reflejar mejoras en la app o requisitos regulatorios. Te notificaremos sobre cambios significativos a través de un aviso en la aplicación o mediante correo electrónico.
+Conservamos tu información únicamente mientras mantengas tu cuenta activa. En cualquier momento puedes eliminar tu cuenta y todos tus datos:
+1. **Desde la Aplicación (Inmediato):** Entra a `Ajustes > General > Eliminar mi Cuenta y Datos`.
+2. **Vía Web o Correo Electrónico:** Completa el formulario en `https://somosfami.app/delete-account.html` o escribe a `hola@somosfami.app`.
 
 ---
 
-## 10. Contacto y Derechos del Usuario (ARCO / RGPD)
+## 7. Contacto y Derechos del Usuario (ARCO / RGPD)
 
-Tienes derecho a acceder, rectificar, cancelar u oponerte al tratamiento de tus datos personales. Para ejercer estos derechos o realizar consultas sobre privacidad, contáctanos en:
-
-* **Responsable:** Equipo de Desarrollo Nido  
-* **Correo de Soporte:** `soporte.nidoapp@gmail.com`  
-* **Sitio Web:** `https://hogar-finanzas-2026.web.app`  
+Para ejercer tus derechos de acceso, rectificación, cancelación, oposición o portabilidad, contáctanos en:
+* **Responsable:** Equipo Oficial Fami  
+* **Correo de Soporte:** `hola@somosfami.app`  
+* **Sitio Web:** `https://somosfami.app`  

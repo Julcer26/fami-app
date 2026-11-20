@@ -26,8 +26,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
@@ -488,7 +488,7 @@ fun InAppGuideOverlay(
                                 cornerRadius = 10.dp,
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
                             ) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = paper.ink, modifier = Modifier.size(15.dp))
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Anterior", tint = paper.ink, modifier = Modifier.size(15.dp))
                             }
                         }
 
@@ -516,7 +516,7 @@ fun InAppGuideOverlay(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
-                                imageVector = if (isLast) Icons.Default.Check else Icons.Default.ArrowForward,
+                                imageVector = if (isLast) Icons.Default.Check else Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(14.dp)

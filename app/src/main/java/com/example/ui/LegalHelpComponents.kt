@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -129,6 +131,7 @@ fun LegalDocumentDialog(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
+                                .heightIn(min = 42.dp)
                                 .clip(RoundedCornerShape(9.dp))
                                 .background(if (selected) FamiCoral else Color.Transparent)
                                 .clickable { activeTab = id }
@@ -159,7 +162,7 @@ fun LegalDocumentDialog(
                         "privacy" -> {
                             StickyNoteSheet(noteColor = paper.stickyMint) {
                                 Text(
-                                    text = "Resumen clave: En Fami no vendemos tus datos. Tus registros financieros, notas y recibos pertenecen exclusivamente a tu cuenta y grupo familiar, y se transmiten cifrados mediante HTTPS/TLS.",
+                                    text = "Resumen clave: En Fami no vendemos tus datos ni incluimos rastreadores publicitarios de terceros (0 ad SDKs). Tus registros pertenecen exclusivamente a tu cuenta y espacio (Individual o Familiar), cifrados localmente con AES-256-GCM y en tránsito con HTTPS/TLS.",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = paper.ink,
@@ -167,26 +170,26 @@ fun LegalDocumentDialog(
                                 )
                             }
                             LegalSectionCard(
-                                title = "1. Datos que recopilamos",
-                                body = "• Cuenta: correo electrónico y método de acceso (Google o contraseña) gestionados de forma segura con Firebase Authentication.\n• Perfil y Hogar: alias elegido, avatar, rol familiar y código de hogar.\n• Finanzas y Notas: movimientos, billeteras, metas de ahorro, tareas, compras y notitas creadas por ti.\n• Comprobantes: fotos seleccionadas o capturadas solo cuando tú decides escanear una factura."
+                                title = "1. Datos que recopilamos y Cifrado Local",
+                                body = "• Cuenta: correo electrónico y método de acceso (Google o contraseña) gestionados con Firebase Authentication.\n• Cifrado en el dispositivo: las credenciales sensibles y el hash de tu PIN (SHA-256 con sal única) se resguardan mediante Android Keystore con cifrado AES-256-GCM (LocalCryptoBox).\n• Finanzas y Libreta: movimientos, billeteras multi-moneda, metas, tareas, compras y notitas.\n• Comprobantes: fotos capturadas o elegidas solo cuando decides adjuntar o escanear un recibo (almacenadas en Firebase Storage)."
                             )
                             LegalSectionCard(
                                 title = "2. Permisos del dispositivo",
-                                body = "• Cámara y Galería: únicamente al pulsar Escanear o Galería para leer facturas.\n• Micrófono / Dictado: únicamente al pulsar el botón de voz en nota rápida.\n• Biometría (Huella): se valida localmente en el hardware de tu teléfono; Fami nunca lee ni envía tus huellas.\n• Notificaciones: recordatorios opcionales de pagos próximos."
+                                body = "• Cámara y Galería: únicamente al pulsar Escanear o Galería para leer facturas.\n• Micrófono / Dictado: únicamente al pulsar el botón de voz en nota rápida o widget.\n• Biometría (Huella): se valida localmente en el hardware de tu teléfono; Fami nunca lee ni transmite datos biométricos.\n• Notificaciones (FCM) y Actualizaciones OTA: avisos de tareas asignadas, pagos próximos y descarga verificada por firma SHA-256."
                             )
                             LegalSectionCard(
-                                title = "3. Inteligencia Artificial y Almacenamiento",
-                                body = "Las lecturas de comprobantes y análisis usan Google Gemini de forma aislada y sin fines publicitarios. Los datos se alojan en Google Cloud / Firebase con cifrado en reposo y reglas de acceso restringidas a los miembros autorizados de tu hogar."
+                                title = "3. Inteligencia Artificial con Proxy Seguro",
+                                body = "Las lecturas de comprobantes, dictados y diagnósticos financieros se procesan a través de un proxy autenticado en Firebase Cloud Functions hacia Google Gemini (Bearer ID Token), sin exponer llaves de API en el dispositivo ni usar tus datos para publicidad."
                             )
                             LegalSectionCard(
                                 title = "4. Eliminación de cuenta y contacto",
-                                body = "Puedes eliminar tu cuenta y credenciales en cualquier momento desde Ajustes > General > Eliminar mi Cuenta y Datos, o escribirnos a $SUPPORT_EMAIL."
+                                body = "Puedes eliminar tu cuenta y todos tus datos de forma inmediata desde Ajustes > General > Eliminar mi Cuenta y Datos, a través del portal web https://somosfami.app/delete-account.html, o escribiendo a $SUPPORT_EMAIL."
                             )
                         }
                         "terms" -> {
                             StickyNoteSheet(noteColor = paper.stickyYellow) {
                                 Text(
-                                    text = "Aviso importante: Fami es una herramienta de organización presupuestaria y productividad doméstica. No constituye asesoramiento financiero, contable, legal ni bancario.",
+                                    text = "Aviso importante: Fami es una herramienta de organización presupuestaria y productividad doméstica (Familiar e Individual). No constituye asesoramiento financiero, contable, legal ni bancario.",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = paper.ink,
@@ -194,34 +197,34 @@ fun LegalDocumentDialog(
                                 )
                             }
                             LegalSectionCard(
-                                title = "1. Aceptación y Uso del Servicio",
-                                body = "Al usar Fami aceptas estos Términos y Condiciones para la administración personal o familiar de ingresos, gastos, listas, metas y notas."
+                                title = "1. Aceptación y Modos de Uso",
+                                body = "Al usar Fami aceptas estos Términos y Condiciones para la administración personal (Modo Individual) o compartida (Modo Familiar) de ingresos, gastos, billeteras, listas, metas y notas."
                             )
                             LegalSectionCard(
-                                title = "2. Tasas Referenciales y Cálculos",
-                                body = "Las conversiones multi-moneda utilizan tasas públicas referenciales (como BCV u otras fuentes disponibles). Verifica siempre los importes críticos antes de tomar decisiones económicas."
+                                title = "2. Tasas Referenciales y Multi-Moneda",
+                                body = "Las conversiones multi-moneda utilizan tasas públicas referenciales (como BCV, TRM o tasas internacionales). Verifica siempre los importes críticos antes de realizar operaciones financieras."
                             )
                             LegalSectionCard(
                                 title = "3. Asistencia por IA",
-                                body = "El escaneo automático de recibos y el análisis financiero con IA pueden presentar márgenes de error; revisa y confirma los datos extraídos antes de guardarlos."
+                                body = "El escaneo automático de recibos, el dictado por voz y el análisis financiero con IA son herramientas de apoyo que pueden presentar márgenes de error; revisa y confirma los importes antes de guardarlos."
                             )
                             LegalSectionCard(
-                                title = "4. Grupos Familiares",
-                                body = "Quien comparte el Código Familiar otorga acceso a los registros compartidos del hogar dentro de ese grupo. Las notas marcadas como privadas solo son visibles por su autor."
+                                title = "4. Grupos Familiares y Privacidad",
+                                body = "Quien comparte el Código Familiar otorga acceso a los registros compartidos del hogar dentro de ese grupo. Los elementos marcados como privados ('Solo para mí') solo son visibles por su autor."
                             )
                             LegalSectionCard(
                                 title = "5. Propiedad Intelectual y Contacto",
-                                body = "La marca Fami, logotipos, ilustraciones y software pertenecen a sus desarrolladores. Para consultas legales o soporte escribe a $SUPPORT_EMAIL."
+                                body = "La marca Fami, logotipos, mascota Fami Robot, diseño de libreta y software pertenecen a sus creadores. Para consultas legales o soporte escribe a $SUPPORT_EMAIL."
                             )
                         }
                         else -> {
                             LegalSectionCard(
                                 title = "Información de la Aplicación",
-                                body = "• Aplicación: Fami — Gestión Familiar y Personal\n• Paquete: ${BuildConfig.APPLICATION_ID}\n• Versión instalada: v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})\n• Correo de soporte: $SUPPORT_EMAIL\n• Sitio oficial: somosfami.app"
+                                body = "• Aplicación: Fami — Finanzas, Hogar y Libreta con IA\n• Paquete: ${BuildConfig.APPLICATION_ID}\n• Versión instalada: v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})\n• Correo oficial de soporte: $SUPPORT_EMAIL\n• Sitio oficial: https://somosfami.app\n• Portal de baja de datos: https://somosfami.app/delete-account.html"
                             )
                             LegalSectionCard(
-                                title = "Cumplimiento y Transparencia",
-                                body = "Fami cumple con las políticas de seguridad y privacidad de datos de Google Play. Todos los accesos a datos familiares están protegidos por autenticación Firebase y verificación de membresía."
+                                title = "Arquitectura de Seguridad y Cumplimiento",
+                                body = "• Cifrado local: Android Keystore AES-256-GCM (LocalCryptoBox) + PIN con hash SHA-256 salado.\n• Tránsito y Nube: HTTPS/TLS + reglas de seguridad de Firebase Realtime Database y Storage aisladas por UID y membresía.\n• Actualizaciones OTA: verificación criptográfica de integridad SHA-256 antes de instalar.\n• Cero rastreadores publicitarios de terceros."
                             )
                         }
                     }
@@ -245,7 +248,7 @@ fun LegalDocumentDialog(
                             openSafeExternalUrl(context, url)
                         }
                     ) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(15.dp), tint = FamiCoral)
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(15.dp), tint = FamiCoral)
                         Spacer(modifier = Modifier.width(5.dp))
                         Text("Ver web", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
                     }
@@ -679,7 +682,7 @@ fun HelpSupportContent(
                         lipHeight = 3.dp,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = paper.ink, modifier = Modifier.size(15.dp))
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = paper.ink, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(5.dp))
                         Text("Guía de uso", fontSize = 11.sp, fontWeight = FontWeight.Black, color = paper.ink)
                     }

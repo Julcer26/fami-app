@@ -148,7 +148,7 @@ fun FinanceAiHeroCard(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Fami IA analiza tus gastos del mes y te sugiere cómo ahorrar en familia.",
+                            text = "Fami IA analiza tus gastos del mes y te sugiere cómo optimizar tu presupuesto.",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = paper.ink.copy(alpha = 0.78f)

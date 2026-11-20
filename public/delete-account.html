@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eliminación de Cuenta y Datos | Fami - Finanzas Familiares IA</title>
+    <title>Eliminación de Cuenta y Datos | Fami - Finanzas, Hogar y Libreta con IA</title>
+    <meta name="description" content="Portal oficial de solicitud de eliminación de cuenta y datos personales de Fami (Google Play Data Deletion Compliance, RGPD y LGPD).">
+    <link rel="canonical" href="https://somosfami.app/delete-account.html">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -119,9 +121,21 @@
             text-align: center;
             font-weight: 600;
         }
+        .mailto-btn {
+            display: inline-block;
+            margin-top: 12px;
+            background: #065F46;
+            color: #FFFFFF !important;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-decoration: none !important;
+        }
         .nav-links {
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             gap: 20px;
             margin-top: 40px;
             padding-top: 24px;
@@ -142,22 +156,22 @@
 
 <header>
     <div class="header-container">
-        <div class="logo-badge">🛡️ Google Play Compliance • Privacidad</div>
+        <div class="logo-badge">🛡️ Google Play Compliance • Privacidad Fami</div>
         <h1>Solicitud de Eliminación de Cuenta y Datos</h1>
-        <p class="subtitle">Cumplimiento del derecho de supresión (RGPD, LGPD y Google Play Data Deletion)</p>
+        <p class="subtitle">Cumplimiento del derecho de supresión (RGPD, LGPD y Google Play Data Deletion Policy)</p>
     </div>
 </header>
 
 <main class="container">
     <div class="danger-box">
-        <strong>Advertencia:</strong> Esta acción es irreversible. Al procesar la solicitud, se eliminarán de forma permanente tus credenciales de acceso, tus imágenes de comprobantes y tus preferencias individuales asociadas.
+        <strong>Advertencia:</strong> Esta acción es irreversible. Al procesar la solicitud, se eliminarán de forma permanente tus credenciales de acceso en Firebase Authentication, tu perfil, tus imágenes de comprobantes y tus registros personales asociados.
     </div>
 
     <h2>¿Cómo se procesa la eliminación?</h2>
-    <p>Conforme a las políticas oficiales de Google Play Store, puedes solicitar la baja y el borrado íntegro de tu información directamente a través de este portal web, incluso si ya has desinstalado la app de tu teléfono.</p>
+    <p>Conforme a las políticas oficiales de Google Play Store, puedes eliminar tu cuenta de inmediato desde la app o solicitar la baja íntegra a través de este portal web si ya desinstalaste la aplicación.</p>
     <ul>
-        <li><strong>Datos que se eliminan inmediatamente:</strong> Correo electrónico registrado, UID de Firebase Authentication, nombre de perfil de usuario y fotografías de recibos/facturas cargadas en la nube.</li>
-        <li><strong>Tiempo de procesamiento:</strong> Se procesará automáticamente o por nuestro equipo de soporte en un plazo no mayor a 72 horas hábiles.</li>
+        <li><strong>Datos que se eliminan:</strong> Correo electrónico registrado, UID de Firebase Authentication, perfil/alias de usuario, fotografías de recibos/facturas cargadas en Firebase Storage y datos de tu espacio si eres el único miembro o titular.</li>
+        <li><strong>Tiempo de procesamiento:</strong> Inmediato al realizarlo desde la app, o en un plazo máximo de 72 horas hábiles al solicitarlo por correo electrónico vía web.</li>
     </ul>
 
     <div class="form-card">
@@ -165,7 +179,7 @@
             <label for="userEmail">Correo electrónico registrado en Fami *</label>
             <input type="email" id="userEmail" required placeholder="tu-correo@ejemplo.com">
 
-            <label for="familyCode">Código o ID de Familia (Opcional si lo recuerdas)</label>
+            <label for="familyCode">Código de Familia o Espacio (Opcional si lo recuerdas)</label>
             <input type="text" id="familyCode" placeholder="Ej: FAM-74892">
 
             <label for="reason">Motivo de la solicitud (Opcional)</label>
@@ -175,20 +189,23 @@
         </form>
 
         <div id="successMessage">
-            ✅ Solicitud registrada con éxito. Hemos enviado una confirmación a tu correo. Tus datos serán eliminados permanentemente de nuestros servidores en Firebase.
+            <p>✅ Hemos preparado tu solicitud formal de eliminación hacia <strong>hola@somosfami.app</strong>. Si tu cliente de correo no se abrió automáticamente, pulsa el botón inferior para enviarla:</p>
+            <a id="directMailtoLink" href="mailto:hola@somosfami.app" class="mailto-btn">📧 Enviar Solicitud a hola@somosfami.app</a>
         </div>
     </div>
 
-    <h2>Eliminación directa desde la Aplicación Móvil</h2>
-    <p>Si aún tienes la aplicación instalada en tu dispositivo Android, puedes realizar este proceso de manera inmediata:</p>
+    <h2>Eliminación inmediata desde la Aplicación Móvil</h2>
+    <p>Si tienes la aplicación <strong>Fami</strong> instalada en tu dispositivo Android, puedes eliminar tu cuenta y tus datos en tiempo real sin esperar procesamiento manual:</p>
     <ol style="margin-left: 24px; color: #334155; margin-bottom: 20px;">
-        <li>Abre la aplicación <strong>Fami</strong> en tu celular.</li>
-        <li>Ve a la pestaña <strong>Ajustes</strong> o pulsa tu avatar de perfil.</li>
-        <li>Desplázate al apartado <strong>Zona de Peligro</strong>.</li>
-        <li>Pulsa <strong>"Eliminar mi Cuenta"</strong> y confirma tu clave.</li>
+        <li>Abre la aplicación <strong>Fami</strong> en tu teléfono.</li>
+        <li>Toca el icono de engranaje (<strong>Ajustes</strong>) en la esquina superior derecha.</li>
+        <li>En la pestaña <strong>General</strong>, desplázate hasta el final de la pantalla.</li>
+        <li>Pulsa el botón rojo <strong>"Eliminar mi Cuenta y Datos"</strong> y confirma la operación.</li>
     </ol>
 
     <div class="nav-links">
+        <a href="index.html">Volver al Inicio</a>
+        <span>•</span>
         <a href="privacy.html">Política de Privacidad</a>
         <span>•</span>
         <a href="terms.html">Términos y Condiciones</a>
@@ -196,21 +213,34 @@
 </main>
 
 <footer>
-    © 2026 Fami - Finanzas Familiares IA • Soporte: hola@somosfami.app
+    © 2026 Fami — Finanzas, Hogar y Libreta con IA • Soporte oficial: hola@somosfami.app
 </footer>
 
 <script>
 function handleDelete(e) {
     e.preventDefault();
-    const email = document.getElementById('userEmail').value;
+    const email = document.getElementById('userEmail').value.trim();
+    const familyCode = document.getElementById('familyCode').value.trim() || 'No especificado';
+    const reason = document.getElementById('reason').value.trim() || 'Sin motivo adicional';
     if (!email) return;
 
-    // Simula envío a Firebase o Endpoint de Soporte
+    const subject = encodeURIComponent('[Fami - Eliminación de Cuenta y Datos] ' + email);
+    const body = encodeURIComponent(
+        'Solicito la eliminación definitiva de mi cuenta y datos asociados en Fami (app.somosfami).\n\n' +
+        '• Correo electrónico registrado: ' + email + '\n' +
+        '• Código de Familia / Espacio: ' + familyCode + '\n' +
+        '• Motivo: ' + reason + '\n'
+    );
+    const mailtoUrl = 'mailto:hola@somosfami.app?subject=' + subject + '&body=' + body;
+
+    const directLink = document.getElementById('directMailtoLink');
+    if (directLink) {
+        directLink.href = mailtoUrl;
+    }
+
     document.getElementById('deleteForm').style.display = 'none';
     document.getElementById('successMessage').style.display = 'block';
-
-    // Opcional: registrar en consola o webhook
-    console.log("Solicitud de eliminación enviada para:", email);
+    window.location.href = mailtoUrl;
 }
 </script>
 

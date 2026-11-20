@@ -68,6 +68,8 @@ fun TasksTab(
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val isIndividualMode = managementMode == "individual"
     val paper = FamiTheme.paper
     val s = com.example.ui.LocalFamiStrings.current
 
@@ -99,16 +101,23 @@ fun TasksTab(
     }
     var selectedListName by remember { mutableStateOf("Todas") }
     var selectedPriorityFilter by remember { mutableStateOf("Todas") }
+    var selectedMemberFilter by remember { mutableStateOf("Todos") }
 
     val userChores = remember(chores, currentUser) {
         chores.filter { !it.isPrivate || it.createdBy == currentUser || it.assignedTo == currentUser }
     }
     val pendingChores = remember(userChores) { userChores.filter { !it.isCompleted } }
     val completedChores = remember(userChores) { userChores.filter { it.isCompleted } }
-    val shownChores = remember(pendingChores, completedChores, activeTaskFilter, selectedListName, selectedPriorityFilter) {
+    val shownChores = remember(pendingChores, completedChores, activeTaskFilter, selectedListName, selectedPriorityFilter, selectedMemberFilter, isIndividualMode, currentUser) {
+        val cleanCurUser = cleanMemberAlias(currentUser)
         (if (activeTaskFilter == "pendientes") pendingChores else completedChores).filter {
-            (selectedListName.equals("Todas", ignoreCase = true) || it.category.equals(selectedListName, ignoreCase = true)) &&
-            (selectedPriorityFilter.equals("Todas", ignoreCase = true) || it.priority.equals(selectedPriorityFilter, ignoreCase = true))
+            val matchesList = selectedListName.equals("Todas", ignoreCase = true) || it.category.equals(selectedListName, ignoreCase = true)
+            val matchesPriority = selectedPriorityFilter.equals("Todas", ignoreCase = true) || it.priority.equals(selectedPriorityFilter, ignoreCase = true)
+            val matchesMember = isIndividualMode ||
+                selectedMemberFilter.equals("Todos", ignoreCase = true) ||
+                (selectedMemberFilter == "Mis tareas" && (it.assignedTo.equals(cleanCurUser, ignoreCase = true) || it.assignedTo.equals("Todos", ignoreCase = true))) ||
+                it.assignedTo.equals(selectedMemberFilter, ignoreCase = true)
+            matchesList && matchesPriority && matchesMember
         }
     }
 
@@ -122,6 +131,7 @@ fun TasksTab(
         activeTaskFilter = if (match.isCompleted) "completadas" else "pendientes"
         selectedListName = "Todas"
         selectedPriorityFilter = "Todas"
+        selectedMemberFilter = "Todos"
         val targetList = if (match.isCompleted) {
             userChores.filter { it.isCompleted }
         } else {
@@ -201,8 +211,8 @@ fun TasksTab(
                     confirmButton = {
                         Button(
                             onClick = {
-                                val cleanList = newListNameInput.trim()
-                                if (cleanList.isNotEmpty() && cleanList != "General") {
+                                val cleanList = newListNameInput.replace(",", " ").trim()
+                                if (cleanList.isNotEmpty() && !cleanList.equals("General", ignoreCase = true) && !cleanList.equals("Todas", ignoreCase = true)) {
                                     val currentSetting = settings.find { it.key == "task_lists" }?.value
                                     val newSettingVal = if (currentSetting.isNullOrBlank()) cleanList else "$currentSetting,$cleanList"
                                     viewModel.updateValueSetting("task_lists", newSettingVal)
@@ -263,14 +273,9 @@ fun TasksTab(
                                                 )
                                             )
                                             IconButton(onClick = {
-                                                val cleanList = editListNameInput.trim()
-                                                if (cleanList.isNotEmpty() && cleanList != listName && cleanList != "General") {
-                                                    val currentSetting = settings.find { it.key == "task_lists" }?.value
-                                                    val dbLists = currentSetting?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.toMutableList() ?: mutableListOf()
-                                                    if (dbLists.contains(listName) ){
-                                                        dbLists[dbLists.indexOf(listName)] = cleanList
-                                                        viewModel.updateValueSetting("task_lists", dbLists.joinToString(","))
-                                                    }
+                                                val cleanList = editListNameInput.replace(",", " ").trim()
+                                                if (cleanList.isNotEmpty() && cleanList != listName && !cleanList.equals("General", ignoreCase = true) && !cleanList.equals("Todas", ignoreCase = true)) {
+                                                    viewModel.renameTaskList(listName, cleanList)
                                                     if (selectedListName == listName) {
                                                         selectedListName = cleanList
                                                     }
@@ -432,6 +437,39 @@ fun TasksTab(
                     }
                 }
             }
+            if (!isIndividualMode && profiles.size > 1) {
+                Spacer(modifier = Modifier.height(6.dp))
+                val memberFilterOptions = remember(profiles) {
+                    (listOf("Todos", "Mis tareas") + profiles.map { cleanMemberAlias(it.name) }).distinct()
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    memberFilterOptions.forEach { memberOpt ->
+                        val isMemSelected = selectedMemberFilter == memberOpt
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(if (isMemSelected) FamiCoral else paper.sheetCream)
+                                .border(1.dp, if (isMemSelected) FamiCoral else paper.border.copy(alpha = 0.35f), CircleShape)
+                                .clickable { selectedMemberFilter = memberOpt }
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (memberOpt == "Mis tareas") "👤 Mis tareas" else memberOpt,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isMemSelected) Color.White else paper.ink
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -553,9 +591,9 @@ fun TasksTab(
                                             else -> if (paper.isDark) Color(0xFF153732) else Color(0xFFCCFBF1)
                                         }
                                         val priorityTextCol = when (chore.priority.lowercase()) {
-                                            "alto" -> Color(0xFFEF4444)
-                                            "medio" -> Color(0xFFF97316)
-                                            else -> Color(0xFF0D9488)
+                                            "alto" -> if (paper.isDark) Color(0xFFF87171) else Color(0xFFEF4444)
+                                            "medio" -> if (paper.isDark) Color(0xFFFB923C) else Color(0xFFF97316)
+                                            else -> if (paper.isDark) FamiEmerald else Color(0xFF0D9488)
                                         }
                                         Box(
                                             modifier = Modifier
@@ -592,20 +630,22 @@ fun TasksTab(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         val cleanAssignee = cleanMemberAlias(chore.assignedTo, "Todos")
-                                        com.example.ui.MemberAvatarBadge(
-                                            memberName = cleanAssignee,
-                                            profiles = profiles,
-                                            currentUser = currentUser,
-                                            currentUserAvatarId = userAvatarIdState,
-                                            size = 26.dp,
-                                            showAliasBelow = true,
-                                            aliasText = cleanAssignee,
-                                            aliasFontSize = 9.sp,
-                                            aliasColor = paper.inkMuted,
-                                            aliasMaxWidth = 58.dp
-                                        )
+                                        if (!isIndividualMode) {
+                                            com.example.ui.MemberAvatarBadge(
+                                                memberName = cleanAssignee,
+                                                profiles = profiles,
+                                                currentUser = currentUser,
+                                                currentUserAvatarId = userAvatarIdState,
+                                                size = 26.dp,
+                                                showAliasBelow = true,
+                                                aliasText = cleanAssignee,
+                                                aliasFontSize = 9.sp,
+                                                aliasColor = paper.inkMuted,
+                                                aliasMaxWidth = 58.dp
+                                            )
+                                        }
                                         Text(
-                                            text = " • ${chore.category}",
+                                            text = if (isIndividualMode) chore.category else " • ${chore.category}",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = paper.inkMuted
@@ -741,9 +781,9 @@ fun TasksTab(
                             horizontalArrangement = Arrangement.spacedBy(4.dp) ){
                             listOf("Bajo", "Medio", "Alto").forEach { pOption ->
                                 val optionColor = when (pOption) {
-                                    "Alto" -> AlertRed
-                                    "Medio" -> Color(0xFFF57C00)
-                                    else -> Color(0xFF00796B)
+                                    "Alto" -> if (paper.isDark) Color(0xFFF87171) else AlertRed
+                                    "Medio" -> if (paper.isDark) Color(0xFFFB923C) else Color(0xFFF57C00)
+                                    else -> if (paper.isDark) FamiEmerald else Color(0xFF00796B)
                                 }
                                 val isChosen = taskPrioritySelected.equals(pOption, ignoreCase = true)
 
@@ -753,7 +793,7 @@ fun TasksTab(
                                         .clip(CircleShape)
                                         .background(
                                             if (isChosen) optionColor
-                                            else optionColor.copy(alpha = 0.1f)
+                                            else optionColor.copy(alpha = 0.14f)
                                         )
                                         .border(
                                             width = if (isChosen) 2.dp else 1.dp,
@@ -775,57 +815,59 @@ fun TasksTab(
                         }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.Switch(
-                            checked = taskIsPrivate,
-                            onCheckedChange = { taskIsPrivate = it },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
-                    }
+                    if (!isIndividualMode) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Switch(
+                                checked = taskIsPrivate,
+                                onCheckedChange = { taskIsPrivate = it },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = FamiCoral)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Solo para mí (Privado)", fontSize = 14.sp, color = paper.ink)
+                        }
 
-                    // Assignee dropdown picker list (Avatar con alias debajo)
-                    Column {
-                        Text("Asignar esta tarea a:", fontSize = 11.sp, color = paper.inkMuted, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp) ){
-                            val activeProfiles = (profiles.map { cleanMemberAlias(it.name) }.ifEmpty { listOf(cleanMemberAlias(currentUser)) } + "Todos").distinct()
+                        // Assignee dropdown picker list (Avatar con alias debajo)
+                        Column {
+                            Text("Asignar esta tarea a:", fontSize = 11.sp, color = paper.inkMuted, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp) ){
+                                val activeProfiles = (profiles.map { cleanMemberAlias(it.name) }.ifEmpty { listOf(cleanMemberAlias(currentUser)) } + "Todos").distinct()
 
-                            activeProfiles.forEach { name ->
-                                val isSelected = taskAssignee == name
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(
-                                            if (isSelected) FamiCoral
-                                            else paper.sheetCream
+                                activeProfiles.forEach { name ->
+                                    val isSelected = taskAssignee == name
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                if (isSelected) FamiCoral
+                                                else paper.sheetCream
+                                            )
+                                            .clickable { taskAssignee = name }
+                                            .border(
+                                                width = if (isSelected) 1.6.dp else 1.dp,
+                                                color = if (isSelected) FamiCoral else paper.border.copy(alpha = 0.45f),
+                                                shape = RoundedCornerShape(12.dp)
+                                            )
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ){
+                                        com.example.ui.MemberAvatarBadge(
+                                            memberName = name,
+                                            profiles = profiles,
+                                            currentUser = currentUser,
+                                            currentUserAvatarId = userAvatarIdState,
+                                            size = 28.dp,
+                                            showAliasBelow = true,
+                                            aliasText = name,
+                                            aliasFontSize = 10.sp,
+                                            aliasColor = if (isSelected) Color.White else paper.ink,
+                                            aliasMaxWidth = 64.dp
                                         )
-                                        .clickable { taskAssignee = name }
-                                        .border(
-                                            width = if (isSelected) 1.6.dp else 1.dp,
-                                            color = if (isSelected) FamiCoral else paper.border.copy(alpha = 0.45f),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ){
-                                    com.example.ui.MemberAvatarBadge(
-                                        memberName = name,
-                                        profiles = profiles,
-                                        currentUser = currentUser,
-                                        currentUserAvatarId = userAvatarIdState,
-                                        size = 28.dp,
-                                        showAliasBelow = true,
-                                        aliasText = name,
-                                        aliasFontSize = 10.sp,
-                                        aliasColor = if (isSelected) Color.White else paper.ink,
-                                        aliasMaxWidth = 64.dp
-                                    )
+                                    }
                                 }
                             }
                         }
@@ -837,20 +879,21 @@ fun TasksTab(
                     onClick = {
                         if (taskTitle.isNotBlank() ){
                             val safeUser = cleanMemberAlias(currentUser)
+                            val finalAssignee = if (isIndividualMode || taskIsPrivate) safeUser else taskAssignee
                             if (isEditingChore && editingChore != null) {
                                 val updated = editingChore!!.copy(
                                         title = taskTitle.trim(),
                                         description = taskDesc.trim(),
                                         priority = taskPrioritySelected,
                                         category = taskCategorySelected,
-                                        assignedTo = if (taskIsPrivate) safeUser else taskAssignee,
+                                        assignedTo = finalAssignee,
                                         isPrivate = taskIsPrivate
                                 )
                                 viewModel.editChore(updated)
                             } else {
                                 viewModel.addChore(
                                     title = taskTitle.trim(),
-                                    assignedTo = if (taskIsPrivate) safeUser else taskAssignee,
+                                    assignedTo = finalAssignee,
                                     description = taskDesc.trim(),
                                     priority = taskPrioritySelected,
                                     category = taskCategorySelected,

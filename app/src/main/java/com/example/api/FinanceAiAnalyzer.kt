@@ -83,9 +83,9 @@ object FinanceAiAnalyzer {
                 if (tx.items.isNotEmpty()) {
                     for (item in tx.items) {
                         val cat = item.category.ifBlank { tx.category }
-                        val isBs = tx.currency.equals("VES", ignoreCase = true) || tx.currency.equals("bs", ignoreCase = true)
+                        val isNonUsd = !tx.currency.equals("USD", ignoreCase = true)
                         val rate = if (tx.bcvRateUsed > 0.0) tx.bcvRateUsed else 1.0
-                        val amtUsd = if (isBs && rate > 0.0) item.amount / rate else item.amount
+                        val amtUsd = if (isNonUsd && rate > 0.0) item.amount / rate else item.amount
                         categoryTotals[cat] = (categoryTotals[cat] ?: 0.0) + amtUsd
                     }
                 } else {

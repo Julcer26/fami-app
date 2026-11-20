@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -173,6 +175,7 @@ fun ConfigMainContent(
     val unlockMethod by viewModel.unlockMethod.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val isAdminRole by viewModel.isAdminRole.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
     val displayAlias = currentUser.takeIf { it.isNotBlank() && !it.contains("@") } ?: "Usuario Fami"
     val configContext = LocalContext.current
     val biometricSupported = remember(configContext) {
@@ -448,7 +451,7 @@ fun ConfigMainContent(
                         lipHeight = 4.dp,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
                     ) {
-                        Icon(Icons.Default.MenuBook, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = paper.ink, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = s.settingsGuideBtn,
@@ -476,6 +479,91 @@ fun ConfigMainContent(
                             fontWeight = FontWeight.Black,
                             color = paper.ink
                         )
+                    }
+                }
+            }
+
+            // --- MODO DE GESTIÓN (FAMILIAR VS INDIVIDUAL) ---
+            item {
+                val isIndividual = managementMode == "individual"
+                NotebookPaperSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    sheetColor = paper.sheet,
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Modo de Organización",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                        Text(
+                            text = if (isIndividual) {
+                                "👤 Modo Individual activo: interfaz enfocada 100% en tus finanzas, tareas y metas personales."
+                            } else {
+                                "👨‍👩‍👧‍👦 Modo Familiar activo: comparte gastos, código de hogar, compras y tareas con tu familia."
+                            },
+                            fontSize = 11.sp,
+                            color = paper.inkMuted
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                onClick = { viewModel.updateManagementMode("familiar") },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (!isIndividual) paper.stickyMint else paper.sheetCream,
+                                border = BorderStroke(
+                                    if (!isIndividual) 2.dp else 1.2.dp,
+                                    if (!isIndividual) FamiEmerald else paper.border.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "👨‍👩‍👧‍👦 Familiar",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
+                                }
+                            }
+                            Surface(
+                                onClick = { viewModel.updateManagementMode("individual") },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isIndividual) paper.stickyYellow else paper.sheetCream,
+                                border = BorderStroke(
+                                    if (isIndividual) 2.dp else 1.2.dp,
+                                    if (isIndividual) FamiCoral else paper.border.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "👤 Individual",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -610,58 +698,60 @@ fun ConfigMainContent(
                     showMarginLine = false
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            s.settingsFamilyCodeTitle,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black,
-                            color = paper.ink
-                        )
-                        Text(
-                            "${s.settingsFamilyCodeSubPrefix} '$displayAlias'.",
-                            fontSize = 11.sp,
-                            color = paper.inkMuted
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                        if (managementMode != "individual") {
+                            Text(
+                                s.settingsFamilyCodeTitle,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = paper.ink
+                            )
+                            Text(
+                                "${s.settingsFamilyCodeSubPrefix} '$displayAlias'.",
+                                fontSize = 11.sp,
+                                color = paper.inkMuted
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Surface(
-                                color = paper.stickyYellow,
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.4.dp, paper.border)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = familyId ?: "...",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = paper.ink,
-                                    letterSpacing = 2.sp,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
+                                Surface(
+                                    color = paper.stickyYellow,
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.4.dp, paper.border)
+                                ) {
+                                    Text(
+                                        text = familyId ?: "...",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink,
+                                        letterSpacing = 2.sp,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                                Tactile3DButton(
+                                    onClick = {
+                                        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText(s.settingsFamilyCodeTitle, familyId ?: "")
+                                        clipboardManager.setPrimaryClip(clip)
+                                        Toast.makeText(context, s.settingsCopiedToast, Toast.LENGTH_SHORT).show()
+                                    },
+                                    faceColor = FamiCoral,
+                                    lipColor = Lip3DCoral,
+                                    borderColor = paper.border,
+                                    cornerRadius = 10.dp,
+                                    lipHeight = 3.dp,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = s.settingsCopyBtn, tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(s.settingsCopyBtn, fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                }
                             }
-                            Tactile3DButton(
-                                onClick = {
-                                    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText(s.settingsFamilyCodeTitle, familyId ?: "")
-                                    clipboardManager.setPrimaryClip(clip)
-                                    Toast.makeText(context, s.settingsCopiedToast, Toast.LENGTH_SHORT).show()
-                                },
-                                faceColor = FamiCoral,
-                                lipColor = Lip3DCoral,
-                                borderColor = paper.border,
-                                cornerRadius = 10.dp,
-                                lipHeight = 3.dp,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = s.settingsCopyBtn, tint = Color.White, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(s.settingsCopyBtn, fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
-                            }
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             s.settingsPrivacyLegalTitle,
                             fontSize = 12.sp,
@@ -712,7 +802,7 @@ fun ConfigMainContent(
                             lipHeight = 3.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Logout, contentDescription = s.settingsLogoutBtn, tint = paper.ink, modifier = Modifier.size(14.dp))
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = s.settingsLogoutBtn, tint = paper.ink, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(s.settingsLogoutBtn, fontSize = 12.sp, fontWeight = FontWeight.Black, color = paper.ink)
                         }
@@ -1304,10 +1394,25 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
     var profileAvatarIdSelected by remember { mutableStateOf("woman_1") }
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val isIndividual = managementMode == "individual"
 
     val profileAvatarColors = listOf("#D0BCFF", "#EFB8C8", "#81C784", "#64B5F6", "#FFD54F", "#BA68C8", "#E0E0E0")
     var selectedCategory by remember { mutableStateOf(0) }
-    val categoriesList = listOf(s.settingsCatGeneral, s.settingsCatMembers, s.settingsCatHelp)
+    LaunchedEffect(isIndividual) {
+        if (isIndividual && selectedCategory == 1) {
+            selectedCategory = 0
+        }
+    }
+    val categoriesList = if (isIndividual) {
+        listOf(s.settingsCatGeneral, s.settingsCatHelp)
+    } else {
+        listOf(s.settingsCatGeneral, s.settingsCatMembers, s.settingsCatHelp)
+    }
+    val visualTabIndex = if (isIndividual && selectedCategory == 2) 1 else selectedCategory
+    val onVisualTabSelect: (Int) -> Unit = { idx ->
+        selectedCategory = if (isIndividual && idx == 1) 2 else idx
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWideScreen = maxWidth > 600.dp
@@ -1321,8 +1426,8 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
             ) {
                 NavigationSidebar(
                     categories = categoriesList,
-                    selectedCategory = selectedCategory,
-                    onSelect = { selectedCategory = it },
+                    selectedCategory = visualTabIndex,
+                    onSelect = onVisualTabSelect,
                     modifier = Modifier.width(180.dp)
                 )
 
@@ -1371,8 +1476,8 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
 
                 HorizontalCategoryTabs(
                     categories = categoriesList,
-                    selectedCategory = selectedCategory,
-                    onSelect = { selectedCategory = it },
+                    selectedCategory = visualTabIndex,
+                    onSelect = onVisualTabSelect,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)

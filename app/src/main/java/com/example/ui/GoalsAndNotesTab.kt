@@ -66,8 +66,11 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val userAvatarIdState by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
+    val isIndividualMode = managementMode == "individual"
     val paper = FamiTheme.paper
     val s = com.example.ui.LocalFamiStrings.current
+    val piggyHeaderText = if (isIndividualMode) "MI ALCANCÍA PERSONAL" else s.goalsPiggyHeader
 
     var activeSubTab by remember { mutableStateOf("deseos") } // "deseos" or "notas"
     var activeGoalFilter by remember { mutableStateOf("pendientes") }
@@ -135,7 +138,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             Spacer(modifier = Modifier.height(10.dp))
             ModernTabHeader(
                 title = s.goalsTitle,
-                subtitle = s.goalsSubtitle,
+                subtitle = if (isIndividualMode) "Tus metas de ahorro y libreta personal" else s.goalsSubtitle,
                 actionText = if (activeSubTab == "deseos") s.goalsNewGoalBtn else s.goalsNewNoteBtn,
                 onActionClick = { 
                     if (activeSubTab == "deseos") {
@@ -225,7 +228,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             ) {
                                 androidx.compose.foundation.Image(
                                     painter = androidx.compose.ui.res.painterResource(id = R.drawable.fami_sticker_piggy),
-                                    contentDescription = s.goalsPiggyHeader,
+                                    contentDescription = piggyHeaderText,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(2.dp),
@@ -235,14 +238,14 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = s.goalsPiggyHeader,
+                                    text = piggyHeaderText,
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = FamiCoralDeep,
+                                    color = if (paper.isDark) FamiCoralLight else FamiCoralDeep,
                                     letterSpacing = 0.8.sp
                                 )
                                 Text(
-                                    text = if (goals.isEmpty()) s.goalsPiggyHeader else "$completedCount • $activeCount",
+                                    text = if (goals.isEmpty()) piggyHeaderText else "$completedCount • $activeCount",
                                     fontSize = 15.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
@@ -577,19 +580,21 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                             color = if (goal.isCompleted) paper.inkMuted else paper.ink,
                                             modifier = Modifier.fillMaxWidth()
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        com.example.ui.MemberAvatarBadge(
-                                            memberName = cleanCreator,
-                                            profiles = profiles,
-                                            currentUser = currentUser,
-                                            currentUserAvatarId = userAvatarIdState,
-                                            size = 24.dp,
-                                            showAliasBelow = true,
-                                            aliasText = cleanCreator,
-                                            aliasFontSize = 9.sp,
-                                            aliasColor = paper.inkMuted,
-                                            aliasMaxWidth = 58.dp
-                                        )
+                                        if (!isIndividualMode) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            com.example.ui.MemberAvatarBadge(
+                                                memberName = cleanCreator,
+                                                profiles = profiles,
+                                                currentUser = currentUser,
+                                                currentUserAvatarId = userAvatarIdState,
+                                                size = 24.dp,
+                                                showAliasBelow = true,
+                                                aliasText = cleanCreator,
+                                                aliasFontSize = 9.sp,
+                                                aliasColor = paper.inkMuted,
+                                                aliasMaxWidth = 58.dp
+                                            )
+                                        }
                                     }
                                 }
 
@@ -653,7 +658,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                                     text = if (goal.isCompleted || remaining <= 0.0) "${goalSym}0" else "$goalSym${String.format(Locale.US, "%,.0f", remaining)}",
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Black,
-                                                    color = if (goal.isCompleted || remaining <= 0.0) FamiEmerald else FamiCoralDeep
+                                                    color = if (goal.isCompleted || remaining <= 0.0) FamiEmerald else if (paper.isDark) FamiCoralLight else FamiCoralDeep
                                                 )
                                             }
                                             Column(
@@ -794,7 +799,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                 onToggleComplete = { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
                                 onToggleCheckItem = { idx -> viewModel.toggleNoteChecklistItem(note, idx) },
                                 onDelete = { viewModel.deleteNote(note) },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                isIndividualMode = isIndividualMode
                             )
                         }
                         if (rowNotes.size == 1) {
@@ -821,7 +827,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                             onToggleComplete = { viewModel.editNote(note.copy(isCompleted = !note.isCompleted)) },
                             onToggleCheckItem = { idx -> viewModel.toggleNoteChecklistItem(note, idx) },
                             onDelete = { viewModel.deleteNote(note) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            isIndividualMode = isIndividualMode
                         )
                     }
                 }
@@ -849,7 +856,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             shape = RoundedCornerShape(24.dp),
             title = {
                 Text(
-                    text = if (editingGoal != null) "Editar Meta o Deseo" else "Nueva Meta Familiar",
+                    text = if (editingGoal != null) "Editar Meta o Deseo" else if (isIndividualMode) "Nueva Meta Personal" else "Nueva Meta Familiar",
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
                     color = paper.ink
@@ -883,7 +890,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     ) {
                         listOf(
                             "🏠 Hogar" to "Fondo para el hogar: ",
-                            "✈️ Viaje" to "Viaje familiar: ",
+                            "✈️ Viaje" to if (isIndividualMode) "Viaje soñado: " else "Viaje familiar: ",
                             "🛟 Emergencia" to "Fondo de emergencia: ",
                             "🚗 Vehículo" to "Vehículo: ",
                             "🎓 Estudio" to "Estudios: ",
@@ -1014,18 +1021,20 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                         }
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
-                            .clickable { goalIsPrivateInput = !goalIsPrivateInput },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = goalIsPrivateInput,
-                            onCheckedChange = { goalIsPrivateInput = it }
-                        )
-                        Text("Privado (Solo yo puedo verlo)", fontSize = 13.5.sp, color = paper.ink)
+                    if (!isIndividualMode) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .clickable { goalIsPrivateInput = !goalIsPrivateInput },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = goalIsPrivateInput,
+                                onCheckedChange = { goalIsPrivateInput = it }
+                            )
+                            Text("Privado (Solo yo puedo verlo)", fontSize = 13.5.sp, color = paper.ink)
+                        }
                     }
                 }
             },
@@ -1047,8 +1056,9 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
             confirmButton = {
                 Button(
                     onClick = {
-                        val amountVal = goalAmountInput.replace(",", ".").toDoubleOrNull()
+                        val amountVal = goalAmountInput.replace(",", ".").toDoubleOrNull()?.takeIf { it > 0.0 }
                         val savedVal = (goalSavedInput.replace(",", ".").toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+                        val effectivePrivate = if (isIndividualMode) false else goalIsPrivateInput
                         if (goalTitleInput.isNotBlank()) {
                             if (editingGoal != null) {
                                 val reached = amountVal != null && amountVal > 0.0 && savedVal >= amountVal
@@ -1057,7 +1067,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     targetAmount = amountVal,
                                     savedAmount = savedVal,
                                     currency = goalCurrencyInput.ifBlank { appPrimaryCurrency },
-                                    isPrivate = goalIsPrivateInput,
+                                    isPrivate = effectivePrivate,
                                     isCompleted = reached || editingGoal!!.isCompleted
                                 )
                                 viewModel.editGoal(updated)
@@ -1067,7 +1077,7 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                                     targetAmount = amountVal,
                                     savedAmount = savedVal,
                                     currency = goalCurrencyInput.ifBlank { appPrimaryCurrency },
-                                    isPrivate = goalIsPrivateInput
+                                    isPrivate = effectivePrivate
                                 )
                             }
                             showAddGoalDialog = false
@@ -1264,7 +1274,8 @@ fun MetasTab(viewModel: FamilyViewModel, onOpenConfig: () -> Unit) {
                     showAddNoteDialog = false
                     editingNote = null
                 }
-            } else null
+            } else null,
+            isIndividualMode = isIndividualMode
         )
     }
 }

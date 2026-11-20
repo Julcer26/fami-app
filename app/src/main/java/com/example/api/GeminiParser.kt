@@ -275,8 +275,8 @@ object GeminiParser {
                 return@withContext Triple(null, "No se detectó un monto válido en tu mensaje. Ejemplo: 'Gasté 20$ en farmacia'.", "")
             }
 
-            val rawCurrency = resultJson.optNonNullString("currency", "USD").uppercase()
-            val currency = if (rawCurrency.contains("BS") || rawCurrency.contains("VES") || rawCurrency.contains("BOL")) "VES" else "USD"
+            val rawCurrency = resultJson.optNonNullString("currency", "USD").uppercase().trim()
+            val currency = resolveSupportedCurrency(rawCurrency)
             val rawCat = resultJson.optNonNullString("category", validCats.first())
             val matchedCategory = validCats.find { it.equals(rawCat, ignoreCase = true) } ?: validCats.first()
             val description = resultJson.optNonNullString("description", userInput.trim()).replace(Regex("[\\r\\n]+"), " ").trim()
@@ -303,8 +303,8 @@ object GeminiParser {
                 isIncome = isIncome
             )
 
-            val symbol = if (currency == "USD") "$" else "Bs."
-            return@withContext Triple(tx, null, "Gasto detectado: $amount $symbol en '$description' [$matchedCategory]")
+            val symbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(currency)
+            return@withContext Triple(tx, null, "Gasto detectado: $amount $symbol ($currency) en '$description' [$matchedCategory]")
         } catch (ce: kotlinx.coroutines.CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -435,8 +435,8 @@ object GeminiParser {
                 return@withContext Triple(null, "No se detectó un monto total legible en la imagen. Asegúrate de que la factura esté bien enfocada.", "")
             }
 
-            val rawCurrency = resultJson.optNonNullString("currency", "USD").uppercase()
-            val currency = if (rawCurrency.contains("BS") || rawCurrency.contains("VES") || rawCurrency.contains("BOL")) "VES" else "USD"
+            val rawCurrency = resultJson.optNonNullString("currency", "USD").uppercase().trim()
+            val currency = resolveSupportedCurrency(rawCurrency)
             val description = resultJson.optNonNullString("description", "Recibo escaneado")
                 .replace(Regex("[\\r\\n]+"), " ")
                 .trim()
@@ -464,9 +464,9 @@ object GeminiParser {
             )
 
             val parsedReceipt = ParsedReceipt(tx, itemsList)
-            val symbol = if (currency == "USD") "$" else "Bs."
+            val symbol = com.example.currency.CountryCurrencyConfig.getCurrencySymbol(currency)
             val itemsDesc = if (itemsList.isNotEmpty()) " con ${itemsList.size} ítems desglosados" else ""
-            val successMsg = "Factura procesada: $amount $symbol en '$description'$itemsDesc"
+            val successMsg = "Factura procesada: $amount $symbol ($currency) en '$description'$itemsDesc"
             return@withContext Triple(parsedReceipt, null, successMsg)
         } catch (ce: kotlinx.coroutines.CancellationException) {
             throw ce
@@ -474,5 +474,15 @@ object GeminiParser {
             Log.e(TAG, "Receipt parse exception", e)
             return@withContext Triple(null, "Error al interpretar la factura: ${e.localizedMessage}", "")
         }
+    }
+
+    internal fun resolveSupportedCurrency(rawCurrency: String): String {
+        val clean = rawCurrency.uppercase().trim()
+        if (clean.contains("BS") || clean.contains("VES") || clean.contains("BOL")) return "VES"
+        if (clean.contains("EUR") || clean.contains("€")) return "EUR"
+        val normalized = com.example.currency.CountryCurrencyConfig.normalizeCurrencyCode(clean)
+        val supportedCodes = com.example.currency.CountryCurrencyConfig.SUPPORTED_COUNTRIES.map { it.localCurrency.uppercase() }.toSet() +
+            setOf("USD", "VES", "EUR", "COP", "MXN", "ARS", "CLP", "PEN", "BRL", "UYU", "PYG", "BOB", "CRC", "DOP", "GTQ", "HNL", "NIO", "PAB", "GBP", "CAD")
+        return if (normalized in supportedCodes) normalized else "USD"
     }
 }

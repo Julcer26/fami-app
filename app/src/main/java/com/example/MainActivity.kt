@@ -37,6 +37,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -549,6 +552,10 @@ fun MainScreen(
 
     val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsStateWithLifecycle()
     val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
+    val familyIdState by viewModel.familyId.collectAsStateWithLifecycle()
+    val pendingEmailVerification by viewModel.pendingEmailVerification.collectAsStateWithLifecycle()
+    val needsUnlockMethodChoice by viewModel.needsUnlockMethodChoice.collectAsStateWithLifecycle()
+    val startInExistingLogin by viewModel.startInExistingLogin.collectAsStateWithLifecycle()
     val countryCodeState by viewModel.countryCode.collectAsStateWithLifecycle()
     val primaryCurrencyState by viewModel.primaryCurrency.collectAsStateWithLifecycle()
     val secondaryCurrencyState by viewModel.secondaryCurrency.collectAsStateWithLifecycle()
@@ -576,22 +583,13 @@ fun MainScreen(
         }
     }
 
+    val shouldShowOnboarding = !hasCompletedOnboarding &&
+        (isAuthenticated || (familyIdState.isNullOrBlank() && !pendingEmailVerification && !needsUnlockMethodChoice && !startInExistingLogin))
+
     CompositionLocalProvider(
         com.example.ui.LocalFamiStrings provides famiStrings
     ) {
-    if (!isAuthenticated) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AuthScreen(viewModel = viewModel)
-
-            // Top banner notification system on login
-            topNotification?.let { msg ->
-                TopNotificationBanner(
-                    message = msg,
-                    onDismiss = { viewModel.dismissNotification() }
-                )
-            }
-        }
-    } else if (!hasCompletedOnboarding) {
+    if (shouldShowOnboarding) {
         com.example.ui.OnboardingScreen(
             initialCountryCode = countryCodeState,
             initialPrimaryCurrency = primaryCurrencyState,
@@ -622,6 +620,18 @@ fun MainScreen(
                 )
             }
         )
+    } else if (!isAuthenticated) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AuthScreen(viewModel = viewModel)
+
+            // Top banner notification system on login
+            topNotification?.let { msg ->
+                TopNotificationBanner(
+                    message = msg,
+                    onDismiss = { viewModel.dismissNotification() }
+                )
+            }
+        }
     } else {
         val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
         val tourRegistry = com.example.ui.rememberTourTargetRegistry()
@@ -947,7 +957,7 @@ fun MainScreen(
                                     contentPadding = PaddingValues(vertical = 12.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Send,
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
                                         contentDescription = null,
                                         tint = Color.White,
                                         modifier = Modifier.size(16.dp)
@@ -1224,7 +1234,7 @@ fun MonthSelector(
             prev.add(java.util.Calendar.MONTH, -1)
             onMonthChange(prev)
         }) {
-            Icon(androidx.compose.material.icons.Icons.Filled.ArrowBack, contentDescription = "Mes Anterior", tint = MaterialTheme.colorScheme.primary)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Mes Anterior", tint = MaterialTheme.colorScheme.primary)
         }
         Row(
             modifier = Modifier.clickable {
@@ -1261,7 +1271,7 @@ fun MonthSelector(
             next.add(java.util.Calendar.MONTH, 1)
             onMonthChange(next)
         }) {
-            Icon(androidx.compose.material.icons.Icons.Filled.ArrowForward, contentDescription = "Mes Siguiente", tint = MaterialTheme.colorScheme.primary)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Mes Siguiente", tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -1552,10 +1562,10 @@ fun DashboardTab(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "${if (managementMode == "individual") s.homePersonalBadge else s.homeFamilyBadge} • $familyRole",
+                                text = if (managementMode == "individual") s.homePersonalBadge else "${s.homeFamilyBadge} • $familyRole",
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = FamiCoralDeep,
+                                color = if (paper.isDark) FamiCoralLight else FamiCoralDeep,
                                 maxLines = 1
                             )
                         }
@@ -1779,7 +1789,7 @@ fun DashboardTab(
                             text = "${s.availableBalance} ($displayCurrency)",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
-                            color = FamiCoralDeep,
+                            color = if (paper.isDark) FamiCoralLight else FamiCoralDeep,
                             letterSpacing = 0.7.sp
                         )
                         Spacer(modifier = Modifier.height(2.dp))
@@ -2066,7 +2076,7 @@ fun DashboardTab(
                                 )
                             } else {
                                 Icon(
-                                    imageVector = Icons.Default.Send,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = s.save,
                                     tint = Color.White,
                                     modifier = Modifier.size(20.dp)

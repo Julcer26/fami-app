@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fami — Finanzas Familiares con IA, Multi-Moneda y Widget en 1 Toque | somosfami.app</title>
-  <meta name="description" content="Fami es la app de finanzas familiares y personales con estética de libreta en papel, inteligencia artificial Gemini, soporte multi-moneda (USD, VES/BCV, EUR, COP, USDT), logos bancarios oficiales y widget de escritorio en 1 toque." />
-  <meta name="keywords" content="Fami, somosfami, finanzas familiares, app de gastos con IA, control de gastos Venezuela BCV, billetera multi-moneda, escaner de facturas IA, Banesco, Mercantil, Zelle, Binance, finanzas en pareja" />
+  <title>Fami — Finanzas Familiares con IA y Multi-Moneda | BCV</title>
+  <meta name="description" content="Organiza tus finanzas familiares o personales en una libreta con IA Gemini: widget 1-toque por voz y cámara, 26+ bancos oficiales y tasa BCV/multi-moneda." />
+  <meta name="keywords" content="Fami, somosfami, finanzas familiares, app de gastos con IA, control de gastos Venezuela BCV, billetera multi-moneda, escaner de facturas IA, Banesco, Mercantil, Zelle, Binance, finanzas en pareja, finanzas personales" />
   <meta name="author" content="Fami App (@hola.fami)" />
   <meta name="theme-color" content="#FAF5EA" />
   <link rel="canonical" href="https://somosfami.app/" />
@@ -13,8 +13,8 @@
   <!-- Open Graph / Social -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://somosfami.app/" />
-  <meta property="og:title" content="Fami — Tu libreta financiera inteligente para el hogar" />
-  <meta property="og:description" content="Registra gastos desde el widget en 1 toque por voz, foto de factura o texto. Multi-moneda con tasa BCV automática, logos oficiales de tus bancos y sincronización familiar en tiempo real." />
+  <meta property="og:title" content="Fami — Tu libreta financiera inteligente para el hogar y uso personal" />
+  <meta property="og:description" content="Registra gastos desde el widget en 1 toque por voz, foto de factura o texto. Multi-moneda con tasa BCV automática, logos oficiales de tus bancos y sincronización en tiempo real." />
   <meta property="og:image" content="https://somosfami.app/assets/fami_notebook_hero.png" />
   <meta property="og:locale" content="es_LA" />
 
@@ -28,7 +28,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/fami-icon-color.svg" />
   <link rel="apple-touch-icon" href="assets/fami-icon-color.svg" />
 
-  <!-- Google Fonts: Plus Jakarta Sans,Caveat, JetBrains Mono -->
+  <!-- Google Fonts: Plus Jakarta Sans, Caveat, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -39,26 +39,39 @@
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        "name": "Fami",
+        "alternateName": "Somos Fami",
+        "url": "https://somosfami.app/",
+        "logo": "https://somosfami.app/assets/fami-icon-color.svg",
+        "email": "hola@somosfami.app",
+        "sameAs": [
+          "https://www.instagram.com/hola.fami",
+          "https://www.tiktok.com/@hola.fami"
+        ]
+      },
+      {
         "@type": "SoftwareApplication",
         "name": "Fami",
         "alternateName": "Somos Fami",
         "url": "https://somosfami.app/",
-        "operatingSystem": "Android 8.0+",
+        "operatingSystem": "Android 7.0+",
         "applicationCategory": "FinanceApplication",
         "description": "Aplicación de finanzas familiares y personales con inteligencia artificial Gemini, widget de registro rápido en 1 toque (escritura flotante, voz, cámara y galería), soporte multi-moneda con tasa BCV automática y organización del hogar.",
-        "downloadUrl": "https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.6.apk",
-        "softwareVersion": "3.9.6",
+        "downloadUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk",
+        "softwareVersion": "3.10.0",
         "offers": {
           "@type": "Offer",
           "price": "0",
           "priceCurrency": "USD"
         },
         "featureList": [
-          "Widget de pantalla de inicio tipo nota adhesiva con apertura directa para Voz, Escáner de cámara y Galería",
-          "Reconocimiento de facturas y recibos con IA (desglose de productos e impuestos)",
+          "Widget de pantalla de inicio tipo nota adhesiva con apertura directa sin pedir huella repetidamente",
+          "Modo Familiar colaborativo y Modo Individual privado intercambiables en cualquier momento",
+          "Reconocimiento de facturas y recibos con IA Gemini (desglose multi-moneda de productos e impuestos)",
           "Billeteras multi-moneda (USD, VES, EUR, COP, CLP, MXN, ARS, PEN, BRL, PAB, USDT) con tasa BCV y bancos centrales",
           "Logos oficiales de más de 26 bancos y billeteras (Banesco, Mercantil, BDV, Provincial, BNC, Bancamiga, Zelle, Binance, PayPal, Zinli, Wally, Bancolombia, Nequi, Nu y más)",
-          "Presupuesto compartido en familia, lista de compras inteligente, calendario y tareas del hogar con puntos"
+          "Cifrado local Android Keystore AES-256-GCM (LocalCryptoBox) y cero rastreadores publicitarios de terceros"
         ]
       },
       {
@@ -69,7 +82,7 @@
             "name": "¿Qué es Fami y cómo funciona su widget de nota rápida?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Fami es una aplicación Android de finanzas personales y familiares diseñada como una libreta de papel inteligente. Su widget de pantalla de inicio te permite elegir tu billetera con su logo bancario oficial y registrar movimientos al instante: abre una nota flotante si eliges escribir, o activa directamente el micrófono, la cámara o la galería con un solo toque."
+              "text": "Fami es una aplicación Android de finanzas personales y familiares diseñada como una libreta de papel inteligente. Su widget de pantalla de inicio te permite elegir tu billetera con su logo bancario oficial y registrar movimientos al instante: abre una nota flotante si eliges escribir, o activa directamente el micrófono, la cámara o la galería con un solo toque sin exigir tu huella en cada acción."
             }
           },
           {
@@ -77,7 +90,7 @@
             "name": "¿Cómo maneja Fami las tasas de cambio como el BCV y múltiples monedas?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Fami sincroniza tasas oficiales de referencia (incluyendo la tasa del Banco Central de Venezuela BCV en bolívares y tasas internacionales en USD, EUR, COP y USDT). Puedes mantener billeteras en distintas divisas y registrar gastos en cualquier moneda viendo el equivalente consolidado de tu patrimonio familiar en tiempo real."
+              "text": "Fami sincroniza tasas oficiales de referencia (incluyendo la tasa del Banco Central de Venezuela BCV en bolívares y tasas internacionales en USD, EUR, COP, MXN, ARS y USDT). Puedes mantener billeteras en distintas divisas y registrar gastos o facturas con desglose de ítems en cualquier moneda viendo el equivalente consolidado en tiempo real."
             }
           },
           {
@@ -90,10 +103,26 @@
           },
           {
             "@type": "Question",
+            "name": "¿Puedo usar Fami en Modo Individual o cambiar luego a Modo Familiar?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Fami ofrece tanto Modo Individual (para llevar tus cuentas, metas y libreta de forma 100% personal) como Modo Familiar (para compartir presupuesto, compras y tareas con los miembros de tu hogar mediante un código seguro). Puedes cambiar entre ambos modos cuando quieras desde Ajustes > General."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Cómo protege Fami mis datos financieros y mi privacidad?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Fami nunca pide claves bancarias y contiene cero rastreadores publicitarios de terceros (0 ad SDKs). Tus preferencias sensibles y tu PIN se resguardan en tu teléfono con cifrado Android Keystore AES-256-GCM y hash SHA-256 salado, las consultas de IA viajan por un proxy autenticado en Firebase Cloud Functions y las actualizaciones OTA verifican su firma criptográfica SHA-256."
+            }
+          },
+          {
+            "@type": "Question",
             "name": "¿Cómo se instala y actualiza Fami en Android?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Puedes descargar el instalador oficial APK directamente desde somosfami.app. Una vez instalada, Fami incluye un sistema de actualización automática (OTA) integrado dentro de la aplicación que te avisa cuando hay una nueva versión disponible y la instala sin perder tus datos ni configuraciones."
+              "text": "Puedes descargar el instalador oficial APK directamente desde somosfami.app en cualquier teléfono con Android 7.0 o superior. Una vez instalada, Fami incluye un sistema de actualización automática (OTA) verificada por SHA-256 que te avisa cuando hay una nueva versión disponible y la instala sin perder tus datos."
             }
           }
         ]
@@ -327,8 +356,8 @@
     }
 
     .theme-btn {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       border: 2px solid var(--border-ink);
       background: var(--bg-pill);
@@ -344,6 +373,20 @@
 
     .theme-btn:hover {
       transform: translateY(-2px);
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--brand-orange);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
 
     /* ==========================================
@@ -1383,8 +1426,8 @@
 
   <!-- Top Announcement Bar -->
   <div class="top-tape-banner">
-    <span class="tape-pill" id="top-version-pill">NUEVO v3.9.6</span>
-    <span>Widget de Escritorio en 1 Toque + 26 Logos Oficiales de Bancos y Billeteras</span>
+    <span class="tape-pill" id="top-version-pill">NUEVO v3.10.0</span>
+    <span>Widget en 1 Toque sin huella repetida + Modo Familiar/Individual + 26 Logos de Bancos</span>
     <a href="#descargar" style="text-decoration: underline; font-weight: 800; color: var(--brand-orange);">Descargar APK gratis →</a>
   </div>
 
@@ -1408,9 +1451,9 @@
         <button type="button" class="theme-btn" id="theme-toggle" aria-label="Cambiar tema claro u oscuro" title="Cambiar modo papel / nocturno">
           🌙
         </button>
-        <a href="https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.6.apk" id="nav-download-btn" class="btn-3d btn-3d-sm">
+        <a href="https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk" id="nav-download-btn" class="btn-3d btn-3d-sm">
           <span>📲</span>
-          <span id="nav-download-label">Descargar v3.9.6</span>
+          <span id="nav-download-label">Descargar v3.10.0</span>
         </a>
       </div>
     </nav>
@@ -1425,11 +1468,11 @@
         <div>
           <div class="eyebrow-badge">
             <span class="eyebrow-dot"></span>
-            <span>Disponible para Android · Actualizaciones OTA integradas</span>
+            <span>Disponible para Android 7.0+ · Actualizaciones OTA integradas</span>
           </div>
 
           <h1>
-            Tus cuentas claras en familia, tan fácil como pegar una <span class="highlight-marker">nota de papel.</span>
+            Tus cuentas claras en familia o a tu ritmo, tan fácil como pegar una <span class="highlight-marker">nota de papel.</span>
           </h1>
 
           <p class="hero-lead">
@@ -1441,7 +1484,7 @@
               <span class="icon">⚡</span>
               <div>
                 <strong>Widget en 1 Toque</strong>
-                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">Voz, Escáner y Galería directos sin pantallas intermedias</div>
+                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">Voz, Escáner y Galería directos sin pedir huella en cada toque</div>
               </div>
             </div>
             <div class="pillar-chip">
@@ -1455,15 +1498,15 @@
               <span class="icon">💱</span>
               <div>
                 <strong>Multi-Moneda + BCV</strong>
-                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">USD, VES, EUR, COP, USDT con conversión al instante</div>
+                <div style="font-weight: 500; color: var(--ink-muted); font-size: 0.75rem;">USD, VES, EUR, COP, MXN, ARS, USDT con conversión al instante</div>
               </div>
             </div>
           </div>
 
           <div class="hero-cta-group">
-            <a href="https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.6.apk" id="hero-download-btn" class="btn-3d">
+            <a href="https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk" id="hero-download-btn" class="btn-3d">
               <span>⬇️</span>
-              <span id="hero-download-label">Descargar Fami APK v3.9.6</span>
+              <span id="hero-download-label">Descargar Fami APK v3.10.0</span>
             </a>
             <a href="#descargar" class="btn-3d btn-3d-secondary">
               <span>📷</span>
@@ -1474,7 +1517,7 @@
           <div class="hero-meta">
             <span class="hero-meta-item">✅ 100% Gratis y sin anuncios invasivos</span>
             <span class="hero-meta-item">🔄 Auto-actualizable desde la app</span>
-            <span class="hero-meta-item" id="hero-release-notes">✨ Build 22 · Logos oficiales y Widget directo</span>
+            <span class="hero-meta-item" id="hero-release-notes">✨ Build 26 · Modo Familiar/Individual y Widget sin fricción</span>
           </div>
         </div>
 
@@ -1644,9 +1687,9 @@
       <div class="container">
         <div class="section-header">
           <span class="handwritten section-kicker">Diseñada para la vida real en Latinoamérica</span>
-          <h2 class="section-title">Todo lo que tu hogar necesita para organizar el dinero sin estrés</h2>
+          <h2 class="section-title">Todo lo que tu hogar o tu bolsillo necesitan para organizar el dinero sin estrés</h2>
           <p class="section-desc">
-            Olvídate de las hojas de cálculo complicadas. Fami entiende cómo pagas todos los días: bolívares al BCV, dólares en efectivo, Zelle, Pago Móvil o USDT.
+            Olvídate de las hojas de cálculo complicadas. Fami entiende cómo pagas todos los días: bolívares al BCV, dólares en efectivo, pesos, euros, Zelle, Pago Móvil o USDT.
           </p>
         </div>
 
@@ -1655,10 +1698,10 @@
           <article class="notebook-card card-yellow col-span-7">
             <img src="assets/fami_sticker_idea.png" alt="Mascota Fami Idea" class="sticker-float" />
             <div>
-              <span class="card-tag">⚡ Exclusivo en v3.9.6</span>
-              <h3>Widget de Nota Rápida con apertura directa</h3>
+              <span class="card-tag">⚡ Mejorado en v3.10.0</span>
+              <h3>Widget de Nota Rápida con apertura directa sin pedir huella</h3>
               <p>
-                Coloca el widget de Fami en la pantalla principal de tu Android. Selecciona la billetera tocando su píldora con logo oficial y registra como prefieras:
+                Coloca el widget de Fami en la pantalla principal de tu Android. Selecciona la billetera tocando su píldora con logo oficial y registra al instante sin bloqueos biométricos repetitivos:
               </p>
             </div>
             <ul class="feature-mini-list">
@@ -1674,13 +1717,13 @@
               <span class="card-tag">📸 Visión con Gemini IA</span>
               <h3>Escáner de Facturas y Capturas de Pago</h3>
               <p>
-                Toma una foto del ticket del supermercado o sube el capture de una transferencia. Fami extrae el comercio, la fecha, los artículos individuales, el IVA/IGTF y la moneda automáticamente.
+                Toma una foto del ticket del supermercado o sube el capture de una transferencia. Fami extrae el comercio, la fecha, los artículos individuales, el IVA/IGTF y la moneda original automáticamente.
               </p>
             </div>
             <ul class="feature-mini-list">
-              <li>🧾 Desglose línea por línea de productos comprados</li>
-              <li>🔍 Detección automática de montos en Bs., USD o COP</li>
-              <li>📂 Historial inteligente para comparar precios por tienda</li>
+              <li>🧾 Desglose línea por línea de productos en su moneda real</li>
+              <li>🔍 Detección automática de montos en Bs., USD, COP, MXN o EUR</li>
+              <li>📂 Cálculo exacto de presupuestos multi-moneda por categoría</li>
             </ul>
           </article>
 
@@ -1697,24 +1740,24 @@
             <ul class="feature-mini-list">
               <li>🇻🇪 Sincronización con tasa oficial BCV (Bolívares)</li>
               <li>🌎 Soporte para USD, VES, EUR, COP, CLP, MXN, ARS, PEN, BRL, PAB y USDT</li>
-              <li>🔄 Transferencias entre tus propias cuentas con cálculo de comisión</li>
+              <li>🔄 Transferencias entre tus propias cuentas con conversión cruzada en vivo</li>
             </ul>
           </article>
 
-          <!-- Card 4: Family Sync & Home Tasks -->
+          <!-- Card 4: Family Sync & Individual Mode -->
           <article class="notebook-card col-span-6">
             <img src="assets/fami_sticker_love.png" alt="Mascota Fami Familia" class="sticker-float" />
             <div>
-              <span class="card-tag">👨‍👩‍👧‍👦 Espacio Familiar</span>
-              <h3>Mucho más que gastos: el centro de tu hogar</h3>
+              <span class="card-tag">👨‍👩‍👧‍👦 Modo Familiar o 👤 Individual</span>
+              <h3>Se adapta a tu hogar compartido o a tu espacio personal</h3>
               <p>
-                Invita a tu pareja o familia con un código seguro. Cada miembro ve las billeteras compartidas, las compras pendientes del mercado y las tareas de la casa en tiempo real.
+                Elige Modo Individual para una libreta 100% personal y limpia, o activa el Modo Familiar para invitar a tu pareja y familia con un código seguro verificado.
               </p>
             </div>
             <ul class="feature-mini-list">
-              <li>🛒 Lista de compras compartida que se convierte en gasto al pagar</li>
-              <li>🏆 Tareas del hogar con sistema de puntos y recompensas familiares</li>
-              <li>📅 Calendario estilo papel para pagos de servicios, colegios y metas</li>
+              <li>🛒 Lista de compras compartida o personal que descuenta de tu billetera al pagar</li>
+              <li>✅ Tareas con filtros por miembro, prioridad y avisos push al asignado</li>
+              <li>📝 Notitas adhesivas con checklists, colores y opción privada "Solo para mí"</li>
             </ul>
           </article>
         </div>
@@ -1743,8 +1786,8 @@
               <div class="story-step">
                 <div class="step-num">1</div>
                 <div>
-                  <strong>Crea tus billeteras por nombre</strong>
-                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Escribe "Banesco", "Mercantil", "Zelle" o "Efectivo". Fami coloca el logo oficial y el color de tu banco automáticamente.</p>
+                  <strong>Elige tu modo y crea tus billeteras por nombre</strong>
+                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Selecciona Modo Familiar o Individual y escribe "Banesco", "Mercantil", "Zelle" o "Efectivo". Fami coloca el logo oficial y la moneda automáticamente.</p>
                 </div>
               </div>
               <div class="story-step">
@@ -1758,7 +1801,7 @@
                 <div class="step-num">3</div>
                 <div>
                   <strong>Dicta, fotografía o escribe el movimiento</strong>
-                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Di <em>"Pagué 20 dólares de internet por Zelle"</em> o escanea la factura. Tu saldo familiar y tus gráficas se actualizan al instante.</p>
+                  <p style="font-size: 0.88rem; color: var(--ink-slate);">Di <em>"Pagué 20 dólares de internet por Zelle"</em> o escanea la factura. Tu saldo, presupuestos y gráficas se actualizan al instante.</p>
                 </div>
               </div>
             </div>
@@ -1773,6 +1816,9 @@
         <div class="section-header">
           <span class="handwritten section-kicker">Claridad frente a las alternativas</span>
           <h2 class="section-title">¿Por qué elegir Fami en lugar de Excel o apps genéricas?</h2>
+          <p class="section-desc">
+            Fami reemplaza las hojas de Excel manuales y las apps bancarias rígidas con una libreta multi-moneda que registra gastos en un toque por voz o foto de factura, calcula la tasa BCV automáticamente y sincroniza compras, tareas y metas en tiempo real.
+          </p>
         </div>
 
         <div class="table-wrap">
@@ -1794,7 +1840,7 @@
               </tr>
               <tr>
                 <td><strong>Soporte Multi-Moneda + Tasa BCV</strong></td>
-                <td class="comp-highlight">✅ Nativo (USD, VES al BCV, EUR, COP, USDT)</td>
+                <td class="comp-highlight">✅ Nativo (USD, VES al BCV, EUR, COP, MXN, ARS, USDT)</td>
                 <td>⚠️ Suelen manejar una sola moneda fija</td>
                 <td>⚠️ Fórmulas manuales que se desactualizan</td>
               </tr>
@@ -1811,10 +1857,10 @@
                 <td>❌ Transcripción 100% manual</td>
               </tr>
               <tr>
-                <td><strong>Organización familiar integral</strong></td>
-                <td class="comp-highlight">✅ Finanzas + Lista de compras + Tareas con puntos</td>
-                <td>❌ Solo contabilidad individual</td>
-                <td>❌ Sin notificaciones ni gamificación</td>
+                <td><strong>Organización familiar y personal completa</strong></td>
+                <td class="comp-highlight">✅ Modo Familiar/Individual + Compras + Tareas + Libreta</td>
+                <td>❌ Solo contabilidad aislada</td>
+                <td>❌ Sin notificaciones ni sincronización en vivo</td>
               </tr>
             </tbody>
           </table>
@@ -1828,20 +1874,23 @@
         <div class="section-header">
           <span class="handwritten section-kicker">Respuestas directas</span>
           <h2 class="section-title">Preguntas Frecuentes sobre Fami</h2>
+          <p class="section-desc">
+            Encuentra respuestas rápidas sobre el funcionamiento del widget en 1 toque, la conversión multi-moneda con tasa BCV, la privacidad con cifrado AES-256-GCM y cómo alternar entre Modo Individual y Modo Familiar en tu teléfono Android.
+          </p>
         </div>
 
         <div class="faq-grid">
           <article class="faq-card">
             <h3><span>📌</span> ¿Qué es Fami y cómo funciona su widget de nota rápida?</h3>
             <p>
-              Fami es una aplicación Android de finanzas personales y familiares diseñada como una libreta de papel inteligente. Su widget de pantalla de inicio te permite elegir tu billetera con su logo bancario oficial y registrar movimientos al instante: abre una nota flotante si eliges escribir, o activa directamente el micrófono, la cámara o la galería con un solo toque.
+              Fami es una aplicación Android de finanzas personales y familiares diseñada como una libreta de papel inteligente. Su widget de pantalla de inicio te permite elegir tu billetera con su logo bancario oficial y registrar movimientos al instante: abre una nota flotante si eliges escribir, o activa directamente el micrófono, la cámara o la galería con un solo toque sin pedir tu huella en cada acción.
             </p>
           </article>
 
           <article class="faq-card">
             <h3><span>💱</span> ¿Cómo maneja Fami la tasa BCV y las cuentas en varias monedas?</h3>
             <p>
-              Fami sincroniza tasas oficiales de referencia (incluyendo la tasa del Banco Central de Venezuela BCV en bolívares y divisas como USD, EUR, COP y USDT). Puedes crear billeteras en distintas monedas y registrar gastos en cualquiera de ellas viendo la conversión automática y el balance consolidado de tu familia.
+              Fami sincroniza tasas oficiales de referencia (incluyendo la tasa del Banco Central de Venezuela BCV en bolívares y divisas como USD, EUR, COP, MXN, ARS y USDT). Puedes crear billeteras en distintas monedas y registrar gastos o facturas con desglose de ítems viendo la conversión automática y el balance consolidado.
             </p>
           </article>
 
@@ -1853,9 +1902,23 @@
           </article>
 
           <article class="faq-card">
+            <h3><span>👤</span> ¿Puedo usar Fami solo para mí en Modo Individual?</h3>
+            <p>
+              ¡Por supuesto! Al configurar Fami (o en cualquier momento desde <em>Ajustes &gt; General</em>) puedes elegir <strong>Modo Individual</strong> para disfrutar de una interfaz 100% personal sin selectores de miembros ni códigos familiares, o cambiar a <strong>Modo Familiar</strong> si decides compartir tu espacio más adelante.
+            </p>
+          </article>
+
+          <article class="faq-card">
+            <h3><span>🛡️</span> ¿Cómo protege Fami mis datos financieros y mi privacidad?</h3>
+            <p>
+              Fami nunca solicita claves bancarias y contiene <strong>cero rastreadores publicitarios de terceros</strong>. Tus preferencias sensibles y tu PIN local se resguardan mediante <strong>Android Keystore AES-256-GCM</strong> y hash SHA-256 con sal única, mientras que la IA opera mediante un proxy autenticado en Firebase Cloud Functions.
+            </p>
+          </article>
+
+          <article class="faq-card">
             <h3><span>🔄</span> ¿Cómo se instala y cómo recibo nuevas actualizaciones?</h3>
             <p>
-              Descarga el archivo APK oficial desde el botón de esta página e instálalo en tu teléfono Android. A partir de ese momento, Fami cuenta con actualizaciones automáticas integradas (OTA): cuando lancemos mejoras, la propia app te mostrará un aviso para actualizar con un toque.
+              Descarga el archivo APK oficial desde el botón de esta página e instálalo en tu teléfono Android (7.0 o superior). A partir de ese momento, Fami cuenta con actualizaciones automáticas integradas (OTA) verificadas por firma SHA-256 que te avisan dentro de la app para actualizar con un toque.
             </p>
           </article>
         </div>
@@ -1872,13 +1935,13 @@
               Lleva tu libreta Fami en el bolsillo hoy mismo
             </h2>
             <p style="font-size: 1.05rem; color: var(--ink-slate); margin-bottom: 1.5rem;">
-              Instala la versión más reciente para Android (<strong id="cta-version-text">v3.9.6 · Build 22</strong>) y empieza a registrar tus gastos familiares por voz, foto o nota adhesiva en segundos.
+              Instala la versión más reciente para Android (<strong id="cta-version-text">v3.10.0 · Build 26</strong>) y empieza a registrar tus gastos familiares o personales por voz, foto o nota adhesiva en segundos.
             </p>
 
             <div class="hero-cta-group">
-              <a href="https://github.com/Julcer26/fami-app/raw/main/DESCARGA_TU_APK_AQUI/Fami_v3.9.6.apk" id="bottom-download-btn" class="btn-3d">
+              <a href="https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk" id="bottom-download-btn" class="btn-3d">
                 <span>📲</span>
-                <span id="bottom-download-label">Descargar Fami APK v3.9.6</span>
+                <span id="bottom-download-label">Descargar Fami APK v3.10.0</span>
               </a>
               <a href="https://www.instagram.com/hola.fami" target="_blank" rel="noopener" class="btn-3d btn-3d-secondary">
                 <span>💬</span>
@@ -1887,7 +1950,7 @@
             </div>
 
             <p style="font-size: 0.8rem; color: var(--ink-muted); margin-top: 0.75rem;">
-              🔒 Archivo verificado y firmado oficialmente · Compatible con Android 8.0 o superior.
+              🔒 Archivo verificado con firma SHA-256 · Compatible con Android 7.0 (Nougat) o superior.
             </p>
           </div>
 
@@ -1897,7 +1960,7 @@
             <div style="font-size: 0.76rem; color: #4A4E69;">Escanea con la cámara de tu Android para descargar el APK directo:</div>
             <img
               id="apk-qr-img"
-              src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=https%3A%2F%2Fgithub.com%2FJulcer26%2Ffami-app%2Fraw%2Fmain%2FDESCARGA_TU_APK_AQUI%2FFami_v3.9.6.apk"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=https%3A%2F%2Fgithub.com%2FJulcer26%2Ffami-app%2Freleases%2Fdownload%2Fv3.10.0%2FFami_v3.10.0.apk"
               alt="Código QR para descargar Fami APK"
               loading="lazy"
             />
@@ -1928,8 +1991,12 @@
       </div>
 
       <div class="footer-bottom">
-        <span>© 2026 Fami (somosfami.app). Hecho con 🧡 para las familias de Latinoamérica.</span>
-        <span>Contacto y comunidad: <a href="https://www.instagram.com/hola.fami" target="_blank" rel="noopener" style="text-decoration: underline; font-weight: 700;">@hola.fami</a></span>
+        <span>© 2026 Fami (somosfami.app). Hecho con 🧡 para las familias y personas de Latinoamérica.</span>
+        <span>
+          Soporte: <a href="mailto:hola@somosfami.app" style="text-decoration: underline; font-weight: 700;">hola@somosfami.app</a> ·
+          Instagram: <a href="https://www.instagram.com/hola.fami" target="_blank" rel="noopener" style="text-decoration: underline; font-weight: 700;">@hola.fami</a> ·
+          TikTok: <a href="https://www.tiktok.com/@hola.fami" target="_blank" rel="noopener" style="text-decoration: underline; font-weight: 700;">@hola.fami</a>
+        </span>
       </div>
     </div>
   </footer>
@@ -1971,6 +2038,10 @@
           document.getElementById('hero-download-label').textContent = 'Descargar Fami APK ' + v;
           document.getElementById('bottom-download-label').textContent = 'Descargar Fami APK ' + v;
           document.getElementById('cta-version-text').textContent = v + (vCode ? ' · Build ' + vCode : '');
+          const releaseNotesEl = document.getElementById('hero-release-notes');
+          if (releaseNotesEl && vCode) {
+            releaseNotesEl.textContent = '✨ Build ' + vCode + ' · Modo Familiar/Individual y Widget sin fricción';
+          }
 
           document.getElementById('nav-download-btn').href = apk;
           document.getElementById('hero-download-btn').href = apk;
