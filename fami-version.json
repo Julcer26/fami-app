@@ -1,8 +1,8 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 25,
-  "latestVersionName": "3.9.9",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.9.9/Fami_v3.9.9.apk",
-  "apkSha256": "EF24AF35FAE541B8624E9F20EF94B3C20BECE86D6D4566AD25B64E7F2A885D58",
-  "changelog": "v3.9.9 (Build 25): Seguridad reforzada (proxy IA y cifrado local), sincronización atómica Firebase, optimización Compose, accesibilidad TalkBack y verificación SHA-256 en OTA."
+  "latestVersionCode": 26,
+  "latestVersionName": "3.10.0",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk",
+  "apkSha256": "5A91DC41DC6A09DD62BE46E6FAE6065BFD57A8AFF4FC715725AB78A640C1BD96",
+  "changelog": "v3.10.0 (Build 26): Seguridad reforzada (proxy IA y cifrado local), sincronización atómica Firebase, optimización Compose, accesibilidad TalkBack y verificación SHA-256 en OTA."
 }
