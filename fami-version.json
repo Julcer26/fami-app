@@ -1,8 +1,8 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 27,
-  "latestVersionName": "3.11.0",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.11.0/Fami_v3.11.0.apk",
-  "apkSha256": "C0445CEEA1AC9D0D4023F036D0D348143B001FC98CE66522E0764CA7A04B740F",
-  "changelog": "v3.11.0 (Build 27): Arranque sin parpadeo, creación de cuenta y login mejorados (validación inline, auto-verificación de correo, PIN auto-submit), protección ante colisión de correo, selector buscable de países y búsqueda OTA manual en Ajustes."
+  "latestVersionCode": 28,
+  "latestVersionName": "3.12.0",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.12.0/Fami_v3.12.0.apk",
+  "apkSha256": "E9CAC9C737EEA638E5C79AEE34AC755CC2DAB25B640E72486F70E7D944638297",
+  "changelog": "v3.12.0 (Build 28): Nuevo Modo Oscuro Papel Grafito Cálido, perfiles y roles completos, compartir invitación familiar, unirse a otro hogar desde Ajustes, centro de permisos y consentimiento legal en registro."
 }
