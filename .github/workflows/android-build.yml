@@ -32,7 +32,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Core Unit Tests
-        run: ./gradlew testDebugUnitTest --tests "com.example.MainActivityLaunchTest" --tests "com.example.CountryCurrencyConfigTest" --tests "com.example.OtaUpdateManagerTest" --tests "com.example.TaskNotificationHelperTest" --tests "com.example.FamiStringsLocalizationTest" --tests "com.example.LocalCryptoBoxTest" --tests "com.example.GeminiParserTest" --tests "com.example.ExampleUnitTest" --no-daemon
+        run: ./gradlew testDebugUnitTest --tests "com.example.MainActivityLaunchTest" --tests "com.example.CountryCurrencyConfigTest" --tests "com.example.OtaUpdateManagerTest" --tests "com.example.FamiUsageTrackerTest" --tests "com.example.TaskNotificationHelperTest" --tests "com.example.FamiStringsLocalizationTest" --tests "com.example.LocalCryptoBoxTest" --tests "com.example.GeminiParserTest" --tests "com.example.ExampleUnitTest" --no-daemon
 
       - name: Build Release and Debug APKs
         run: ./gradlew assembleRelease assembleDebug --no-daemon
@@ -68,7 +68,7 @@ jobs:
           else
             gh release create "$TAG" "$APK_NAME" \
               --title "Fami ${TAG} (Build ${VERSION_CODE})" \
-              --notes "Actualización oficial de Fami ${TAG} (Build ${VERSION_CODE}). Nuevo Tema Oscuro Papel Grafito Cálido, consentimiento legal en registro/unión, centro de permisos del dispositivo, perfiles con roles/badges, compartir invitación por código y afiliación a otro hogar desde Ajustes."
+              --notes "Actualización oficial de Fami ${TAG} (Build ${VERSION_CODE}). Mascota Fami 2D estilo sticker editorial, Landing Page v3.13.0 con sección de planes Freemium/Pro, analítica first-party anónima sin rastreadores de anuncios (y exportación mensual a Google Sheets), y Términos/Privacidad actualizados."
           fi
 
           python3 - <<PY
@@ -79,7 +79,7 @@ jobs:
               "latestVersionName": "${VERSION_NAME}",
               "latestApkUrl": "${APK_URL}",
               "apkSha256": "${APK_SHA256}",
-              "changelog": "v${VERSION_NAME} (Build ${VERSION_CODE}): Nuevo Modo Oscuro Papel Grafito Cálido, perfiles y roles completos, compartir invitación familiar, unirse a otro hogar desde Ajustes, centro de permisos y consentimiento legal en registro."
+              "changelog": "v${VERSION_NAME} (Build ${VERSION_CODE}): Nueva mascota Fami 2D estilo sticker troquelado, analítica anónima de funciones para mejorar la app (0 anuncios, 0 PII), actualización legal y landing page con planes Fami Gratis / Pro."
           }
           with open("fami-version.json", "w", encoding="utf-8") as f:
               json.dump(data, f, indent=2, ensure_ascii=False)

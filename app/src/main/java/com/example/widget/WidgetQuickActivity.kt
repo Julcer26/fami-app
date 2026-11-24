@@ -322,6 +322,7 @@ private fun WidgetQuickOverlayScreen(
         scanError = null
         when (initialAction) {
             FamiQuickWidgetProvider.ACTION_WRITE -> {
+                com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_WIDGET_WRITE)
                 withFrameNanos { }
                 try {
                     focusRequester.requestFocus()
@@ -329,12 +330,15 @@ private fun WidgetQuickOverlayScreen(
                 } catch (_: Exception) { }
             }
             FamiQuickWidgetProvider.ACTION_VOICE -> {
+                com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_WIDGET_VOICE)
                 launchVoiceRecognizer()
             }
             FamiQuickWidgetProvider.ACTION_SCAN -> {
+                com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_WIDGET_SCAN)
                 requestAndLaunchCamera()
             }
             FamiQuickWidgetProvider.ACTION_GALLERY -> {
+                com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_WIDGET_GALLERY)
                 galleryLauncher.launch("image/*")
             }
         }

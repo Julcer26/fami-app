@@ -197,3 +197,74 @@ exports.notifyAssignedChore = onValueCreated(
     return null;
   }
 );
+
+/**
+ * Endpoint autenticado para exportar las métricas mensuales anónimas de
+ * /analytics_monthly/{YYYY-MM}/features hacia el Google Sheet de seguimiento
+ * configurado en /config/analytics_sheet_webhook.
+ */
+exports.syncAnalyticsToSheet = onRequest(
+  { timeoutSeconds: 30, cors: false },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    const authHeader = (req.headers.authorization || "").toString();
+    if (!authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Missing Firebase ID token" });
+      return;
+    }
+
+    try {
+      await getAuth().verifyIdToken(authHeader.substring("Bearer ".length).trim(), true);
+    } catch (_err) {
+      res.status(401).json({ error: "Invalid Firebase ID token" });
+      return;
+    }
+
+    const now = new Date();
+    const defaultMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const targetMonth = ((req.body && req.body.month) || defaultMonth).toString().trim();
+
+    const [analyticsSnap, webhookSnap] = await Promise.all([
+      getDatabase().ref(`/analytics_monthly/${targetMonth}/features`).get(),
+      getDatabase().ref("/config/analytics_sheet_webhook").get(),
+    ]);
+
+    const features = analyticsSnap.exists() ? analyticsSnap.val() : {};
+    const webhookUrl = webhookSnap.exists() ? (webhookSnap.val() || "").toString().trim() : "";
+
+    if (!webhookUrl.startsWith("https://")) {
+      res.status(200).json({
+        synced: false,
+        month: targetMonth,
+        features,
+        message: "Configura /config/analytics_sheet_webhook en Firebase RTDB con la URL de tu Google Apps Script.",
+      });
+      return;
+    }
+
+    try {
+      const upstream = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month: targetMonth,
+          syncedAt: new Date().toISOString(),
+          features,
+        }),
+      });
+      const text = await upstream.text();
+      res.status(upstream.ok ? 200 : 502).json({
+        synced: upstream.ok,
+        month: targetMonth,
+        upstreamStatus: upstream.status,
+        upstreamBody: text.slice(0, 300),
+      });
+    } catch (err) {
+      res.status(502).json({ synced: false, error: err.message });
+    }
+  }
+);

@@ -1,0 +1,2 @@
+Mes (YYYY-MM),Ultima_Sync,Total_Eventos,app_open,tab_inicio,tab_cuentas,tab_tareas,tab_compras,tab_metas,tx_manual,tx_voice_nlp,tx_receipt_scan,wallet_transfer,widget_write,widget_voice,widget_scan,widget_gallery,chore_created,shopping_added,goal_created,note_created,recurring_paid,ai_diagnosis,csv_export,ota_check,theme_dark_enabled,mode_individual_active,mode_familiar_active,family_invite_shared,family_joined_by_code
+2026-11,Plantilla Inicial,=SUM(D2:AD2),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

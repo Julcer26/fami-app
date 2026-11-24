@@ -8,6 +8,17 @@
       ".read": "auth != null",
       ".write": false
     },
+    "analytics_monthly": {
+      "$month": {
+        "features": {
+          "$feature": {
+            ".read": false,
+            ".write": "auth != null",
+            ".validate": "newData.isNumber()"
+          }
+        }
+      }
+    },
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

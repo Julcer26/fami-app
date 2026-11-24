@@ -476,6 +476,7 @@ fun MainScreen(
                         scannedItems = parsedTx.items
                         scannedBitmap = bitmap
                         showConfirmScanDialog = true
+                        com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_TX_RECEIPT_SCAN)
                     } else if (errorStr != null) {
                         errorMessageScan = errorStr
                     }
@@ -511,6 +512,7 @@ fun MainScreen(
                         scannedItems = parsedTx.items
                         scannedBitmap = bitmap
                         showConfirmScanDialog = true
+                        com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_TX_RECEIPT_SCAN)
                     } else if (errorStr != null) {
                         errorMessageScan = errorStr
                     }
@@ -764,6 +766,15 @@ fun MainScreen(
 
         LaunchedEffect(isAuthenticated, currentUser, hasCompletedInAppTour) {
             if (isAuthenticated && currentUser.isNotBlank()) {
+                com.example.analytics.FamiUsageTracker.trackOnceDaily(context, com.example.analytics.FamiUsageTracker.FEATURE_APP_OPEN)
+                com.example.analytics.FamiUsageTracker.trackOnceDaily(
+                    context,
+                    if (managementModeState == "individual") com.example.analytics.FamiUsageTracker.FEATURE_MODE_INDIVIDUAL
+                    else com.example.analytics.FamiUsageTracker.FEATURE_MODE_FAMILIAR
+                )
+                if (isDarkTheme) {
+                    com.example.analytics.FamiUsageTracker.trackOnceDaily(context, com.example.analytics.FamiUsageTracker.FEATURE_DARK_MODE_ON)
+                }
                 viewModel.syncFcmTokenAndWorker()
                 if (hasCompletedInAppTour && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val hasNotifPerm = androidx.core.content.ContextCompat.checkSelfPermission(
@@ -790,7 +801,10 @@ fun MainScreen(
                         currentTab = currentTab,
                         isDarkTheme = isDarkTheme,
                         appLanguage = appLanguageState
-                    ) { currentTab = it }
+                    ) { newTab ->
+                        currentTab = newTab
+                        com.example.analytics.FamiUsageTracker.track(context, "tab_$newTab")
+                    }
                 }
             ) { innerPadding ->
                 Box(

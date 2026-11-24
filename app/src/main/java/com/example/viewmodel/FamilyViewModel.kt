@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.analytics.FamiUsageTracker
 import com.example.api.GeminiParser
 import com.example.database.*
 import kotlinx.coroutines.flow.*
@@ -441,6 +442,7 @@ class FamilyViewModel(
         viewModelScope.launch {
             try {
                 repository.transferBetweenWallets(fromWallet, toWallet, fromAmount, toAmount, note, _currentUser.value)
+                FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_WALLET_TRANSFER)
                 notifyUser("Transferencia completada: ${fromWallet.name} → ${toWallet.name}")
             } catch (ce: kotlinx.coroutines.CancellationException) {
                 throw ce
@@ -494,6 +496,9 @@ class FamilyViewModel(
     fun toggleDarkTheme(isDark: Boolean) {
         viewModelScope.launch {
             dataStoreManager.setDarkTheme(isDark)
+            if (isDark) {
+                FamiUsageTracker.trackOnceDaily(dataStoreManager.appContext, FamiUsageTracker.FEATURE_DARK_MODE_ON)
+            }
         }
     }
 
@@ -550,6 +555,7 @@ class FamilyViewModel(
         viewModelScope.launch {
             try {
                 val alert = repository.markRecurringPaymentPaid(payment, monthKey, amount, currency, date, _currentUser.value, walletId)
+                FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_RECURRING_PAID)
                 if (alert != null) notifyUser(alert)
                 else notifyUser("Pago registrado: '${payment.name}' para $monthKey")
             } catch (e: Exception) {
@@ -1078,6 +1084,7 @@ class FamilyViewModel(
 
                 syncPendingNotebookSetup(userName = cleanName, colorHex = "#EFB8C8", isJoiningExisting = true)
                 _currentUser.value = cleanName
+                FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_FAMILY_JOINED_CODE)
 
                 if (isNewAccount && !firebaseUser.isEmailVerified) {
                     runCatching { firebaseUser.sendEmailVerification().await() }
@@ -1666,6 +1673,7 @@ class FamilyViewModel(
             )
             try {
                 val alertMessage = repository.insertTransaction(tx, user, isNewEntry = true)
+                FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_TX_MANUAL)
                 val msg = alertMessage ?: "¡Guardado!: $originalAmount $currency en '$description'"
                 notifyUser(msg)
                 onFinished?.invoke(true, msg)
@@ -1808,6 +1816,7 @@ class FamilyViewModel(
                     )
                 }
                 syncFcmTokenAndWorker()
+                FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_FAMILY_JOINED_CODE)
                 val msg = "¡Te uniste al hogar $code con éxito! 🎉"
                 notifyUser(msg)
                 onResult(true, msg)
@@ -1894,6 +1903,7 @@ class FamilyViewModel(
                         wallets.value.firstOrNull { it.currency.equals(transaction.currency, ignoreCase = true) }?.id.orEmpty()
                     }
                     repository.insertTransaction(transaction.copy(walletId = resolvedWalletId), user, isNewEntry = true)
+                    FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_TX_VOICE_NLP)
                     val finalMsg = successMsg.ifBlank { "IA registró gasto/ingreso exitosamente." }
                     notifyUser(finalMsg)
                     onFinished?.invoke(true, finalMsg)
@@ -1918,6 +1928,7 @@ class FamilyViewModel(
             val chore = Chore(title = title, assignedTo = assignedTo, createdBy = _currentUser.value, description = description, priority = priority, category = category)
             chore.isPrivate = isPrivate
             repository.insertChore(chore, _currentUser.value)
+            FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_CHORE_CREATED)
         }
     }
     fun toggleChoreCompletion(chore: Chore) { if (!chore.isCompleted) triggerConfetti()
@@ -1947,6 +1958,7 @@ class FamilyViewModel(
             val item = ShoppingItem(name = name, quantity = quantity, addedBy = _currentUser.value, dateAdded = System.currentTimeMillis(), listName = listName)
             item.isPrivate = isPrivate
             repository.insertShoppingItem(item, _currentUser.value)
+            FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_SHOPPING_ADDED)
         }
     }
     fun toggleShoppingItemBought(item: ShoppingItem) { if (!item.isBought) triggerConfetti()
@@ -2006,6 +2018,7 @@ class FamilyViewModel(
                 isPrivate = isPrivate
             )
             repository.insertGoal(goal, user)
+            FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_GOAL_CREATED)
         }
     }
 
@@ -2069,6 +2082,7 @@ class FamilyViewModel(
                 checklist = checklist
             )
             repository.insertNote(note, _currentUser.value)
+            FamiUsageTracker.track(dataStoreManager.appContext, FamiUsageTracker.FEATURE_NOTE_CREATED)
         }
     }
 

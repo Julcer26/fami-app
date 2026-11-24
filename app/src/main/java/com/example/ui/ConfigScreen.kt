@@ -152,6 +152,7 @@ fun HorizontalCategoryTabs(
 
 private fun shareFamilyInvitation(context: Context, familyCode: String, familyName: String) {
     if (familyCode.isBlank()) return
+    com.example.analytics.FamiUsageTracker.track(context, com.example.analytics.FamiUsageTracker.FEATURE_FAMILY_INVITE_SHARED)
     val homeLabel = familyName.trim().ifBlank { "nuestro hogar Fami" }
     val text = "🏡 ¡Te invito a unirte a $homeLabel en Fami!\n\n" +
         "1. Descarga Fami: https://somosfami.app\n" +
@@ -965,6 +966,7 @@ fun ConfigMainContent(
                         Tactile3DButton(
                             onClick = {
                                 if (!isCheckingOta) {
+                                    com.example.analytics.FamiUsageTracker.track(configContext, com.example.analytics.FamiUsageTracker.FEATURE_OTA_CHECK)
                                     isCheckingOta = true
                                     configScope.launch {
                                         val info = OtaUpdateManager.checkForUpdates(configContext, ignoreDismissed = true)

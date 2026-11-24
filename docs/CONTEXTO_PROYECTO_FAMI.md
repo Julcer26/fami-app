@@ -7,8 +7,8 @@
 ---
 
 ## 1. Estado Actual de Producción
-- **Versión publicada:** `v3.12.0` (`versionCode = 28`, `minSdk = 24 / Android 7.0+`, `targetSdk = 35`, `compileSdk = 36`).
-- **APK oficial firmado:** `https://github.com/Julcer26/fami-app/releases/download/v3.12.0/Fami_v3.12.0.apk`
+- **Versión publicada:** `v3.13.0` (`versionCode = 29`, `minSdk = 24 / Android 7.0+`, `targetSdk = 35`, `compileSdk = 36`).
+- **APK oficial firmado:** `https://github.com/Julcer26/fami-app/releases/download/v3.13.0/Fami_v3.13.0.apk`
 - **Manifiesto OTA:** [`fami-version.json`](../fami-version.json) (verificación criptográfica `SHA-256` obligatoria antes de instalar).
 - **CI/CD:** [`.github/workflows/android-build.yml`](../.github/workflows/android-build.yml) corre `./gradlew testDebugUnitTest`, compila APKs Debug/Release, publica el Release en GitHub y actualiza `fami-version.json` con un commit `[skip ci]`.
 
@@ -54,11 +54,12 @@
 ## 4. Pruebas Automatizadas (`app/src/test/java/com/example/`)
 - `MainActivityLaunchTest.kt`: Verifica arranque sin crashes de `MainActivity` y `WidgetQuickActivity` vía Robolectric.
 - `GeminiParserTest.kt`: Verifica extracción JSON de Gemini (incluyendo pensamiento/code fences) y resolución multi-moneda (`VES`, `COP`, `MXN`, `ARS`, `EUR`, `USD`).
-- `LocalCryptoBoxTest.kt`, `OtaUpdateManagerTest.kt`, `CountryCurrencyConfigTest.kt`, `TaskNotificationHelperTest.kt`, `FamiStringsLocalizationTest.kt`.
+- `LocalCryptoBoxTest.kt`, `OtaUpdateManagerTest.kt`, `FamiUsageTrackerTest.kt`, `CountryCurrencyConfigTest.kt`, `TaskNotificationHelperTest.kt`, `FamiStringsLocalizationTest.kt`.
 
 ---
 
 ## 5. Historial Reciente de Releases
+- **`v3.13.0` (Build 29):** Nueva mascota Fami **2D estilo sticker troquelado** (`fami_notebook_hero`, `fami_sticker_idea`, `fami_sticker_piggy`, `fami_sticker_love`) integrada en Android y web; Landing Page actualizada con comparativa **Fami Gratis vs. Fami Pro** y mejoras responsive/oscuro; telemetría **first-party anónima (`FamiUsageTracker`)** activada al aceptar Términos/Privacidad (cero PII, cero ad SDKs) guardada en `analytics_monthly/` + función `syncAnalyticsToSheet` + automatización Google Sheets (`docs/scripts/fami_analytics_apps_script.gs` y `docs/analytics/Fami_Analitica_Mensual_Plantilla.csv`); y actualización legal `v2.1` en app y web.
 - **`v3.12.0` (Build 28):** Rediseño completo del Modo Oscuro a **Papel Grafito Cálido (*Warm Graphite Paper*)** en app, `MASTER.md` y sitio web; consentimiento legal explícito con enlace directo a Términos y Privacidad en registro y unión por código; **Centro de Permisos del Dispositivo** en Ajustes (Cámara, Notificaciones, Biometría y permiso OTA); perfiles con **roles editables, badges `TÚ` / `👑 Admin`, filtros de avatares, edición del Nombre del Hogar**, botón **Compartir Invitación Familiar** y flujo **Unirme a otro Hogar por Código** sin borrar la cuenta; consulta `CATEGORY_APP_EMAIL` en `AndroidManifest.xml` para Android 11+.
 - **`v3.11.0` (Build 27):** Mejoras integrales de arranque, onboarding y creación de usuario — splash inicial sin parpadeo (`isSessionInitializing`), fix del botón *"¿Ya tienes cuenta? Iniciar Sesión"* desde Onboarding, protección crítica contra sobrescritura de hogar en colisión de correo (`createFamily`), soporte Edge-to-Edge + teclado (`imePadding`) en `AuthScreen`, validación inline + barra de fuerza de contraseña + mostrar/ocultar PIN + auto-submit al 5to dígito, botón *"Abrir app de correo"* con auto-verificación `ON_RESUME`, ocultamiento de Rol Familiar en Modo Individual y deduplicación automática de monedas/billeteras en Onboarding, selector de países buscable en Dashboard, tour interactivo coherente en Modo Individual, contraste Dark Mode reforzado y búsqueda manual de actualizaciones OTA con changelog desde **Ajustes > General**.
 - **`v3.10.0` (Build 26):** Auditoría integral — Onboarding->Auth, validación de Código Familiar, eliminación de perfil fantasma `"Administrador"`, selector y coherencia total Modo Familiar/Individual, multi-moneda completo en IA/recibos/presupuestos, filtros por miembro en tareas, contraste Dark Mode, cero iconos deprecados, legal unificado (`hola@somosfami.app`) y landing page SEO/AEO actualizada.

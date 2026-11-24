@@ -171,7 +171,7 @@ fun LegalDocumentDialog(
                             }
                             LegalSectionCard(
                                 title = "1. Datos que recopilamos y Cifrado Local",
-                                body = "• Cuenta: correo electrónico y método de acceso (Google o contraseña) gestionados con Firebase Authentication.\n• Cifrado en el dispositivo: las credenciales sensibles y el hash de tu PIN (SHA-256 con sal única) se resguardan mediante Android Keystore con cifrado AES-256-GCM (LocalCryptoBox).\n• Finanzas y Libreta: movimientos, billeteras multi-moneda, metas, tareas, compras y notitas.\n• Comprobantes: fotos capturadas o elegidas solo cuando decides adjuntar o escanear un recibo (almacenadas en Firebase Storage)."
+                                body = "• Cuenta: correo electrónico y método de acceso (Google o contraseña) gestionados con Firebase Authentication.\n• Cifrado en el dispositivo: las credenciales sensibles y el hash de tu PIN (SHA-256 con sal única) se resguardan mediante Android Keystore con cifrado AES-256-GCM (LocalCryptoBox).\n• Finanzas y Libreta: movimientos, billeteras multi-moneda, metas, tareas, compras y notitas.\n• Comprobantes: fotos capturadas o elegidas solo cuando decides adjuntar o escanear un recibo (almacenadas en Firebase Storage).\n• Analítica First-Party Anónima: al instalar Fami y aceptar nuestros términos, se activan contadores mensuales anónimos y agregados de uso por función (ej. uso del Widget, Escáner IA, Tareas o Tema Oscuro) sin datos personales, sin montos ni descripciones y con 0 SDKs publicitarios."
                             )
                             LegalSectionCard(
                                 title = "2. Permisos del dispositivo",
@@ -197,8 +197,8 @@ fun LegalDocumentDialog(
                                 )
                             }
                             LegalSectionCard(
-                                title = "1. Aceptación y Modos de Uso",
-                                body = "Al usar Fami aceptas estos Términos y Condiciones para la administración personal (Modo Individual) o compartida (Modo Familiar) de ingresos, gastos, billeteras, listas, metas y notas."
+                                title = "1. Aceptación, Telemetría Anónima y Modos de Uso",
+                                body = "Al instalar y usar Fami aceptas estos Términos y Condiciones para la administración personal (Modo Individual) o compartida (Modo Familiar) de tus finanzas y libreta, así como el registro automático de contadores anónimos y agregados de uso por función para mejorar la experiencia sin publicidad invasiva."
                             )
                             LegalSectionCard(
                                 title = "2. Tasas Referenciales y Multi-Moneda",
