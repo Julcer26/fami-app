@@ -1,7 +1,7 @@
 # 🤖 Fami — Finanzas, Hogar y Libreta con IA (`app.somosfami`)
 
 > **Sitio Web Oficial:** [somosfami.app](https://somosfami.app)  
-> **Última Versión Estable:** `v3.10.0` (Build `26`) — [Descargar APK Oficial](https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk)  
+> **Última Versión Estable:** `v3.11.0` (Build `27`) — [Descargar APK Oficial](https://github.com/Julcer26/fami-app/releases/download/v3.11.0/Fami_v3.11.0.apk)  
 > **Redes Oficiales:** Instagram [@hola.fami](https://www.instagram.com/hola.fami) · TikTok [@hola.fami](https://www.tiktok.com/@hola.fami)  
 > **Soporte y Privacidad:** `hola@somosfami.app` · [Política de Privacidad](https://somosfami.app/privacy.html) · [Eliminar Cuenta](https://somosfami.app/delete-account.html)
 
@@ -9,7 +9,7 @@
 
 ---
 
-## ✨ Características Principales (`v3.10.0`)
+## ✨ Características Principales (`v3.11.0`)
 
 1. **⚡ Widget de Escritorio en 1 Toque (`WidgetQuickActivity`)**:
    - Selector de billeteras con **26+ logos oficiales de bancos** (Banesco, Mercantil, BDV, Provincial, BNC, Bancamiga, Zelle, Binance, Zinli, Wally, Bancolombia, Nequi, Nu y más).

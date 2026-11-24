@@ -418,6 +418,7 @@ fun MainScreen(
     var latestVersionCode by remember { mutableIntStateOf(0) }
     var latestVersionName by remember { mutableStateOf("") }
     var updateApkSha256 by remember { mutableStateOf("") }
+    var updateChangelog by remember { mutableStateOf("") }
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {
@@ -427,6 +428,7 @@ fun MainScreen(
             latestVersionCode = info.latestVersionCode
             latestVersionName = info.latestVersionName
             updateApkSha256 = info.expectedApkSha256
+            updateChangelog = info.changelog
             showUpdateDialog = true
         }
     }
@@ -550,6 +552,7 @@ fun MainScreen(
         }
     }
 
+    val isSessionInitializing by viewModel.isSessionInitializing.collectAsStateWithLifecycle()
     val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsStateWithLifecycle()
     val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
     val familyIdState by viewModel.familyId.collectAsStateWithLifecycle()
@@ -589,7 +592,52 @@ fun MainScreen(
     CompositionLocalProvider(
         com.example.ui.LocalFamiStrings provides famiStrings
     ) {
-    if (shouldShowOnboarding) {
+    if (isSessionInitializing) {
+        val splashPaper = FamiTheme.paper
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(splashPaper.deskBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = splashPaper.sheet,
+                    border = BorderStroke(2.dp, splashPaper.border)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_fami_mascot),
+                            contentDescription = "Fami Mascota",
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                        )
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(
+                                id = if (splashPaper.isDark) R.drawable.ic_fami_logo_white else R.drawable.ic_fami_logo_wide
+                            ),
+                            contentDescription = "Logo Oficial Fami",
+                            modifier = Modifier.height(34.dp)
+                        )
+                    }
+                }
+                CircularProgressIndicator(
+                    modifier = Modifier.size(26.dp),
+                    color = FamiCoral,
+                    strokeWidth = 2.6.dp
+                )
+            }
+        }
+    } else if (shouldShowOnboarding) {
         com.example.ui.OnboardingScreen(
             initialCountryCode = countryCodeState,
             initialPrimaryCurrency = primaryCurrencyState,
@@ -1003,10 +1051,28 @@ fun MainScreen(
                             )
                         },
                         text = {
-                            Text(
-                                "Hay una nueva versión de Fami disponible. ¿Deseas descargarla e instalarla ahora?",
-                                color = paper.inkMuted
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "Hay una nueva versión de Fami disponible. ¿Deseas descargarla e instalarla ahora?",
+                                    color = paper.inkMuted,
+                                    fontSize = 13.sp
+                                )
+                                if (updateChangelog.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = paper.stickyYellow,
+                                        border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.55f))
+                                    ) {
+                                        Text(
+                                            text = updateChangelog,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = paper.ink,
+                                            modifier = Modifier.padding(10.dp)
+                                        )
+                                    }
+                                }
+                            }
                         },
                         confirmButton = {
                             TextButton(onClick = {
@@ -1060,6 +1126,7 @@ fun MainScreen(
             if (!hasCompletedInAppTour) {
                 com.example.ui.InAppGuideOverlay(
                     appLanguage = appLanguageState,
+                    isIndividualMode = managementModeState == "individual",
                     onSwitchTab = { target -> currentTab = target },
                     onEnsureDashboardScroll = { idx -> dashboardListState.scrollToItem(idx) },
                     onDismiss = { viewModel.completeInAppTour() }
@@ -1439,66 +1506,13 @@ fun DashboardTab(
             var showCountryPickerModal by remember { mutableStateOf(false) }
 
             if (showCountryPickerModal) {
-                AlertDialog(
-                    onDismissRequest = { showCountryPickerModal = false },
-                    containerColor = paper.sheet,
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🌎", fontSize = 20.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("País y Moneda Oficial", fontSize = 17.sp, fontWeight = FontWeight.Black, color = paper.ink)
-                        }
-                    },
-                    text = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 360.dp)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                "Selecciona tu país para ajustar tu moneda local y sincronizar la tasa oficial en tu Bóveda Fami:",
-                                fontSize = 11.5.sp,
-                                color = paper.inkMuted
-                            )
-                            com.example.currency.CountryCurrencyConfig.SUPPORTED_COUNTRIES.forEach { c ->
-                                val isSel = c.code == countryInfo.code
-                                Surface(
-                                    onClick = {
-                                        viewModel.setCountry(c)
-                                        showCountryPickerModal = false
-                                    },
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (isSel) FamiCoral.copy(alpha = 0.16f) else paper.sheetCream,
-                                    border = BorderStroke(1.dp, if (isSel) FamiCoral else paper.border.copy(alpha = 0.35f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(c.flag, fontSize = 20.sp)
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Column {
-                                                Text(c.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = paper.ink)
-                                                Text("${c.localCurrency} (${c.symbol}) • ${c.rateProvider}", fontSize = 10.5.sp, color = paper.inkMuted)
-                                            }
-                                        }
-                                        if (isSel) {
-                                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(18.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showCountryPickerModal = false }) {
-                            Text("Cerrar", fontWeight = FontWeight.Bold, color = FamiCoral)
-                        }
+                com.example.ui.GooglePlayCountryPickerDialog(
+                    selectedCountryCode = countryInfo.code,
+                    searchHint = s.countrySearchHint,
+                    onDismiss = { showCountryPickerModal = false },
+                    onSelectCountry = { c ->
+                        viewModel.setCountry(c)
+                        showCountryPickerModal = false
                     }
                 )
             }

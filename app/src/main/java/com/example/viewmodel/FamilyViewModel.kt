@@ -25,6 +25,9 @@ class FamilyViewModel(
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
 
+    private val _isSessionInitializing = MutableStateFlow(true)
+    val isSessionInitializing: StateFlow<Boolean> = _isSessionInitializing.asStateFlow()
+
     private val _selectedMonth = MutableStateFlow(java.util.Calendar.getInstance())
     val selectedMonth: StateFlow<java.util.Calendar> = _selectedMonth.asStateFlow()
 
@@ -142,6 +145,7 @@ class FamilyViewModel(
     val startInExistingLogin: StateFlow<Boolean> = _startInExistingLogin.asStateFlow()
 
     fun openExistingLoginFromOnboarding() {
+        _authError.value = null
         _startInExistingLogin.value = true
         viewModelScope.launch {
             dataStoreManager.setOnboardingCompleted(true)
@@ -150,6 +154,22 @@ class FamilyViewModel(
 
     fun consumeStartInExistingLogin() {
         _startInExistingLogin.value = false
+    }
+
+    suspend fun hasConfiguredPin(): Boolean = dataStoreManager.hasConfiguredUserPin()
+
+    fun isValidAlias(alias: String): Boolean {
+        val clean = alias.trim()
+        return clean.length >= 2 && !clean.contains("@") && !clean.contains("/")
+    }
+
+    fun isValidPin(pin: String): Boolean {
+        val clean = pin.trim()
+        return clean.length == 5 && clean.all { it.isDigit() } && clean != "00000"
+    }
+
+    fun normalizeFamilyCode(raw: String): String {
+        return raw.trim().uppercase().filter { it.isLetterOrDigit() || it == '-' }
     }
 
     val isAdminRole: StateFlow<Boolean> = combine(managementMode, familyRole) { mode, role ->
@@ -431,6 +451,8 @@ class FamilyViewModel(
     }
 
     fun reopenInitialConfig() {
+        _authError.value = null
+        _startInExistingLogin.value = false
         viewModelScope.launch {
             dataStoreManager.setOnboardingCompleted(false)
         }
@@ -565,30 +587,38 @@ class FamilyViewModel(
 
     init {
         viewModelScope.launch {
-            val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-            if (firebaseUser == null) {
-                dataStoreManager.clearAuthData()
-                repository.setFamilyId(null)
-                _familyId.value = null
-                _currentUser.value = ""
-            } else {
-                val fid = dataStoreManager.familyIdFlow.firstOrNull()
-                val name = dataStoreManager.userNameFlow.firstOrNull()
-                if (fid != null && name != null) {
-                    _familyId.value = fid
-                    _currentUser.value = name
-                    // Security: keep repository detached until PIN or biometric unlock succeeds
-                    repository.setFamilyId(null)
-                    val isEmailProvider = firebaseUser.providerData.any { it.providerId == "password" }
-                    if (isEmailProvider && !firebaseUser.isEmailVerified) {
-                        _pendingVerificationEmail.value = firebaseUser.email ?: ""
-                        _pendingEmailVerification.value = true
-                    }
-                } else {
-                    com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+            try {
+                // Esperar la primera lectura real de DataStore para evitar parpadeo del Onboarding
+                dataStoreManager.hasCompletedOnboardingFlow.firstOrNull()
+                val firebaseUser = runCatching {
+                    com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                }.getOrNull()
+                if (firebaseUser == null) {
                     dataStoreManager.clearAuthData()
                     repository.setFamilyId(null)
+                    _familyId.value = null
+                    _currentUser.value = ""
+                } else {
+                    val fid = dataStoreManager.familyIdFlow.firstOrNull()
+                    val name = dataStoreManager.userNameFlow.firstOrNull()
+                    if (!fid.isNullOrBlank() && !name.isNullOrBlank()) {
+                        _familyId.value = fid
+                        _currentUser.value = name
+                        // Security: keep repository detached until PIN or biometric unlock succeeds
+                        repository.setFamilyId(null)
+                        val isEmailProvider = firebaseUser.providerData.any { it.providerId == "password" }
+                        if (isEmailProvider && !firebaseUser.isEmailVerified) {
+                            _pendingVerificationEmail.value = firebaseUser.email ?: ""
+                            _pendingEmailVerification.value = true
+                        }
+                    } else {
+                        runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().signOut() }
+                        dataStoreManager.clearAuthData()
+                        repository.setFamilyId(null)
+                    }
                 }
+            } finally {
+                _isSessionInitializing.value = false
             }
         }
 
@@ -896,36 +926,73 @@ class FamilyViewModel(
                 val firebaseUser = authResult.user ?: throw Exception("No se pudo crear el usuario")
                 val uid = firebaseUser.uid
 
-                val newFamilyId = UUID.randomUUID().toString().substring(0, 8).uppercase()
                 val pendingAlias = dataStoreManager.pendingUserAliasFlow.firstOrNull()?.trim().orEmpty()
-                val userName = customUserName.trim().takeIf { it.isNotBlank() && !it.contains("@") }
+                val requestedUserName = customUserName.trim().takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: pendingAlias.takeIf { it.isNotBlank() && !it.contains("@") }
                     ?: "Usuario Fami"
 
-                repository.registerUserMapping(uid, newFamilyId, userName)
-                repository.registerFamilyMember(newFamilyId, uid)
+                // Si el correo ya existía en Firebase Auth, verificar si ya tiene un hogar registrado
+                // para restaurarlo sin sobrescribir /users/{uid} ni dejar huérfanos sus datos.
+                var restoredExistingFamily = false
+                val existingSnapshot = if (isRecreatedAccount) {
+                    runCatching { repository.getUserMapping(uid) }.getOrNull()
+                } else null
+                val existingFid = existingSnapshot?.child("familyId")?.getValue(String::class.java)?.trim()
+                val existingName = existingSnapshot?.child("userName")?.getValue(String::class.java)?.trim()
+
+                val finalFamilyId: String
+                val finalUserName: String
+
+                if (!existingFid.isNullOrBlank()) {
+                    restoredExistingFamily = true
+                    finalFamilyId = existingFid
+                    val cleanExisting = existingName?.takeIf { it.isNotBlank() && !it.contains("@") }
+                    finalUserName = cleanExisting ?: requestedUserName
+                    if (existingName.isNullOrBlank() || existingName.contains("@")) {
+                        runCatching { repository.registerUserMapping(uid, finalFamilyId, finalUserName) }
+                    }
+                } else {
+                    finalFamilyId = UUID.randomUUID().toString().substring(0, 8).uppercase()
+                    finalUserName = requestedUserName
+                    repository.registerUserMapping(uid, finalFamilyId, finalUserName)
+                    repository.registerFamilyMember(finalFamilyId, uid)
+                }
 
                 dataStoreManager.saveAuthData(
-                    familyId = newFamilyId,
-                    userName = userName,
+                    familyId = finalFamilyId,
+                    userName = finalUserName,
                     pin = cleanPin,
                     email = cleanEmail,
                     authProvider = "email"
                 )
-                dataStoreManager.setUserName(userName)
+                dataStoreManager.setUserName(finalUserName)
                 dataStoreManager.setOnboardingCompleted(true)
-                _familyId.value = newFamilyId
-                repository.setFamilyId(newFamilyId)
+                _familyId.value = finalFamilyId
+                repository.setFamilyId(finalFamilyId)
 
-                repository.populateDefaultsIfNeeded()
-                syncPendingNotebookSetup(userName = userName, colorHex = "#D0BCFF", familyNameOverride = customFamilyName, isJoiningExisting = false)
+                if (restoredExistingFamily) {
+                    syncLocalProfileAndModeFromCloud(finalFamilyId, finalUserName)
+                } else {
+                    repository.populateDefaultsIfNeeded()
+                    syncPendingNotebookSetup(
+                        userName = finalUserName,
+                        colorHex = "#D0BCFF",
+                        familyNameOverride = customFamilyName,
+                        isJoiningExisting = false
+                    )
+                }
 
-                _currentUser.value = userName
+                _currentUser.value = finalUserName
 
                 if (isRecreatedAccount || firebaseUser.isEmailVerified) {
                     _pendingEmailVerification.value = false
                     _needsUnlockMethodChoice.value = true
-                    notifyUser("¡Cuenta configurada con éxito, $userName! ✨")
+                    val successMsg = if (restoredExistingFamily) {
+                        "¡Ya tenías un hogar Fami! Restauramos tu cuenta, $finalUserName ✨"
+                    } else {
+                        "¡Cuenta configurada con éxito, $finalUserName! ✨"
+                    }
+                    notifyUser(successMsg)
                 } else {
                     runCatching { firebaseUser.sendEmailVerification().await() }
                     _pendingVerificationEmail.value = cleanEmail
@@ -945,18 +1012,22 @@ class FamilyViewModel(
 
     fun joinFamily(familyCode: String, name: String, pin: String, email: String, password: String) {
         viewModelScope.launch {
-            val code = familyCode.trim().uppercase()
+            val code = normalizeFamilyCode(familyCode)
             val cleanEmail = email.trim()
             val cleanPin = pin.trim()
             if (code.length < 4) {
                 _authError.value = "Ingresa un código familiar válido."
                 return@launch
             }
+            if (name.trim().contains("@")) {
+                _authError.value = "Escribe tu nombre o alias (sin correo electrónico)."
+                return@launch
+            }
             if (!isValidEmailFormat(cleanEmail)) {
                 _authError.value = "Ingresa un correo electrónico real y válido."
                 return@launch
             }
-            if (cleanPin.length != 5 || !cleanPin.all { it.isDigit() } || cleanPin == "00000") {
+            if (!isValidPin(cleanPin)) {
                 _authError.value = "El PIN debe tener 5 dígitos y no puede ser 00000."
                 return@launch
             }
@@ -1228,8 +1299,8 @@ class FamilyViewModel(
                 val finalUserName: String
                 val isNewSetup: Boolean
 
-                if (joinFamilyCode.trim().isNotBlank()) {
-                    val code = joinFamilyCode.trim().uppercase()
+                if (normalizeFamilyCode(joinFamilyCode).isNotBlank()) {
+                    val code = normalizeFamilyCode(joinFamilyCode)
                     repository.registerFamilyMember(code, uid)
                     val familyValid = repository.verifyJoinedFamilyHasExistingData(code, uid)
                     if (!familyValid) {

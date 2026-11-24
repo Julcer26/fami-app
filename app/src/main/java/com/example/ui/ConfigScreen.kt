@@ -39,11 +39,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.OtaUpdateManager
 import com.example.database.ActivityLog
 import com.example.database.AppSetting
 import com.example.database.UserProfile
 import com.example.ui.theme.*
 import com.example.viewmodel.FamilyViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -169,6 +171,9 @@ fun ConfigMainContent(
     var aliasInput by remember { mutableStateOf("") }
     var profileToDelete by remember { mutableStateOf<UserProfile?>(null) }
     var legalDialogTab by remember { mutableStateOf<String?>(null) }
+    var isCheckingOta by remember { mutableStateOf(false) }
+    var manualOtaUpdate by remember { mutableStateOf<OtaUpdateManager.UpdateInfo?>(null) }
+    val configScope = rememberCoroutineScope()
 
     val currentAppLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val currentAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
@@ -679,6 +684,97 @@ fun ConfigMainContent(
                                 color = paper.ink,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
+                        }
+                    }
+                }
+            }
+
+            // --- VERSIÓN Y ACTUALIZACIÓN OTA ---
+            item {
+                val installedVerName = remember(configContext) { OtaUpdateManager.getInstalledVersionName(configContext) }
+                val installedVerCode = remember(configContext) { OtaUpdateManager.getInstalledVersionCode(configContext) }
+                NotebookPaperSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    sheetColor = paper.sheet,
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = FamiCoral
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Actualizaciones OTA",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
+                                    Text(
+                                        text = "Instalada: v$installedVerName (Build $installedVerCode) • Verificación SHA-256",
+                                        fontSize = 11.sp,
+                                        color = paper.inkMuted
+                                    )
+                                }
+                            }
+                        }
+                        Tactile3DButton(
+                            onClick = {
+                                if (!isCheckingOta) {
+                                    isCheckingOta = true
+                                    configScope.launch {
+                                        val info = OtaUpdateManager.checkForUpdates(configContext, ignoreDismissed = true)
+                                        isCheckingOta = false
+                                        if (info.isUpdateAvailable && info.downloadUrl.isNotEmpty()) {
+                                            manualOtaUpdate = info
+                                        } else {
+                                            Toast.makeText(
+                                                configContext,
+                                                "Ya tienes la última versión de Fami (v$installedVerName) ✅",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            faceColor = paper.stickyMint,
+                            lipColor = Lip3DMint,
+                            borderColor = paper.border,
+                            cornerRadius = 12.dp,
+                            lipHeight = 3.dp,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            if (isCheckingOta) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = paper.ink
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Buscando versión nueva...", fontSize = 12.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = paper.ink, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Buscar Actualización OTA", fontSize = 12.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                            }
                         }
                     }
                 }
@@ -1374,6 +1470,64 @@ fun ConfigMainContent(
         LegalDocumentDialog(
             initialTab = initialTab,
             onDismiss = { legalDialogTab = null }
+        )
+    }
+
+    manualOtaUpdate?.let { info ->
+        AlertDialog(
+            onDismissRequest = { manualOtaUpdate = null },
+            containerColor = paper.sheet,
+            title = {
+                Text(
+                    text = if (info.latestVersionName.isNotBlank()) "Nueva Versión v${info.latestVersionName}" else "Actualización Disponible",
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Hay una actualización oficial verificada con SHA-256 lista para descargar e instalar.",
+                        fontSize = 13.sp,
+                        color = paper.inkMuted
+                    )
+                    if (info.changelog.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = paper.stickyYellow,
+                            border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.55f))
+                        ) {
+                            Text(
+                                text = info.changelog,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = paper.ink,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = info
+                    manualOtaUpdate = null
+                    Toast.makeText(configContext, "Descargando actualización OTA...", Toast.LENGTH_LONG).show()
+                    OtaUpdateManager.downloadAndInstallUpdate(
+                        configContext,
+                        target.downloadUrl,
+                        target.latestVersionCode,
+                        target.expectedApkSha256
+                    )
+                }) {
+                    Text("Descargar e Instalar", fontWeight = FontWeight.Black, color = FamiCoral)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { manualOtaUpdate = null }) {
+                    Text(s.cancel, color = paper.inkMuted)
+                }
+            }
         )
     }
 }

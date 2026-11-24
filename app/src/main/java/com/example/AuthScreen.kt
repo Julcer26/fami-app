@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +43,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -51,6 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.*
 import com.example.viewmodel.FamilyViewModel
@@ -84,15 +92,7 @@ fun AuthScreen(viewModel: FamilyViewModel) {
     val context = LocalContext.current
     val paper = FamiTheme.paper
 
-    var currentMode by remember(
-        familyId,
-        pendingEmailVerification,
-        needsUnlockMethodChoice,
-        startInExistingLogin,
-        hasCompletedOnboarding,
-        familyAction,
-        managementMode
-    ) {
+    var currentMode by rememberSaveable {
         mutableStateOf(
             when {
                 pendingEmailVerification -> "verify_email"
@@ -104,6 +104,21 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                 else -> "select"
             }
         )
+    }
+    var forgotPrefillEmail by rememberSaveable { mutableStateOf("") }
+    var forgotEmailAlreadySent by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(pendingEmailVerification, needsUnlockMethodChoice, familyId) {
+        when {
+            pendingEmailVerification -> currentMode = "verify_email"
+            needsUnlockMethodChoice -> currentMode = "choose_unlock"
+            familyId != null && currentMode in setOf("select", "verify_email", "choose_unlock") -> {
+                currentMode = "login"
+            }
+            familyId == null && currentMode == "login" -> {
+                currentMode = "select"
+            }
+        }
     }
 
     LaunchedEffect(startInExistingLogin) {
@@ -297,8 +312,11 @@ fun AuthScreen(viewModel: FamilyViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 28.dp)
+                .padding(horizontal = 20.dp, vertical = 20.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -463,6 +481,11 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                         onReset = {
                             viewModel.clearAuthError()
                             currentMode = "select"
+                        },
+                        onLogout = {
+                            viewModel.clearAuthError()
+                            viewModel.logout()
+                            currentMode = "select"
                         }
                     )
                     "create_family" -> CreateFamilyContent(
@@ -478,8 +501,10 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.clearAuthError()
                             currentMode = "login_existing"
                         },
-                        onForgotPassword = {
+                        onForgotPassword = { typedEmail ->
                             viewModel.clearAuthError()
+                            forgotPrefillEmail = typedEmail
+                            forgotEmailAlreadySent = false
                             currentMode = "forgot_password"
                         },
                         onContinueWithGoogle = { customFamName, customAlias ->
@@ -493,8 +518,10 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.clearAuthError()
                             currentMode = "select"
                         },
-                        onForgotPassword = {
+                        onForgotPassword = { typedEmail ->
                             viewModel.clearAuthError()
+                            forgotPrefillEmail = typedEmail
+                            forgotEmailAlreadySent = false
                             currentMode = "forgot_password"
                         },
                         onContinueWithGoogle = { code, customAlias ->
@@ -512,8 +539,10 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                             viewModel.clearAuthError()
                             currentMode = "create_family"
                         },
-                        onForgotPassword = {
+                        onForgotPassword = { typedEmail ->
                             viewModel.clearAuthError()
+                            forgotPrefillEmail = typedEmail
+                            forgotEmailAlreadySent = false
                             currentMode = "forgot_password"
                         },
                         onContinueWithGoogle = { launchGoogleAuth() }
@@ -530,9 +559,12 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                     )
                     "forgot_password" -> ForgotPasswordContent(
                         viewModel = viewModel,
+                        initialEmail = forgotPrefillEmail,
+                        initialEmailSent = forgotEmailAlreadySent,
                         isLoading = isAuthLoading,
                         onBackToLogin = {
                             viewModel.clearAuthError()
+                            forgotEmailAlreadySent = false
                             currentMode = "login_existing"
                         }
                     )
@@ -585,6 +617,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                                 val targetEmail = emailToLink
                                 pendingGoogleEmailToLink = null
                                 viewModel.sendPasswordReset(targetEmail) {
+                                    forgotPrefillEmail = targetEmail
+                                    forgotEmailAlreadySent = true
                                     currentMode = "forgot_password"
                                 }
                             }
@@ -605,7 +639,8 @@ fun AuthScreen(viewModel: FamilyViewModel) {
                                 viewModel.authenticateWithGoogleEmail(
                                     email = targetEmail,
                                     joinFamilyCode = googleJoinCodePending,
-                                    customFamilyName = pendingFamilyName,
+                                    customFamilyName = googleCustomFamilyNamePending.ifBlank { pendingFamilyName },
+                                    customUserAlias = googleCustomAliasPending,
                                     existingPasswordToLink = pass,
                                     onNeedsExistingPassword = {
                                         pendingGoogleEmailToLink = targetEmail
@@ -938,20 +973,37 @@ private fun LoginContent(
     viewModel: FamilyViewModel,
     unlockMethod: String,
     isLoading: Boolean,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     var pin by remember { mutableStateOf("") }
+    var showPin by remember { mutableStateOf(false) }
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val displayAlias = currentUser.takeIf { it.isNotBlank() && !it.contains("@") }
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val activity = remember(context) { context.findFragmentActivity() }
     val biometricAvailable = remember(context) { canAuthenticateBiometric(context) }
     val biometricEnabled = unlockMethod == "biometric" && biometricAvailable
     val s = com.example.ui.LocalFamiStrings.current
+    val paper = FamiTheme.paper
 
     LaunchedEffect(biometricEnabled, activity) {
         if (biometricEnabled && activity != null) {
             showBiometricPrompt(activity, onSuccess = {
                 viewModel.loginBiometric()
             })
+        }
+    }
+
+    val submitPin: (String) -> Unit = { candidate ->
+        if (candidate.length == 5 && !isLoading) {
+            keyboardController?.hide()
+            viewModel.loginWithPin(candidate) { ok ->
+                if (!ok) {
+                    pin = ""
+                }
+            }
         }
     }
 
@@ -983,10 +1035,11 @@ private fun LoginContent(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = s.authUnlockTitle,
+                text = if (displayAlias != null) "¡Hola, $displayAlias!" else s.authUnlockTitle,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
             Text(
                 text = if (biometricEnabled) {
@@ -997,22 +1050,68 @@ private fun LoginContent(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
             )
+
+            // Indicador táctil de 5 puntos del PIN
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 14.dp)
+            ) {
+                repeat(5) { idx ->
+                    val filled = idx < pin.length
+                    Box(
+                        modifier = Modifier
+                            .size(if (filled) 14.dp else 12.dp)
+                            .clip(CircleShape)
+                            .background(if (filled) FamiCoral else paper.sheetCream)
+                            .then(
+                                if (!filled) Modifier.background(paper.sheetCream) else Modifier
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            shape = CircleShape,
+                            color = if (filled) FamiCoral else paper.sheetCream,
+                            border = BorderStroke(1.5.dp, if (filled) FamiCoral else paper.border.copy(alpha = 0.5f))
+                        ) {}
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = pin,
-                onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pin = it },
+                onValueChange = { raw ->
+                    val digits = raw.filter { ch -> ch.isDigit() }.take(5)
+                    pin = digits
+                    if (digits.length == 5) {
+                        submitPin(digits)
+                    }
+                },
                 label = { Text(s.authPinLabel) },
                 leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPin = !showPin }) {
+                        Icon(
+                            if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPin) "Ocultar PIN" else "Mostrar PIN"
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { submitPin(pin) }),
+                visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (biometricEnabled && activity != null) {
@@ -1033,11 +1132,7 @@ private fun LoginContent(
                 Button(
                     onClick = {
                         if (pin.length == 5) {
-                            viewModel.loginWithPin(pin) { ok ->
-                                if (!ok) {
-                                    pin = ""
-                                }
-                            }
+                            submitPin(pin)
                         } else {
                             Toast.makeText(context, s.authUnlockSubPin, Toast.LENGTH_SHORT).show()
                         }
@@ -1053,12 +1148,68 @@ private fun LoginContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            TextButton(onClick = onReset) {
-                Text(s.authSwitchMethodBtn, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onReset) {
+                    Text(s.authSwitchMethodBtn, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton(onClick = onLogout) {
+                    Text(
+                        "Cerrar sesión",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (paper.isDark) FamiCoralLight else FamiCoralDeep
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun PasswordStrengthBar(password: String) {
+    if (password.isEmpty()) return
+    val paper = FamiTheme.paper
+    val hasLetter = password.any { it.isLetter() }
+    val hasDigit = password.any { it.isDigit() }
+    val hasSymbol = password.any { !it.isLetterOrDigit() }
+    val score = when {
+        password.length < 6 -> 1
+        password.length >= 10 && hasLetter && hasDigit && hasSymbol -> 3
+        password.length >= 8 && hasLetter && hasDigit -> 3
+        else -> 2
+    }
+    val (label, barColor, progress) = when (score) {
+        1 -> Triple("Muy corta (mín. 6 caracteres)", FamiAlertRed, 0.33f)
+        2 -> Triple("Aceptable (añade números para reforzar)", FamiGold, 0.66f)
+        else -> Triple("Contraseña segura ✓", FamiEmerald, 1f)
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(99.dp)),
+            color = barColor,
+            trackColor = paper.ruleLine
+        )
+        Text(
+            text = label,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (score == 1 && paper.isDark) FamiCoralLight else barColor
+        )
     }
 }
 
@@ -1073,10 +1224,11 @@ private fun CreateFamilyContent(
     isLoading: Boolean = false,
     onBack: () -> Unit,
     onSwitchToLogin: () -> Unit,
-    onForgotPassword: () -> Unit = {},
+    onForgotPassword: (String) -> Unit = {},
     onContinueWithGoogle: (String, String) -> Unit
 ) {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
     var familyNameInput by remember(initialFamilyName) { mutableStateOf(initialFamilyName) }
     var userNameInput by remember(pendingAlias) {
@@ -1086,6 +1238,37 @@ private fun CreateFamilyContent(
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var showPin by remember { mutableStateOf(false) }
+    var attemptedSubmit by remember { mutableStateOf(false) }
+
+    val aliasError = attemptedSubmit && !viewModel.isValidAlias(userNameInput)
+    val emailError = (attemptedSubmit || email.contains("@")) && email.isNotBlank() && !viewModel.isValidEmailFormat(email)
+    val emailMissingError = attemptedSubmit && email.isBlank()
+    val passwordError = attemptedSubmit && password.length < 6
+    val pinError = (attemptedSubmit && !viewModel.isValidPin(pin)) || (pin.length == 5 && pin == "00000")
+
+    val submitCreate: () -> Unit = {
+        attemptedSubmit = true
+        val cleanAlias = userNameInput.trim()
+        if (!viewModel.isValidAlias(cleanAlias)) {
+            Toast.makeText(context, "Escribe tu Alias (mínimo 2 letras, sin correo electrónico)", Toast.LENGTH_SHORT).show()
+        } else if (!viewModel.isValidEmailFormat(email)) {
+            Toast.makeText(context, "Ingresa un correo electrónico real y válido", Toast.LENGTH_SHORT).show()
+        } else if (password.length < 6) {
+            Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
+        } else if (!viewModel.isValidPin(pin)) {
+            Toast.makeText(context, "El PIN debe ser de 5 dígitos y distinto de 00000", Toast.LENGTH_SHORT).show()
+        } else {
+            keyboardController?.hide()
+            viewModel.createFamily(
+                email = email.trim(),
+                pin = pin,
+                password = password,
+                customFamilyName = familyNameInput.trim(),
+                customUserName = cleanAlias
+            )
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1146,6 +1329,10 @@ private fun CreateFamilyContent(
                 placeholder = { Text(if (managementMode == "individual") "Ej: Mis Finanzas" else "Ej: Familia Pérez") },
                 leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1158,7 +1345,15 @@ private fun CreateFamilyContent(
                 label = { Text("Tu Nombre o Alias (obligatorio)") },
                 placeholder = { Text("Ej: Mamá, Carlos, Sofía...") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                isError = aliasError,
+                supportingText = if (aliasError) {
+                    { Text("Ingresa un alias de al menos 2 letras (sin correo electrónico)") }
+                } else null,
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1170,10 +1365,21 @@ private fun CreateFamilyContent(
                 onValueChange = { email = it },
                 label = { Text("Correo Electrónico Válido") },
                 placeholder = { Text("tucorreo@gmail.com") },
-                supportingText = { Text("Te enviaremos un correo para verificar tu cuenta y recuperarla si olvidas tu clave") },
+                isError = emailError || emailMissingError,
+                supportingText = {
+                    Text(
+                        when {
+                            emailError || emailMissingError -> "Ingresa un correo electrónico real y válido (ej. nombre@gmail.com)"
+                            else -> "Te enviaremos un correo para verificar tu cuenta y recuperarla si olvidas tu clave"
+                        }
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1184,7 +1390,14 @@ private fun CreateFamilyContent(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Contraseña de Acceso") },
-                supportingText = { Text("Mínimo 6 caracteres") },
+                isError = passwordError,
+                supportingText = {
+                    if (password.isEmpty()) {
+                        Text("Mínimo 6 caracteres")
+                    } else {
+                        PasswordStrengthBar(password)
+                    }
+                },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
@@ -1196,6 +1409,10 @@ private fun CreateFamilyContent(
                 },
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1204,12 +1421,33 @@ private fun CreateFamilyContent(
 
             OutlinedTextField(
                 value = pin,
-                onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pin = it },
+                onValueChange = { pin = it.filter { ch -> ch.isDigit() }.take(5) },
                 label = { Text("PIN de Respaldo (5 dígitos)") },
-                supportingText = { Text("Luego elegirás si entrar con Huella o PIN") },
+                isError = pinError,
+                supportingText = {
+                    Text(
+                        when {
+                            pin == "00000" -> "Por seguridad, el PIN no puede ser 00000"
+                            pinError -> "Escribe exactamente 5 dígitos numéricos (${pin.length}/5)"
+                            else -> "Luego elegirás si entrar con Huella o PIN (${pin.length}/5)"
+                        }
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPin = !showPin }) {
+                        Icon(
+                            if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPin) "Ocultar PIN" else "Mostrar PIN"
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { submitCreate() }),
+                visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1218,26 +1456,7 @@ private fun CreateFamilyContent(
             Spacer(modifier = Modifier.height(18.dp))
 
             Button(
-                onClick = {
-                    val cleanAlias = userNameInput.trim()
-                    if (cleanAlias.isBlank() || cleanAlias.contains("@")) {
-                        Toast.makeText(context, "Escribe tu Alias (sin correo electrónico) para identificarte en la app", Toast.LENGTH_SHORT).show()
-                    } else if (!viewModel.isValidEmailFormat(email)) {
-                        Toast.makeText(context, "Ingresa un correo electrónico real y válido", Toast.LENGTH_SHORT).show()
-                    } else if (password.length < 6) {
-                        Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
-                    } else if (pin.length != 5 || pin == "00000") {
-                        Toast.makeText(context, "El PIN debe ser de 5 dígitos y distinto de 00000", Toast.LENGTH_SHORT).show()
-                    } else {
-                        viewModel.createFamily(
-                            email = email.trim(),
-                            pin = pin,
-                            password = password,
-                            customFamilyName = familyNameInput.trim(),
-                            customUserName = cleanAlias
-                        )
-                    }
-                },
+                onClick = submitCreate,
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1259,7 +1478,7 @@ private fun CreateFamilyContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onForgotPassword) {
+                TextButton(onClick = { onForgotPassword(email.trim()) }) {
                     Text("¿Olvidaste tu contraseña?", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 }
                 TextButton(onClick = onSwitchToLogin) {
@@ -1278,10 +1497,11 @@ private fun JoinFamilyContent(
     viewModel: FamilyViewModel,
     isLoading: Boolean,
     onBack: () -> Unit,
-    onForgotPassword: () -> Unit,
+    onForgotPassword: (String) -> Unit,
     onContinueWithGoogle: (String, String) -> Unit
 ) {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val pendingAlias by viewModel.pendingUserAlias.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf("") }
     var name by remember(pendingAlias) {
@@ -1291,6 +1511,34 @@ private fun JoinFamilyContent(
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var showPin by remember { mutableStateOf(false) }
+    var attemptedSubmit by remember { mutableStateOf(false) }
+
+    val codeError = attemptedSubmit && code.length < 4
+    val nameError = attemptedSubmit && !viewModel.isValidAlias(name)
+    val emailError = attemptedSubmit && !viewModel.isValidEmailFormat(email)
+    val passError = attemptedSubmit && password.length < 6
+    val pinError = (attemptedSubmit && !viewModel.isValidPin(pin)) || (pin.length == 5 && pin == "00000")
+
+    val submitJoin: () -> Unit = {
+        attemptedSubmit = true
+        val normalizedCode = viewModel.normalizeFamilyCode(code)
+        val cleanName = name.trim()
+        if (normalizedCode.length < 4) {
+            Toast.makeText(context, "Ingresa el código familiar (mínimo 4 caracteres)", Toast.LENGTH_SHORT).show()
+        } else if (!viewModel.isValidAlias(cleanName)) {
+            Toast.makeText(context, "Escribe tu nombre o alias (sin correo electrónico)", Toast.LENGTH_SHORT).show()
+        } else if (!viewModel.isValidEmailFormat(email)) {
+            Toast.makeText(context, "Ingresa un correo electrónico válido", Toast.LENGTH_SHORT).show()
+        } else if (password.length < 6) {
+            Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
+        } else if (!viewModel.isValidPin(pin)) {
+            Toast.makeText(context, "El PIN debe ser de 5 dígitos y distinto de 00000", Toast.LENGTH_SHORT).show()
+        } else {
+            keyboardController?.hide()
+            viewModel.joinFamily(normalizedCode, cleanName, pin, email.trim(), password)
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1327,10 +1575,18 @@ private fun JoinFamilyContent(
 
             OutlinedTextField(
                 value = code,
-                onValueChange = { code = it },
+                onValueChange = { code = viewModel.normalizeFamilyCode(it).take(16) },
                 label = { Text("Código Familiar (Ej: A1B2C3D4)") },
                 leadingIcon = { Icon(Icons.Default.Group, contentDescription = null) },
+                isError = codeError,
+                supportingText = if (codeError) {
+                    { Text("Pídele el código de 8 caracteres al administrador del hogar") }
+                } else null,
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1341,10 +1597,12 @@ private fun JoinFamilyContent(
                 text = "Unirme con Google",
                 enabled = !isLoading,
                 onClick = {
-                    if (code.isBlank()) {
+                    val normalizedCode = viewModel.normalizeFamilyCode(code)
+                    if (normalizedCode.length < 4) {
+                        attemptedSubmit = true
                         Toast.makeText(context, "Primero ingresa el código familiar arriba", Toast.LENGTH_SHORT).show()
                     } else {
-                        onContinueWithGoogle(code.trim(), name.trim())
+                        onContinueWithGoogle(normalizedCode, name.trim())
                     }
                 }
             )
@@ -1363,7 +1621,15 @@ private fun JoinFamilyContent(
                 onValueChange = { name = it },
                 label = { Text("Tu Nombre o Alias") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                isError = nameError,
+                supportingText = if (nameError) {
+                    { Text("Escribe tu alias (mín. 2 letras, sin correo electrónico)") }
+                } else null,
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1375,8 +1641,15 @@ private fun JoinFamilyContent(
                 onValueChange = { email = it },
                 label = { Text("Tu Correo Electrónico Válido") },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                isError = emailError,
+                supportingText = if (emailError) {
+                    { Text("Ingresa un correo electrónico válido") }
+                } else null,
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1388,6 +1661,12 @@ private fun JoinFamilyContent(
                 onValueChange = { password = it },
                 label = { Text("Contraseña (mínimo 6 caracteres)") },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                isError = passError,
+                supportingText = if (password.isNotEmpty()) {
+                    { PasswordStrengthBar(password) }
+                } else if (passError) {
+                    { Text("Mínimo 6 caracteres") }
+                } else null,
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
@@ -1398,6 +1677,10 @@ private fun JoinFamilyContent(
                 },
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1406,11 +1689,33 @@ private fun JoinFamilyContent(
 
             OutlinedTextField(
                 value = pin,
-                onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pin = it },
+                onValueChange = { pin = it.filter { ch -> ch.isDigit() }.take(5) },
                 label = { Text("Crea tu PIN de 5 dígitos") },
                 leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                visualTransformation = PasswordVisualTransformation(),
+                isError = pinError,
+                supportingText = {
+                    Text(
+                        when {
+                            pin == "00000" -> "Por seguridad, el PIN no puede ser 00000"
+                            pinError -> "Debe tener exactamente 5 dígitos (${pin.length}/5)"
+                            else -> "Para desbloquear Fami rápidamente (${pin.length}/5)"
+                        }
+                    )
+                },
+                trailingIcon = {
+                    IconButton(onClick = { showPin = !showPin }) {
+                        Icon(
+                            if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPin) "Ocultar PIN" else "Mostrar PIN"
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { submitJoin() }),
+                visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1419,13 +1724,7 @@ private fun JoinFamilyContent(
             Spacer(modifier = Modifier.height(18.dp))
 
             Button(
-                onClick = {
-                    if (code.isBlank() || name.isBlank() || !viewModel.isValidEmailFormat(email) || password.length < 6 || pin.length != 5 || pin == "00000") {
-                        Toast.makeText(context, "Completa todos los campos con un correo válido y PIN de 5 dígitos (distinto de 00000)", Toast.LENGTH_SHORT).show()
-                    } else {
-                        viewModel.joinFamily(code.trim(), name.trim(), pin, email.trim(), password)
-                    }
-                },
+                onClick = submitJoin,
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1446,7 +1745,7 @@ private fun JoinFamilyContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
-                TextButton(onClick = onForgotPassword) {
+                TextButton(onClick = { onForgotPassword(email.trim()) }) {
                     Text("¿Olvidaste tu contraseña? Recupérala aquí", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 }
             }
@@ -1463,14 +1762,31 @@ private fun LoginExistingFamilyContent(
     isLoading: Boolean,
     onBack: () -> Unit,
     onSwitchToRegister: () -> Unit,
-    onForgotPassword: () -> Unit,
+    onForgotPassword: (String) -> Unit,
     onContinueWithGoogle: () -> Unit
 ) {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var showPin by remember { mutableStateOf(false) }
+    var attemptedSubmit by remember { mutableStateOf(false) }
+
+    val emailError = attemptedSubmit && !viewModel.isValidEmailFormat(email)
+    val passError = attemptedSubmit && password.length < 6
+    val pinError = (attemptedSubmit && !viewModel.isValidPin(pin)) || (pin.length == 5 && pin == "00000")
+
+    val submitLogin: () -> Unit = {
+        attemptedSubmit = true
+        if (viewModel.isValidEmailFormat(email) && password.length >= 6 && viewModel.isValidPin(pin)) {
+            keyboardController?.hide()
+            viewModel.loginExisting(email.trim(), password, pin)
+        } else {
+            Toast.makeText(context, "Ingresa correo válido, contraseña y PIN de 5 dígitos (distinto de 00000)", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1525,8 +1841,15 @@ private fun LoginExistingFamilyContent(
                 onValueChange = { email = it },
                 label = { Text("Correo Electrónico") },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                isError = emailError,
+                supportingText = if (emailError) {
+                    { Text("Ingresa un correo electrónico válido") }
+                } else null,
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1538,6 +1861,10 @@ private fun LoginExistingFamilyContent(
                 onValueChange = { password = it },
                 label = { Text("Contraseña") },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                isError = passError,
+                supportingText = if (passError) {
+                    { Text("Mínimo 6 caracteres") }
+                } else null,
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
                         Icon(
@@ -1548,6 +1875,10 @@ private fun LoginExistingFamilyContent(
                 },
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1556,11 +1887,33 @@ private fun LoginExistingFamilyContent(
 
             OutlinedTextField(
                 value = pin,
-                onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pin = it },
+                onValueChange = { pin = it.filter { ch -> ch.isDigit() }.take(5) },
                 label = { Text("PIN Rápido para este dispositivo (5 dígitos)") },
                 leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                visualTransformation = PasswordVisualTransformation(),
+                isError = pinError,
+                supportingText = {
+                    Text(
+                        when {
+                            pin == "00000" -> "Por seguridad, el PIN no puede ser 00000"
+                            pinError -> "Escribe 5 dígitos numéricos (${pin.length}/5)"
+                            else -> "Se guarda solo en este teléfono para abrir más rápido (luego puedes activar Huella)"
+                        }
+                    )
+                },
+                trailingIcon = {
+                    IconButton(onClick = { showPin = !showPin }) {
+                        Icon(
+                            if (showPin) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPin) "Ocultar PIN" else "Mostrar PIN"
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { submitLogin() }),
+                visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1569,13 +1922,7 @@ private fun LoginExistingFamilyContent(
             Spacer(modifier = Modifier.height(20.dp))
 
             Button(
-                onClick = {
-                    if (viewModel.isValidEmailFormat(email) && password.length >= 6 && pin.length == 5 && pin != "00000") {
-                        viewModel.loginExisting(email.trim(), password, pin)
-                    } else {
-                        Toast.makeText(context, "Ingresa correo válido, contraseña y PIN de 5 dígitos (distinto de 00000)", Toast.LENGTH_SHORT).show()
-                    }
-                },
+                onClick = submitLogin,
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1597,7 +1944,7 @@ private fun LoginExistingFamilyContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onForgotPassword) {
+                TextButton(onClick = { onForgotPassword(email.trim()) }) {
                     Text("¿Olvidaste tu contraseña?", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 }
 
@@ -1621,10 +1968,25 @@ private fun VerifyEmailContent(
     onCancel: () -> Unit
 ) {
     val paper = FamiTheme.paper
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var resendCooldown by remember { mutableIntStateOf(45) }
+    var hasLeftForMailApp by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        while (resendCooldown > 0) {
+    // Auto-verificar cuando el usuario vuelve a Fami desde su app de correo
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && hasLeftForMailApp && !isLoading) {
+                hasLeftForMailApp = false
+                onCheckVerified()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
             delay(1000)
             resendCooldown--
         }
@@ -1659,14 +2021,39 @@ private fun VerifyEmailContent(
             )
 
             Text(
-                text = "Enviamos un enlace de aprobación oficial a:\n$email\n\nÁbrelo desde tu bandeja de entrada (o Spam) para confirmar que es un correo válido y poder recuperar tu cuenta si olvidas la clave.",
+                text = "Enviamos un enlace de aprobación oficial a:\n$email\n\nÁbrelo desde tu bandeja de entrada (o Spam). Al volver a Fami verificaremos tu cuenta automáticamente.",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = 19.sp
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            OutlinedButton(
+                onClick = {
+                    val mailIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_APP_EMAIL)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    try {
+                        hasLeftForMailApp = true
+                        context.startActivity(mailIntent)
+                    } catch (_: Exception) {
+                        hasLeftForMailApp = false
+                        Toast.makeText(context, "Abre tu app de correo y toca el enlace enviado a $email", Toast.LENGTH_LONG).show()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.4.dp, FamiCoral)
+            ) {
+                Icon(Icons.Default.Email, contentDescription = null, tint = FamiCoral, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Abrir app de correo", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = FamiCoral)
+            }
 
             Button(
                 onClick = onCheckVerified,
@@ -1713,12 +2100,14 @@ private fun VerifyEmailContent(
 @Composable
 private fun ForgotPasswordContent(
     viewModel: FamilyViewModel,
+    initialEmail: String = "",
+    initialEmailSent: Boolean = false,
     isLoading: Boolean,
     onBackToLogin: () -> Unit
 ) {
     val paper = FamiTheme.paper
-    var email by remember { mutableStateOf("") }
-    var emailSent by remember { mutableStateOf(false) }
+    var email by remember(initialEmail) { mutableStateOf(initialEmail) }
+    var emailSent by remember(initialEmailSent) { mutableStateOf(initialEmailSent) }
     var codeOrLinkInput by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var showNewPassword by remember { mutableStateOf(false) }
@@ -1762,7 +2151,10 @@ private fun ForgotPasswordContent(
                     placeholder = { Text("tucorreo@gmail.com") },
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Done
+                    ),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1773,7 +2165,7 @@ private fun ForgotPasswordContent(
                             emailSent = true
                         }
                     },
-                    enabled = !isLoading,
+                    enabled = !isLoading && email.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -1873,10 +2265,21 @@ private fun ChooseUnlockMethodContent(
             ?: currentUser.takeIf { it.isNotBlank() && !it.contains("@") }.orEmpty()
     }
     var aliasInput by remember(initialAlias) { mutableStateOf(initialAlias) }
+    var alreadyHasPin by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        alreadyHasPin = viewModel.hasConfiguredPin()
+    }
 
     val biometricSupported = remember(context) { canAuthenticateBiometric(context) }
     var selectedOption by remember { mutableStateOf(if (biometricSupported) "biometric" else "pin") }
     var pinConfirm by remember { mutableStateOf("") }
+    var showPinConfirm by remember { mutableStateOf(false) }
+    var attemptedSubmit by remember { mutableStateOf(false) }
+
+    val pinRequiredNow = selectedOption == "pin" && !alreadyHasPin
+    val pinError = (attemptedSubmit && pinRequiredNow && !viewModel.isValidPin(pinConfirm)) ||
+        (pinConfirm.isNotEmpty() && pinConfirm.length == 5 && pinConfirm == "00000")
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1910,7 +2313,15 @@ private fun ChooseUnlockMethodContent(
                 label = { Text("Tu Alias en Fami (obligatorio)") },
                 placeholder = { Text("Ej: Mamá, Carlos, Sofía...") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                isError = attemptedSubmit && !viewModel.isValidAlias(aliasInput),
+                supportingText = if (attemptedSubmit && !viewModel.isValidAlias(aliasInput)) {
+                    { Text("Escribe un alias de al menos 2 letras (sin correo)") }
+                } else null,
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1981,11 +2392,34 @@ private fun ChooseUnlockMethodContent(
 
             OutlinedTextField(
                 value = pinConfirm,
-                onValueChange = { if (it.length <= 5 && it.all { ch -> ch.isDigit() }) pinConfirm = it },
-                label = { Text(if (selectedOption == "pin") "Define tu PIN de 5 dígitos" else "PIN de respaldo (opcional si ya lo creaste)") },
+                onValueChange = { pinConfirm = it.filter { ch -> ch.isDigit() }.take(5) },
+                label = {
+                    Text(
+                        when {
+                            pinRequiredNow -> "Define tu PIN de 5 dígitos (obligatorio)"
+                            alreadyHasPin -> "Cambiar PIN (opcional, ya configuraste uno)"
+                            else -> "PIN de respaldo de 5 dígitos (opcional)"
+                        }
+                    )
+                },
+                isError = pinError,
+                supportingText = if (pinError) {
+                    { Text("Debe ser de 5 dígitos y distinto de 00000 (${pinConfirm.length}/5)") }
+                } else null,
                 leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPinConfirm = !showPinConfirm }) {
+                        Icon(
+                            if (showPinConfirm) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPinConfirm) "Ocultar PIN" else "Mostrar PIN"
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                visualTransformation = if (showPinConfirm) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1993,16 +2427,21 @@ private fun ChooseUnlockMethodContent(
 
             Button(
                 onClick = {
+                    attemptedSubmit = true
                     val cleanAlias = aliasInput.trim()
-                    if (cleanAlias.isBlank() || cleanAlias.contains("@")) {
-                        Toast.makeText(context, "Escribe un alias (sin correo electrónico) para identificarte", Toast.LENGTH_SHORT).show()
+                    if (!viewModel.isValidAlias(cleanAlias)) {
+                        Toast.makeText(context, "Escribe un alias válido (mín. 2 letras, sin correo)", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    if (pinConfirm.isNotEmpty() && (pinConfirm.length != 5 || pinConfirm == "00000")) {
+                    if (pinConfirm.isNotEmpty() && !viewModel.isValidPin(pinConfirm)) {
                         Toast.makeText(context, "El PIN debe tener 5 dígitos y no puede ser 00000", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    val cleanPin = pinConfirm.takeIf { it.length == 5 && it != "00000" }
+                    if (pinRequiredNow && !viewModel.isValidPin(pinConfirm)) {
+                        Toast.makeText(context, "Define un PIN de 5 dígitos distinto de 00000", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    val cleanPin = pinConfirm.takeIf { viewModel.isValidPin(it) }
                     if (selectedOption == "biometric" && biometricSupported && activity != null) {
                         showBiometricPrompt(activity, onSuccess = {
                             viewModel.setUnlockMethodAndEnter("biometric", cleanPin, customAlias = cleanAlias)

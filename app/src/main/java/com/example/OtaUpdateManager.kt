@@ -44,7 +44,8 @@ object OtaUpdateManager {
         val latestVersionCode: Int,
         val latestVersionName: String = "",
         val downloadUrl: String,
-        val expectedApkSha256: String = ""
+        val expectedApkSha256: String = "",
+        val changelog: String = ""
     )
 
     private val client by lazy {
@@ -121,7 +122,7 @@ object OtaUpdateManager {
             .mapNotNull { part -> part.takeWhile { it.isDigit() }.toIntOrNull() }
     }
 
-    suspend fun checkForUpdates(context: Context): UpdateInfo = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdates(context: Context, ignoreDismissed: Boolean = false): UpdateInfo = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
         try {
             val currentVersionCode = getInstalledVersionCode(appContext)
@@ -150,6 +151,7 @@ object OtaUpdateManager {
                 val latestCode = json.optInt("latestVersionCode", 0)
                 val latestName = json.optString("latestVersionName", "").trim()
                 val downloadUrl = json.optString("latestApkUrl", "").trim()
+                val changelog = json.optString("changelog", "").trim()
                 val expectedSha256 = json.optString("sha256", "")
                     .ifBlank { json.optString("apkSha256", "") }
                     .trim()
@@ -166,7 +168,7 @@ object OtaUpdateManager {
                 val isNewerThanInstalled = latestCode > currentVersionCode ||
                     (latestCode == currentVersionCode && nameCmp > 0)
                 val notDowngrade = latestCode >= currentVersionCode && nameCmp >= 0
-                val notDismissed = latestCode > dismissedCode ||
+                val notDismissed = ignoreDismissed || latestCode > dismissedCode ||
                     (latestCode == dismissedCode && nameCmp > 0 && latestCode > currentVersionCode)
                 val isHttpsDownload = downloadUrl.startsWith("https://", ignoreCase = true)
 
@@ -177,7 +179,8 @@ object OtaUpdateManager {
                     latestVersionCode = latestCode,
                     latestVersionName = latestName,
                     downloadUrl = if (isHttpsDownload) downloadUrl else "",
-                    expectedApkSha256 = expectedSha256
+                    expectedApkSha256 = expectedSha256,
+                    changelog = changelog
                 )
             }
         } catch (e: CancellationException) {

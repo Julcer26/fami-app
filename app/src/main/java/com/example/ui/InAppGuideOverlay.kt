@@ -81,6 +81,7 @@ private data class CoachMarkStep(
 @Composable
 fun InAppGuideOverlay(
     appLanguage: String = "es",
+    isIndividualMode: Boolean = false,
     onSwitchTab: (String) -> Unit,
     onEnsureDashboardScroll: suspend (Int) -> Unit = {},
     onDismiss: () -> Unit
@@ -90,34 +91,82 @@ fun InAppGuideOverlay(
     val registry = LocalTourRegistry.current
     val lang = appLanguage.lowercase()
 
-    val steps = remember(lang) {
+    val steps = remember(lang, isIndividualMode) {
         when (lang) {
             "en" -> listOf(
                 CoachMarkStep("balance_sheet", "inicio", 1, "1 / 7", "Available Balance & Currency", "See the total sum of your wallets here. Tap the currency pill to switch between currencies."),
                 CoachMarkStep("quick_note_actions", "inicio", 2, "2 / 7", "Type, Speak or Scan", "Write an expense, tap Mic to dictate, Send to save, or Scan / Gallery to read receipts with AI."),
                 CoachMarkStep("calendar_section", "inicio", 4, "3 / 7", "Physical Spiral Calendar", "Swipe or tap the arrows to flip months and tap any day to inspect expenses and tasks."),
                 CoachMarkStep("tab_cuentas", "cuentas", null, "4 / 7", "Finances & Wallets", "Manage your multi-currency wallets, transfer funds, update monthly income, and export CSV."),
-                CoachMarkStep("tab_tareas", "tareas", null, "5 / 7", "Household Tasks", "Create chores for a specific person or for everyone—Fami sends a push alert to the assignee!"),
-                CoachMarkStep("tab_compras", "compras", null, "6 / 7", "Market & Piggy Bank", "Keep shared grocery lists here, and use Piggy Bank (next tab) for savings goals and ruled notes."),
-                CoachMarkStep("btn_settings", "inicio", 0, "7 / 7", "Settings & Family Code", "Tap this gear icon to change Face/Fingerprint/PIN lock, Dark Mode, avatar, or replay this guide.")
+                CoachMarkStep(
+                    "tab_tareas",
+                    "tareas",
+                    null,
+                    "5 / 7",
+                    if (isIndividualMode) "Personal Tasks" else "Household Tasks",
+                    if (isIndividualMode) "Organize your daily to-dos by priority and custom lists, and check them off with confetti."
+                    else "Create chores for a specific person or for everyone—Fami sends a push alert to the assignee!"
+                ),
+                CoachMarkStep("tab_compras", "compras", null, "6 / 7", "Market & Piggy Bank", if (isIndividualMode) "Keep your shopping lists here, and use Piggy Bank (next tab) for savings goals and ruled notes." else "Keep shared grocery lists here, and use Piggy Bank (next tab) for savings goals and ruled notes."),
+                CoachMarkStep(
+                    "btn_settings",
+                    "inicio",
+                    0,
+                    "7 / 7",
+                    if (isIndividualMode) "Settings & Security" else "Settings & Family Code",
+                    if (isIndividualMode) "Tap this gear icon to change Fingerprint/PIN lock, Dark Mode, avatar, OTA updates, or switch mode."
+                    else "Tap this gear icon to change Fingerprint/PIN lock, Dark Mode, avatar, Family Code, or replay this guide."
+                )
             )
             "pt" -> listOf(
                 CoachMarkStep("balance_sheet", "inicio", 1, "1 / 7", "Saldo Disponível e Moeda", "Veja aqui a soma das suas carteiras. Toque no botão de moeda para alternar rapidamente."),
                 CoachMarkStep("quick_note_actions", "inicio", 2, "2 / 7", "Escreva, Fale ou Escaneie", "Digite um gasto, use o Microfone para ditar, Enviar para salvar ou Escanear / Galeria para recibos."),
                 CoachMarkStep("calendar_section", "inicio", 4, "3 / 7", "Calendário em Espiral", "Deslize ou toque nas setas para mudar de mês e toque em qualquer dia para ver detalhes."),
                 CoachMarkStep("tab_cuentas", "cuentas", null, "4 / 7", "Finanças e Carteiras", "Gerencie suas carteiras, faça transferências, edite sua renda mensal e exporte CSV."),
-                CoachMarkStep("tab_tareas", "tareas", null, "5 / 7", "Tarefas da Casa", "Atribua tarefas a alguém específico ou para Todos — o app envia uma notificação push!"),
+                CoachMarkStep(
+                    "tab_tareas",
+                    "tareas",
+                    null,
+                    "5 / 7",
+                    if (isIndividualMode) "Suas Tarefas" else "Tarefas da Casa",
+                    if (isIndividualMode) "Organize suas tarefas por prioridade e listas personalizadas no seu ritmo."
+                    else "Atribua tarefas a alguém específico ou para Todos — o app envia uma notificação push!"
+                ),
                 CoachMarkStep("tab_compras", "compras", null, "6 / 7", "Mercado e Cofrinho", "Organize listas de compras aqui e use o Cofrinho ao lado para metas e notas pautadas."),
-                CoachMarkStep("btn_settings", "inicio", 0, "7 / 7", "Ajustes e Código Familiar", "Toque nesta engrenagem para configurar Digital/PIN, Modo Escuro, avatar ou rever este guia.")
+                CoachMarkStep(
+                    "btn_settings",
+                    "inicio",
+                    0,
+                    "7 / 7",
+                    if (isIndividualMode) "Ajustes e Segurança" else "Ajustes e Código Familiar",
+                    if (isIndividualMode) "Toque nesta engrenagem para configurar Digital/PIN, Modo Escuro, avatar ou atualizações OTA."
+                    else "Toque nesta engrenagem para configurar Digital/PIN, Modo Escuro, avatar, Código Familiar ou rever este guia."
+                )
             )
             else -> listOf(
                 CoachMarkStep("balance_sheet", "inicio", 1, "1 / 7", "Saldo Disponible y Moneda", "Aquí ves la suma de tus billeteras en tu moneda preferida. Toca el botón de moneda para alternarla."),
                 CoachMarkStep("quick_note_actions", "inicio", 2, "2 / 7", "Escribe, Habla o Escanea", "Escribe tu gasto, usa el Micrófono para dictar, Enviar para registrar o Escanear / Galería para recibos con IA."),
                 CoachMarkStep("calendar_section", "inicio", 4, "3 / 7", "Calendario Físico", "Desliza o usa las flechas para cambiar de mes y toca cualquier día para ver tus gastos y tareas."),
                 CoachMarkStep("tab_cuentas", "cuentas", null, "4 / 7", "Pestaña Finanzas", "Crea y edita tus billeteras, transfiere saldos entre ellas, ajusta tu ingreso mensual y exporta a CSV."),
-                CoachMarkStep("tab_tareas", "tareas", null, "5 / 7", "Pestaña Tareas", "Asigna tareas del hogar a una persona o a Todos: Fami enviará una notificación push al destinatario."),
-                CoachMarkStep("tab_compras", "compras", null, "6 / 7", "Mercado y Alcancía", "Lleva tus listas de compras aquí, y en Alcancía (botón derecho) guarda tus metas de ahorro y notas."),
-                CoachMarkStep("btn_settings", "inicio", 0, "7 / 7", "Botón de Ajustes", "Toca este engranaje para cambiar Huella o PIN, Modo Oscuro, tu avatar, Código Familiar o repetir la guía.")
+                CoachMarkStep(
+                    "tab_tareas",
+                    "tareas",
+                    null,
+                    "5 / 7",
+                    if (isIndividualMode) "Tus Tareas" else "Pestaña Tareas",
+                    if (isIndividualMode) "Organiza tus pendientes diarios por prioridad y listas personalizadas sin distracciones."
+                    else "Asigna tareas del hogar a una persona o a Todos: Fami enviará una notificación push al destinatario."
+                ),
+                CoachMarkStep("tab_compras", "compras", null, "6 / 7", "Mercado y Alcancía", if (isIndividualMode) "Lleva tus listas de compras aquí, y en Alcancía (botón derecho) guarda tus metas de ahorro y notas." else "Lleva tus listas de compras compartidas aquí, y en Alcancía (botón derecho) guarda tus metas y notas."),
+                CoachMarkStep(
+                    "btn_settings",
+                    "inicio",
+                    0,
+                    "7 / 7",
+                    if (isIndividualMode) "Ajustes y Seguridad" else "Botón de Ajustes",
+                    if (isIndividualMode) "Toca este engranaje para cambiar Huella o PIN, Modo Oscuro, tu avatar, buscar actualizaciones OTA o repetir la guía."
+                    else "Toca este engranaje para cambiar Huella o PIN, Modo Oscuro, tu avatar, Código Familiar o repetir la guía."
+                )
             )
         }
     }

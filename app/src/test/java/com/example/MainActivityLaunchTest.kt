@@ -60,6 +60,44 @@ class MainActivityLaunchTest {
     }
 
     @Test
+    fun onboardingScreen_individualDarkMode_composesWithoutCrashing() {
+        composeTestRule.setContent {
+            MyApplicationTheme(darkTheme = true) {
+                OnboardingScreen(
+                    initialCountryCode = "US",
+                    initialPrimaryCurrency = "USD",
+                    initialSecondaryCurrency = "USD",
+                    initialManagementMode = "individual",
+                    onComplete = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().assertExists()
+    }
+
+    @Test
+    fun familyViewModel_authValidationHelpers_validateAliasPinAndFamilyCode() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val vm = com.example.viewmodel.FamilyViewModelFactory(context)
+            .create(com.example.viewmodel.FamilyViewModel::class.java)
+
+        org.junit.Assert.assertTrue(vm.isValidAlias("Carlos"))
+        org.junit.Assert.assertTrue(vm.isValidAlias("Mamá"))
+        org.junit.Assert.assertFalse(vm.isValidAlias("A"))
+        org.junit.Assert.assertFalse(vm.isValidAlias("carlos@gmail.com"))
+        org.junit.Assert.assertFalse(vm.isValidAlias("   "))
+
+        org.junit.Assert.assertTrue(vm.isValidPin("12345"))
+        org.junit.Assert.assertFalse(vm.isValidPin("00000"))
+        org.junit.Assert.assertFalse(vm.isValidPin("1234"))
+        org.junit.Assert.assertFalse(vm.isValidPin("12a45"))
+
+        org.junit.Assert.assertEquals("A1B2C3D4", vm.normalizeFamilyCode("  a1b2 c3d4! "))
+        org.junit.Assert.assertEquals("FAM-2026", vm.normalizeFamilyCode("fam-2026 "))
+    }
+
+    @Test
     fun widgetQuickActivity_launchesWithoutCrashing() {
         val controller = Robolectric.buildActivity(com.example.widget.WidgetQuickActivity::class.java).setup()
         try {

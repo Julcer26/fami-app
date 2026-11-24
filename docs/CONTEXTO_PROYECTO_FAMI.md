@@ -1,14 +1,14 @@
 # 📘 Contexto Maestro del Proyecto — Fami (`app.somosfami`)
 
-> **Última actualización:** 23 de noviembre de 2026  
+> **Última actualización:** 24 de noviembre de 2026  
 > **Repositorio oficial:** `Julcer26/fami-app` (rama `main`)  
 > **Nota histórica:** El repositorio `Julcer26/Nido` es legado y NO debe modificarse para entregas nuevas; toda la marca, código, web y releases actuales son **Fami** (`app.somosfami`, `https://somosfami.app`, `hola@somosfami.app`, `@hola.fami`).
 
 ---
 
 ## 1. Estado Actual de Producción
-- **Versión publicada:** `v3.10.0` (`versionCode = 26`, `minSdk = 24 / Android 7.0+`, `targetSdk = 35`, `compileSdk = 36`).
-- **APK oficial firmado:** `https://github.com/Julcer26/fami-app/releases/download/v3.10.0/Fami_v3.10.0.apk`
+- **Versión publicada:** `v3.11.0` (`versionCode = 27`, `minSdk = 24 / Android 7.0+`, `targetSdk = 35`, `compileSdk = 36`).
+- **APK oficial firmado:** `https://github.com/Julcer26/fami-app/releases/download/v3.11.0/Fami_v3.11.0.apk`
 - **Manifiesto OTA:** [`fami-version.json`](../fami-version.json) (verificación criptográfica `SHA-256` obligatoria antes de instalar).
 - **CI/CD:** [`.github/workflows/android-build.yml`](../.github/workflows/android-build.yml) corre `./gradlew testDebugUnitTest`, compila APKs Debug/Release, publica el Release en GitHub y actualiza `fami-version.json` con un commit `[skip ci]`.
 
@@ -59,6 +59,7 @@
 ---
 
 ## 5. Historial Reciente de Releases
+- **`v3.11.0` (Build 27):** Mejoras integrales de arranque, onboarding y creación de usuario — splash inicial sin parpadeo (`isSessionInitializing`), fix del botón *"¿Ya tienes cuenta? Iniciar Sesión"* desde Onboarding, protección crítica contra sobrescritura de hogar en colisión de correo (`createFamily`), soporte Edge-to-Edge + teclado (`imePadding`) en `AuthScreen`, validación inline + barra de fuerza de contraseña + mostrar/ocultar PIN + auto-submit al 5to dígito, botón *"Abrir app de correo"* con auto-verificación `ON_RESUME`, ocultamiento de Rol Familiar en Modo Individual y deduplicación automática de monedas/billeteras en Onboarding, selector de países buscable en Dashboard, tour interactivo coherente en Modo Individual, contraste Dark Mode reforzado y búsqueda manual de actualizaciones OTA con changelog desde **Ajustes > General**.
 - **`v3.10.0` (Build 26):** Auditoría integral — Onboarding->Auth, validación de Código Familiar, eliminación de perfil fantasma `"Administrador"`, selector y coherencia total Modo Familiar/Individual, multi-moneda completo en IA/recibos/presupuestos, filtros por miembro en tareas, contraste Dark Mode, cero iconos deprecados, legal unificado (`hola@somosfami.app`) y landing page SEO/AEO actualizada.
 - **`v3.9.9` (Build 25):** Eliminación de solicitud repetida de huella/PIN al usar el widget de escritorio.
 - **`v3.9.8` (Build 24):** Corrección de crash al iniciar app en build Release y adición de `MainActivityLaunchTest`.

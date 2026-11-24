@@ -155,6 +155,65 @@ fun OnboardingScreen(
     var editingWalletCurrencyIdx by remember { mutableStateOf<Int?>(null) }
 
     // Detección automática de país por IP al abrir la app
+    val syncCurrenciesAndDraftWallets: (String, String) -> Unit = { rawPrimary, rawSecondary ->
+        val cleanPrimary = CountryCurrencyConfig.normalizeCurrencyCode(rawPrimary)
+        val resolvedSecondary = when {
+            rawSecondary.equals("NONE", ignoreCase = true) -> "NONE"
+            rawSecondary.equals(cleanPrimary, ignoreCase = true) ->
+                if (cleanPrimary == "USD") "EUR" else "USD"
+            else -> CountryCurrencyConfig.normalizeCurrencyCode(rawSecondary)
+        }
+        selectedPrimaryCurrency = cleanPrimary
+        selectedSecondaryCurrency = resolvedSecondary
+        monthlyIncomeCurrency = cleanPrimary
+
+        val updatedWallets = draftWallets.toMutableList()
+        if (updatedWallets.isEmpty()) {
+            updatedWallets.add(
+                DraftWallet(
+                    name = "Billetera Principal",
+                    currency = cleanPrimary,
+                    balanceText = "",
+                    isLocal = true
+                )
+            )
+        } else {
+            val localIdx = updatedWallets.indexOfFirst { it.isLocal }.takeIf { it >= 0 } ?: 0
+            updatedWallets[localIdx] = updatedWallets[localIdx].copy(currency = cleanPrimary, isLocal = true)
+        }
+
+        if (resolvedSecondary == "NONE") {
+            // Quitar billetera secundaria por defecto solo si sigue vacía
+            updatedWallets.removeAll { !it.isLocal && it.balanceText.isBlank() && it.name.startsWith("Billetera") }
+        } else {
+            val nonLocalIdx = updatedWallets.indexOfFirst { !it.isLocal }
+            if (nonLocalIdx >= 0) {
+                val existing = updatedWallets[nonLocalIdx]
+                if (existing.currency.equals(cleanPrimary, ignoreCase = true) || existing.balanceText.isBlank()) {
+                    updatedWallets[nonLocalIdx] = existing.copy(
+                        currency = resolvedSecondary,
+                        name = if (existing.name.startsWith("Billetera")) "Billetera $resolvedSecondary" else existing.name
+                    )
+                }
+            } else if (updatedWallets.none { it.currency.equals(resolvedSecondary, ignoreCase = true) }) {
+                updatedWallets.add(
+                    DraftWallet(
+                        name = "Billetera $resolvedSecondary",
+                        currency = resolvedSecondary,
+                        balanceText = "",
+                        isLocal = false
+                    )
+                )
+            }
+        }
+        // Evitar billeteras por defecto duplicadas con la misma moneda y saldo vacío
+        val seenEmptyCurrencies = mutableSetOf<String>()
+        draftWallets = updatedWallets.filter { w ->
+            if (w.balanceText.isNotBlank()) true
+            else seenEmptyCurrencies.add(w.currency.uppercase())
+        }
+    }
+
     LaunchedEffect(Unit) {
         val detectedCode = BcvExchangeRateService.detectCountryCodeByIp()
             ?: Locale.getDefault().country.takeIf { it.length == 2 }?.uppercase()
@@ -164,13 +223,7 @@ fun OnboardingScreen(
             }
             if (found != null) {
                 selectedCountry = found
-                selectedPrimaryCurrency = found.localCurrency
-                monthlyIncomeCurrency = found.localCurrency
-                if (draftWallets.isNotEmpty()) {
-                    draftWallets = draftWallets.mapIndexed { idx, w ->
-                        if (idx == 0 && w.isLocal) w.copy(currency = found.localCurrency) else w
-                    }
-                }
+                syncCurrenciesAndDraftWallets(found.localCurrency, selectedSecondaryCurrency)
                 ipDetectionState = "detected"
             } else {
                 ipDetectionState = "fallback"
@@ -182,10 +235,15 @@ fun OnboardingScreen(
 
     val strings = remember(selectedLanguage) { FamiStrings.get(selectedLanguage) }
     val isEn = selectedLanguage.lowercase() == "en"
-    val accentCoralText = if (paper.isDark) FamiCoral else FamiCoralDeep
+    val isPt = selectedLanguage.lowercase() == "pt"
+    val accentCoralText = if (paper.isDark) FamiCoralLight else FamiCoralDeep
     val totalPages = 5
     val pagerState = rememberPagerState(pageCount = { totalPages })
-    val finalRole = customRoleInput.trim().ifBlank { selectedRole }
+    val finalRole = if (managementMode == "individual") {
+        "Administrador"
+    } else {
+        customRoleInput.trim().ifBlank { selectedRole }
+    }
 
     val buildFinalWallets: () -> List<Wallet> = {
         draftWallets.mapNotNull { dw ->
@@ -230,6 +288,7 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -510,31 +569,26 @@ fun OnboardingScreen(
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     listOf("USD" to "🇺🇸 USD ($)", "EUR" to "🇪🇺 EUR (€)", "NONE" to "🚫 Solo Local").forEach { (code, label) ->
-                                        val active = selectedSecondaryCurrency.equals(code, ignoreCase = true)
-                                        Tactile3DButton(
-                                            onClick = {
-                                                selectedSecondaryCurrency = code
-                                                if (code != "NONE" && draftWallets.none { it.currency.equals(code, ignoreCase = true) }) {
-                                                    draftWallets = draftWallets + DraftWallet(
-                                                        name = "Billetera $code",
-                                                        currency = code,
-                                                        balanceText = "",
-                                                        isLocal = false
-                                                    )
-                                                }
-                                            },
-                                            faceColor = if (active) FamiCoral else paper.sheetCream,
-                                            lipColor = if (active) Lip3DCoral else paper.lipPaper,
-                                            lipHeight = 2.5.dp,
-                                            cornerRadius = 10.dp,
-                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                                        ) {
-                                            Text(
-                                                text = label,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = if (active) Color.White else paper.ink
-                                            )
+                                        val isSameAsPrimary = code != "NONE" && code.equals(selectedPrimaryCurrency, ignoreCase = true)
+                                        if (!isSameAsPrimary) {
+                                            val active = selectedSecondaryCurrency.equals(code, ignoreCase = true)
+                                            Tactile3DButton(
+                                                onClick = {
+                                                    syncCurrenciesAndDraftWallets(selectedPrimaryCurrency, code)
+                                                },
+                                                faceColor = if (active) FamiCoral else paper.sheetCream,
+                                                lipColor = if (active) Lip3DCoral else paper.lipPaper,
+                                                lipHeight = 2.5.dp,
+                                                cornerRadius = 10.dp,
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (active) Color.White else paper.ink
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -737,75 +791,100 @@ fun OnboardingScreen(
                                     )
                                 )
 
-                                Text(
-                                    text = "👑 ${strings.familyRoleLabel}:",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = paper.ink
-                                )
+                                if (managementMode == "familiar") {
+                                    Text(
+                                        text = "👑 ${strings.familyRoleLabel}:",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = paper.ink
+                                    )
 
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    CountryCurrencyConfig.FAMILY_ROLES.forEach { roleOpt ->
-                                        val label = when (selectedLanguage) {
-                                            "en" -> roleOpt.labelEn
-                                            "pt" -> roleOpt.labelPt
-                                            else -> roleOpt.labelEs
-                                        }
-                                        val isChosen = customRoleInput.isBlank() && selectedRole.equals(label, ignoreCase = true)
-                                        Tactile3DButton(
-                                            onClick = {
-                                                selectedRole = label
-                                                customRoleInput = ""
-                                            },
-                                            faceColor = if (isChosen) FamiCoral else paper.sheetCream,
-                                            lipColor = if (isChosen) Lip3DCoral else paper.lipPaper,
-                                            lipHeight = 2.5.dp,
-                                            cornerRadius = 10.dp,
-                                            contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
-                                        ) {
-                                            Text(
-                                                text = "${roleOpt.emoji} $label",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = if (isChosen) Color.White else paper.ink
-                                            )
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        CountryCurrencyConfig.FAMILY_ROLES.forEach { roleOpt ->
+                                            val label = when (selectedLanguage) {
+                                                "en" -> roleOpt.labelEn
+                                                "pt" -> roleOpt.labelPt
+                                                else -> roleOpt.labelEs
+                                            }
+                                            val isChosen = customRoleInput.isBlank() && selectedRole.equals(label, ignoreCase = true)
+                                            Tactile3DButton(
+                                                onClick = {
+                                                    selectedRole = label
+                                                    customRoleInput = ""
+                                                },
+                                                faceColor = if (isChosen) FamiCoral else paper.sheetCream,
+                                                lipColor = if (isChosen) Lip3DCoral else paper.lipPaper,
+                                                lipHeight = 2.5.dp,
+                                                cornerRadius = 10.dp,
+                                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 5.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${roleOpt.emoji} $label",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (isChosen) Color.White else paper.ink
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                OutlinedTextField(
-                                    value = customRoleInput,
-                                    onValueChange = { customRoleInput = it },
-                                    placeholder = { Text(strings.customRoleHint, fontSize = 11.sp, color = paper.inkMuted) },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = FamiCoral,
-                                        unfocusedBorderColor = paper.border.copy(alpha = 0.45f),
-                                        focusedContainerColor = paper.sheetCream,
-                                        unfocusedContainerColor = paper.sheetCream,
-                                        focusedTextColor = paper.ink,
-                                        unfocusedTextColor = paper.ink
+                                    OutlinedTextField(
+                                        value = customRoleInput,
+                                        onValueChange = { customRoleInput = it },
+                                        placeholder = { Text(strings.customRoleHint, fontSize = 11.sp, color = paper.inkMuted) },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = FamiCoral,
+                                            unfocusedBorderColor = paper.border.copy(alpha = 0.45f),
+                                            focusedContainerColor = paper.sheetCream,
+                                            unfocusedContainerColor = paper.sheetCream,
+                                            focusedTextColor = paper.ink,
+                                            unfocusedTextColor = paper.ink
+                                        )
                                     )
-                                )
+                                } else {
+                                    StickyNoteSheet(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        noteColor = paper.stickySky
+                                    ) {
+                                        Text(
+                                            text = when {
+                                                isEn -> "👤 In Personal Mode you have full control over your finances, goals, and tasks. You can switch to Family Mode anytime in Settings."
+                                                isPt -> "👤 No Modo Individual você tem controle total das suas finanças, metas e tarefas. Você pode mudar para Modo Familiar quando quiser nos Ajustes."
+                                                else -> "👤 En Modo Individual tienes control total de tus finanzas, metas y tareas. Podrás cambiar a Modo Familiar cuando quieras desde Ajustes."
+                                            },
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = paper.ink,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
                             }
 
                             // ==============================================================
                             // HOJA 4: INGRESO MENSUAL Y MÚLTIPLES BILLETERAS SIMULTÁNEAS
                             // ==============================================================
                             3 -> {
+                                val isJoiningFamily = managementMode == "familiar" && familyAction == "join"
                                 Surface(
                                     color = paper.stickyMint,
                                     shape = RoundedCornerShape(8.dp),
                                     border = BorderStroke(1.2.dp, paper.border)
                                 ) {
                                     Text(
-                                        text = if (isEn) "💼 STEP 4 • INCOME & MULTI-WALLETS" else "💼 PASO 4 • INGRESO MENSUAL Y BILLETERAS",
+                                        text = when {
+                                            isJoiningFamily && isEn -> "💼 STEP 4 • YOUR WALLETS (OPTIONAL)"
+                                            isJoiningFamily -> "💼 PASO 4 • TUS BILLETERAS (OPCIONAL)"
+                                            isEn -> "💼 STEP 4 • INCOME & MULTI-WALLETS"
+                                            else -> "💼 PASO 4 • INGRESO MENSUAL Y BILLETERAS"
+                                        },
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.Black,
                                         color = paper.ink,
@@ -814,59 +893,86 @@ fun OnboardingScreen(
                                 }
 
                                 Text(
-                                    text = if (isEn) "Income & Wallets" else "Tu Ingreso y Billeteras",
+                                    text = when {
+                                        isJoiningFamily && isEn -> "Your Starting Wallets"
+                                        isJoiningFamily -> "Tus Billeteras Iniciales"
+                                        isEn -> "Income & Wallets"
+                                        else -> "Tu Ingreso y Billeteras"
+                                    },
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
                                     color = paper.ink
                                 )
 
                                 Text(
-                                    text = if (isEn) "Set an approximate monthly income and manage local & foreign wallets at the same time."
-                                    else "Define tu ingreso mensual aproximado y configura billeteras en moneda local y extranjera simultáneamente.",
+                                    text = when {
+                                        isJoiningFamily && isEn -> "The household budget syncs from your family admin. You can optionally add your own wallets here."
+                                        isJoiningFamily -> "El presupuesto base se sincronizará del administrador de tu hogar. Aquí puedes configurar tus billeteras personales si deseas."
+                                        isEn -> "Set an approximate monthly income and manage local & foreign wallets at the same time."
+                                        else -> "Define tu ingreso mensual aproximado y configura billeteras en moneda local y extranjera simultáneamente."
+                                    },
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = paper.inkMuted
                                 )
 
-                                // Ingreso mensual + Moneda
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    OutlinedTextField(
-                                        value = monthlyIncomeInput,
-                                        onValueChange = { monthlyIncomeInput = it },
-                                        label = { Text("Ingreso Mensual", fontSize = 11.sp) },
-                                        placeholder = { Text("Ej: 1500", fontSize = 11.sp) },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1.4f),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = FamiCoral,
-                                            unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
-                                            focusedContainerColor = paper.sheetCream,
-                                            unfocusedContainerColor = paper.sheetCream,
-                                            focusedTextColor = paper.ink,
-                                            unfocusedTextColor = paper.ink
-                                        )
-                                    )
-
-                                    Tactile3DButton(
-                                        onClick = { showIncomeCurrencyDialog = true },
-                                        faceColor = paper.stickyYellow,
-                                        lipColor = Lip3DGold,
-                                        lipHeight = 3.dp,
-                                        cornerRadius = 12.dp,
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)
+                                if (isJoiningFamily) {
+                                    StickyNoteSheet(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        noteColor = paper.stickyYellow
                                     ) {
                                         Text(
-                                            text = "$monthlyIncomeCurrency ▼",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = paper.ink
+                                            text = if (isEn)
+                                                "🔗 Joining an existing home: you can skip this or leave balances empty and edit them inside Fami."
+                                            else
+                                                "🔗 Al unirte a un hogar existente puedes dejar los saldos en blanco y ajustar tus billeteras luego dentro de Fami.",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = paper.ink,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                         )
+                                    }
+                                } else {
+                                    // Ingreso mensual + Moneda
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = monthlyIncomeInput,
+                                            onValueChange = { monthlyIncomeInput = it },
+                                            label = { Text(if (isEn) "Monthly Income" else "Ingreso Mensual", fontSize = 11.sp) },
+                                            placeholder = { Text(if (isEn) "e.g. 1500" else "Ej: 1500", fontSize = 11.sp) },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1.4f),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = FamiCoral,
+                                                unfocusedBorderColor = paper.border.copy(alpha = 0.5f),
+                                                focusedContainerColor = paper.sheetCream,
+                                                unfocusedContainerColor = paper.sheetCream,
+                                                focusedTextColor = paper.ink,
+                                                unfocusedTextColor = paper.ink
+                                            )
+                                        )
+
+                                        Tactile3DButton(
+                                            onClick = { showIncomeCurrencyDialog = true },
+                                            faceColor = paper.stickyYellow,
+                                            lipColor = Lip3DGold,
+                                            lipHeight = 3.dp,
+                                            cornerRadius = 12.dp,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)
+                                        ) {
+                                            Text(
+                                                text = "$monthlyIncomeCurrency ▼",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = paper.ink
+                                            )
+                                        }
                                     }
                                 }
 
@@ -1115,7 +1221,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // Indicador de Hojas
+            // Indicador de Hojas (interactivo)
             Row(
                 modifier = Modifier.padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.Center
@@ -1130,6 +1236,9 @@ fun OnboardingScreen(
                             .clip(CircleShape)
                             .background(if (isSelected) FamiCoral else paper.sheet)
                             .border(1.5.dp, paper.border, CircleShape)
+                            .clickable {
+                                coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                            }
                     )
                 }
             }
@@ -1204,11 +1313,7 @@ fun OnboardingScreen(
                 onSelectCountry = { country ->
                     userManuallyPickedCountry = true
                     selectedCountry = country
-                    selectedPrimaryCurrency = country.localCurrency
-                    monthlyIncomeCurrency = country.localCurrency
-                    draftWallets = draftWallets.mapIndexed { idx, w ->
-                        if (idx == 0 && w.isLocal) w.copy(currency = country.localCurrency) else w
-                    }
+                    syncCurrenciesAndDraftWallets(country.localCurrency, selectedSecondaryCurrency)
                     showCountryDialog = false
                 }
             )
@@ -1235,11 +1340,7 @@ fun OnboardingScreen(
                 noneLabel = strings.hideSecondaryOption,
                 onDismiss = { showPrimaryCurrencyDialog = false },
                 onSelectCurrency = { code ->
-                    selectedPrimaryCurrency = code
-                    monthlyIncomeCurrency = code
-                    draftWallets = draftWallets.mapIndexed { idx, w ->
-                        if (idx == 0 && w.isLocal) w.copy(currency = code) else w
-                    }
+                    syncCurrenciesAndDraftWallets(code, selectedSecondaryCurrency)
                     showPrimaryCurrencyDialog = false
                 }
             )
@@ -1254,7 +1355,7 @@ fun OnboardingScreen(
                 noneLabel = strings.hideSecondaryOption,
                 onDismiss = { showSecondaryCurrencyDialog = false },
                 onSelectCurrency = { code ->
-                    selectedSecondaryCurrency = code
+                    syncCurrenciesAndDraftWallets(selectedPrimaryCurrency, code)
                     showSecondaryCurrencyDialog = false
                 }
             )

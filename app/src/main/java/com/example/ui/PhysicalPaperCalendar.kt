@@ -477,7 +477,7 @@ fun PhysicalPaperCalendar(
                             text = "📌 ANOTADO EL ${selectedDateTimeLabel.uppercase()}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (paper.isDark) FamiCoral else FamiCoralDeep,
+                            color = if (paper.isDark) FamiCoralLight else FamiCoralDeep,
                             letterSpacing = 0.5.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
