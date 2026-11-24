@@ -1,8 +1,8 @@
 {
   "packageName": "app.somosfami",
-  "latestVersionCode": 28,
-  "latestVersionName": "3.12.0",
-  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.12.0/Fami_v3.12.0.apk",
-  "apkSha256": "E9CAC9C737EEA638E5C79AEE34AC755CC2DAB25B640E72486F70E7D944638297",
-  "changelog": "v3.12.0 (Build 28): Nuevo Modo Oscuro Papel Grafito Cálido, perfiles y roles completos, compartir invitación familiar, unirse a otro hogar desde Ajustes, centro de permisos y consentimiento legal en registro."
+  "latestVersionCode": 29,
+  "latestVersionName": "3.13.0",
+  "latestApkUrl": "https://github.com/Julcer26/fami-app/releases/download/v3.13.0/Fami_v3.13.0.apk",
+  "apkSha256": "1FC0A6B7E187F9A7B75DBBE8F6B161CF89697943D74A79DDD2DEDFD209FE4C82",
+  "changelog": "v3.13.0 (Build 29): Nueva mascota Fami 2D estilo sticker troquelado, analítica anónima de funciones para mejorar la app (0 anuncios, 0 PII), actualización legal y landing page con planes Fami Gratis / Pro."
 }
