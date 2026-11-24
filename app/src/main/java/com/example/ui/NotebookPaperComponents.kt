@@ -111,8 +111,8 @@ fun NotebookSpiralStrip(
     holeShadowColor: Color = FamiTheme.paper.ruleLine
 ) {
     val isDark = FamiTheme.paper.isDark
-    val holeCavityColor = if (isDark) Color(0xFF050816) else FamiMidnight
-    val highlightColor = if (isDark) FamiCoralLight.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.65f)
+    val holeCavityColor = if (isDark) Color(0xFF0C0C0E) else FamiMidnight
+    val highlightColor = if (isDark) FamiCoralSoft.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.65f)
 
     Canvas(
         modifier = modifier
@@ -183,7 +183,7 @@ fun RuledNotebookText(
     maxLines: Int = Int.MAX_VALUE,
     minRuledLines: Int = 1,
     textDecoration: TextDecoration? = null,
-    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = if (FamiTheme.paper.isDark) 0.92f else 0.78f),
+    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = if (FamiTheme.paper.isDark) 0.68f else 0.78f),
     drawLines: Boolean = true
 ) {
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -257,8 +257,8 @@ fun NotebookPaperSheet(
     paperColor: Color = sheetColor,
     borderColor: Color = FamiTheme.paper.border,
     shadowColor: Color = FamiTheme.paper.shadow3D,
-    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = if (FamiTheme.paper.isDark) 0.85f else 0.62f),
-    marginColor: Color = FamiTheme.paper.marginLine.copy(alpha = if (FamiTheme.paper.isDark) 0.72f else 0.45f),
+    ruleColor: Color = FamiTheme.paper.ruleLine.copy(alpha = if (FamiTheme.paper.isDark) 0.56f else 0.62f),
+    marginColor: Color = FamiTheme.paper.marginLine.copy(alpha = if (FamiTheme.paper.isDark) 0.52f else 0.45f),
     cornerRadius: Dp = 18.dp,
     showRuledLines: Boolean = true,
     showMarginLine: Boolean = true,

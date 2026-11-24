@@ -50,21 +50,21 @@ val FamiGoldContainer = Color(0xFFFFF5D6)
 val FamiAlertRed = Color(0xFFD93829)       // Rojo sello alerta / Gastos
 val FamiAlertRedBg = Color(0xFFFDE8E6)
 
-// Modo Cuaderno Nocturno Oficial — Papel Azul Noche con Renglones y Notitas Cálidas
-val DarkDeskBg = Color(0xFF060919)         // Pasta / Escritorio Azul Abisal Profundo
-val DarkPaperSheet = Color(0xFF121A3A)     // Hoja principal de papel nocturno azul marino
-val DarkPaperCream = Color(0xFF1B2550)     // Hoja secundaria / lomo apilado índigo
-val DarkPaperRuler = Color(0xFF2E3F7F)     // Renglones horizontales azul cobalto visibles
-val DarkPaperBorder = Color(0xFF4357A3)    // Borde nítido de hoja nocturna
-val DarkInk = Color(0xFFF6F7FF)            // Tinta clara marfil luminoso
-val DarkInkMuted = Color(0xFFB4C0E8)       // Tinta secundaria azul acero claro
-val DarkStickyYellow = Color(0xFF332917)   // Notita adhesiva ámbar/dorado cálido nocturno
-val DarkStickyPeach = Color(0xFF382026)    // Notita adhesiva terracota/durazno nocturno
-val DarkStickyMint = Color(0xFF11312F)     // Notita adhesiva menta/esmeralda contable nocturno
-val DarkStickySky = Color(0xFF152A4F)      // Notita adhesiva azul cielo nocturno
-val DarkStickyLavender = Color(0xFF29204B) // Notita adhesiva lavanda nocturna
-val DarkAlertRedBg = Color(0xFF3D1824)     // Fondo de alerta carmesí nocturno
-val Lip3DPaperDark = Color(0xFF0A1026)     // Labio 3D de papel nocturno
+// Modo Cuaderno Nocturno Oficial — Papel Grafito Cálido (Warm Graphite Sketchbook)
+val DarkDeskBg = Color(0xFF111113)         // Pasta / Escritorio grafito carbón profundo
+val DarkPaperSheet = Color(0xFF1C1C20)     // Hoja principal de papel grafito mate
+val DarkPaperCream = Color(0xFF25252B)     // Hoja secundaria / tarjeta grafito elevada
+val DarkPaperRuler = Color(0xFF32323A)     // Renglones horizontales grafito sutiles
+val DarkPaperBorder = Color(0xFF42424C)    // Borde entintado grafito refinado
+val DarkInk = Color(0xFFF3F0E8)            // Tinta marfil/tiza cálida (contraste AAA)
+val DarkInkMuted = Color(0xFFA9A59D)       // Tinta secundaria arena grafito (contraste > 6.5:1)
+val DarkStickyYellow = Color(0xFF2F2B20)   // Notita adhesiva ámbar arena grafito
+val DarkStickyPeach = Color(0xFF332321)    // Notita adhesiva terracota suave grafito
+val DarkStickyMint = Color(0xFF1B2E29)     // Notita adhesiva salvia/menta grafito
+val DarkStickySky = Color(0xFF1E2833)      // Notita adhesiva pizarra cielo grafito
+val DarkStickyLavender = Color(0xFF292333) // Notita adhesiva lavanda humo grafito
+val DarkAlertRedBg = Color(0xFF3A1F23)     // Fondo de alerta carmesí humo
+val Lip3DPaperDark = Color(0xFF0D0D10)     // Labio 3D profundo grafito
 
 val DarkBackground = DarkDeskBg
 val DarkSurface = DarkPaperSheet

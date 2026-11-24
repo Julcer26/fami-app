@@ -1724,29 +1724,140 @@ class FamilyViewModel(
     }
     fun deleteCategory(category: CategoryDetail) { viewModelScope.launch { repository.deleteCategory(category, _currentUser.value) } }
 
-    fun createProfile(name: String, colorHex: String, avatarId: String = "woman_1") {
+    fun updateMyRole(newRole: String) {
+        val clean = newRole.trim()
+        if (clean.isBlank()) return
         viewModelScope.launch {
-            val cleanName = name.trim()
-            if (cleanName.isNotEmpty()) {
-                repository.insertProfile(UserProfile(cleanName, colorHex, avatarId = avatarId), _currentUser.value)
+            dataStoreManager.setFamilyRole(clean)
+            val user = _currentUser.value
+            if (user.isNotBlank()) {
+                val existing = profiles.value.find { it.name.equals(user, ignoreCase = true) }
+                val avatarId = dataStoreManager.userAvatarIdFlow.firstOrNull() ?: existing?.avatarId ?: "woman_1"
+                val colorHex = existing?.colorHex?.ifBlank { "#D0BCFF" } ?: "#D0BCFF"
+                runCatching {
+                    repository.insertProfile(
+                        UserProfile(name = user, colorHex = colorHex, avatarId = avatarId, role = clean),
+                        user
+                    )
+                }
+            }
+            notifyUser("Rol actualizado a '$clean' ✨")
+        }
+    }
+
+    fun updateFamilyName(newName: String) {
+        val clean = newName.trim()
+        if (clean.isBlank()) return
+        viewModelScope.launch {
+            val user = _currentUser.value.ifBlank { "Usuario Fami" }
+            runCatching { repository.insertSetting("family_name", clean, user) }
+            notifyUser("Nombre del espacio actualizado a '$clean' ✨")
+        }
+    }
+
+    fun switchToExistingFamilyByCode(
+        familyCode: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val code = normalizeFamilyCode(familyCode)
+            if (code.length < 4) {
+                onResult(false, "Ingresa un código familiar válido (mínimo 4 caracteres).")
+                return@launch
+            }
+            val currentFid = _familyId.value ?: dataStoreManager.familyIdFlow.firstOrNull()
+            if (code.equals(currentFid, ignoreCase = true)) {
+                onResult(false, "Ya perteneces a este hogar ($code).")
+                return@launch
+            }
+            val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (firebaseUser == null) {
+                onResult(false, "Sesión expirada. Inicia sesión nuevamente.")
+                return@launch
+            }
+            val uid = firebaseUser.uid
+            val userName = _currentUser.value.ifBlank { dataStoreManager.userNameFlow.firstOrNull().orEmpty() }
+                .ifBlank { "Miembro Fami" }
+            try {
+                repository.registerFamilyMember(code, uid)
+                val familyValid = repository.verifyJoinedFamilyHasExistingData(code, uid)
+                if (!familyValid) {
+                    onResult(false, "El código '$code' no existe. Verifica con el administrador del hogar.")
+                    return@launch
+                }
+                repository.registerUserMapping(uid, code, userName)
+                dataStoreManager.saveAuthData(
+                    familyId = code,
+                    userName = userName,
+                    pin = dataStoreManager.userPinFlow.firstOrNull().orEmpty(),
+                    email = firebaseUser.email.orEmpty(),
+                    authProvider = dataStoreManager.authProviderFlow.firstOrNull() ?: "email"
+                )
+                dataStoreManager.setManagementMode("familiar")
+                val avatarId = dataStoreManager.userAvatarIdFlow.firstOrNull() ?: "woman_1"
+                val role = dataStoreManager.familyRoleFlow.firstOrNull()
+                    ?.takeIf { it.isNotBlank() && !it.equals("Administrador", ignoreCase = true) }
+                    ?: "Miembro familiar"
+                dataStoreManager.setFamilyRole(role)
+                _familyId.value = code
+                repository.setFamilyId(code)
+                runCatching {
+                    repository.insertProfile(
+                        UserProfile(name = userName, colorHex = "#EFB8C8", avatarId = avatarId, role = role),
+                        userName
+                    )
+                }
+                syncFcmTokenAndWorker()
+                val msg = "¡Te uniste al hogar $code con éxito! 🎉"
+                notifyUser(msg)
+                onResult(true, msg)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                val err = mapFirebaseAuthError(e)
+                onResult(false, err)
             }
         }
     }
 
-    fun editProfile(oldProfile: UserProfile, newName: String, newColorHex: String, avatarId: String = oldProfile.avatarId) {
+    fun createProfile(name: String, colorHex: String, avatarId: String = "woman_1", role: String = "Miembro familiar") {
+        viewModelScope.launch {
+            val cleanName = name.trim()
+            val cleanRole = role.trim().ifBlank { "Miembro familiar" }
+            if (cleanName.isNotEmpty() && !cleanName.contains("@")) {
+                repository.insertProfile(UserProfile(cleanName, colorHex, avatarId = avatarId, role = cleanRole), _currentUser.value)
+                notifyUser("Miembro '$cleanName' añadido ✨")
+            }
+        }
+    }
+
+    fun editProfile(
+        oldProfile: UserProfile,
+        newName: String,
+        newColorHex: String,
+        avatarId: String = oldProfile.avatarId,
+        role: String = oldProfile.role
+    ) {
         viewModelScope.launch {
             val cleanName = newName.trim()
-            if (cleanName.isNotEmpty()) {
-                if (oldProfile.name != cleanName) repository.deleteProfile(oldProfile, _currentUser.value)
+            val cleanRole = role.trim().ifBlank { oldProfile.role.ifBlank { "Miembro familiar" } }
+            if (cleanName.isNotEmpty() && !cleanName.contains("@")) {
+                if (!oldProfile.name.equals(cleanName, ignoreCase = true)) {
+                    repository.deleteProfile(oldProfile, _currentUser.value)
+                }
                 repository.insertProfile(
-                    UserProfile(cleanName, newColorHex, avatarId = avatarId, role = oldProfile.role),
+                    UserProfile(cleanName, newColorHex, avatarId = avatarId, role = cleanRole),
                     _currentUser.value
                 )
-                if (_currentUser.value == oldProfile.name) {
+                if (_currentUser.value.equals(oldProfile.name, ignoreCase = true)) {
                     if (avatarId.isNotBlank()) dataStoreManager.setUserAvatarId(avatarId)
-                    applyAliasUpdateInternal(cleanName)
+                    dataStoreManager.setFamilyRole(cleanRole)
+                    if (!oldProfile.name.equals(cleanName, ignoreCase = true)) {
+                        applyAliasUpdateInternal(cleanName)
+                    }
                     syncFcmTokenAndWorker()
                 }
+                notifyUser("Perfil '$cleanName' actualizado ✨")
             }
         }
     }

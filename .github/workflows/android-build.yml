@@ -68,7 +68,7 @@ jobs:
           else
             gh release create "$TAG" "$APK_NAME" \
               --title "Fami ${TAG} (Build ${VERSION_CODE})" \
-              --notes "Actualización oficial de Fami ${TAG} (Build ${VERSION_CODE}). Mejoras clave en el arranque sin parpadeo, creación de usuario, validación en vivo, auto-verificación de correo, desbloqueo PIN en 5 dígitos, coherencia Modo Individual/Familiar, selector buscable de países y verificación OTA manual desde Ajustes."
+              --notes "Actualización oficial de Fami ${TAG} (Build ${VERSION_CODE}). Nuevo Tema Oscuro Papel Grafito Cálido, consentimiento legal en registro/unión, centro de permisos del dispositivo, perfiles con roles/badges, compartir invitación por código y afiliación a otro hogar desde Ajustes."
           fi
 
           python3 - <<PY
@@ -79,7 +79,7 @@ jobs:
               "latestVersionName": "${VERSION_NAME}",
               "latestApkUrl": "${APK_URL}",
               "apkSha256": "${APK_SHA256}",
-              "changelog": "v${VERSION_NAME} (Build ${VERSION_CODE}): Arranque sin parpadeo, creación de cuenta y login mejorados (validación inline, auto-verificación de correo, PIN auto-submit), protección ante colisión de correo, selector buscable de países y búsqueda OTA manual en Ajustes."
+              "changelog": "v${VERSION_NAME} (Build ${VERSION_CODE}): Nuevo Modo Oscuro Papel Grafito Cálido, perfiles y roles completos, compartir invitación familiar, unirse a otro hogar desde Ajustes, centro de permisos y consentimiento legal en registro."
           }
           with open("fami-version.json", "w", encoding="utf-8") as f:
               json.dump(data, f, indent=2, ensure_ascii=False)

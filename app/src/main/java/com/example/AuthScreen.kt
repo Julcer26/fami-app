@@ -1213,6 +1213,98 @@ private fun PasswordStrengthBar(password: String) {
     }
 }
 
+@Composable
+private fun LegalConsentRow(
+    accepted: Boolean,
+    showError: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val paper = FamiTheme.paper
+    var legalTab by remember { mutableStateOf<String?>(null) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = if (showError) paper.alertBg else paper.sheetCream,
+            border = BorderStroke(
+                width = if (showError) 1.5.dp else 1.dp,
+                color = if (showError) FamiAlertRed else paper.border.copy(alpha = 0.35f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(!accepted) }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = accepted,
+                    onCheckedChange = onToggle,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = FamiCoral,
+                        uncheckedColor = if (showError) FamiAlertRed else paper.inkMuted
+                    )
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Acepto los Términos de Uso y la Política de Privacidad de Fami (0 rastreadores publicitarios).",
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = paper.ink
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text(
+                            text = "Ver Términos",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (paper.isDark) FamiCoralLight else FamiCoral,
+                            modifier = Modifier
+                                .clickable { legalTab = "terms" }
+                                .padding(vertical = 2.dp)
+                        )
+                        Text(
+                            text = "•",
+                            fontSize = 11.sp,
+                            color = paper.inkMuted
+                        )
+                        Text(
+                            text = "Ver Privacidad",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (paper.isDark) FamiCoralLight else FamiCoral,
+                            modifier = Modifier
+                                .clickable { legalTab = "privacy" }
+                                .padding(vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+        if (showError) {
+            Text(
+                text = "Debes aceptar los Términos y la Política de Privacidad para continuar.",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (paper.isDark) FamiCoralLight else FamiAlertRed,
+                modifier = Modifier.padding(start = 6.dp, top = 4.dp)
+            )
+        }
+    }
+
+    legalTab?.let { tab ->
+        com.example.ui.LegalDocumentDialog(
+            initialTab = tab,
+            onDismiss = { legalTab = null }
+        )
+    }
+}
+
 // -------------------------------------------------------------
 // 3. CREAR NUEVA CUENTA FAMI (GOOGLE O CORREO VERIFICADO)
 // -------------------------------------------------------------
@@ -1239,18 +1331,23 @@ private fun CreateFamilyContent(
     var pin by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var showPin by remember { mutableStateOf(false) }
+    var acceptedLegal by rememberSaveable { mutableStateOf(true) }
     var attemptedSubmit by remember { mutableStateOf(false) }
+    var attemptedGoogleSubmit by remember { mutableStateOf(false) }
 
     val aliasError = attemptedSubmit && !viewModel.isValidAlias(userNameInput)
     val emailError = (attemptedSubmit || email.contains("@")) && email.isNotBlank() && !viewModel.isValidEmailFormat(email)
     val emailMissingError = attemptedSubmit && email.isBlank()
     val passwordError = attemptedSubmit && password.length < 6
     val pinError = (attemptedSubmit && !viewModel.isValidPin(pin)) || (pin.length == 5 && pin == "00000")
+    val legalError = (attemptedSubmit || attemptedGoogleSubmit) && !acceptedLegal
 
     val submitCreate: () -> Unit = {
         attemptedSubmit = true
         val cleanAlias = userNameInput.trim()
-        if (!viewModel.isValidAlias(cleanAlias)) {
+        if (!acceptedLegal) {
+            Toast.makeText(context, "Acepta los Términos y la Política de Privacidad para continuar", Toast.LENGTH_SHORT).show()
+        } else if (!viewModel.isValidAlias(cleanAlias)) {
             Toast.makeText(context, "Escribe tu Alias (mínimo 2 letras, sin correo electrónico)", Toast.LENGTH_SHORT).show()
         } else if (!viewModel.isValidEmailFormat(email)) {
             Toast.makeText(context, "Ingresa un correo electrónico real y válido", Toast.LENGTH_SHORT).show()
@@ -1306,7 +1403,14 @@ private fun CreateFamilyContent(
             GoogleSignInButton(
                 text = "Crear rápido con Google",
                 enabled = !isLoading,
-                onClick = { onContinueWithGoogle(familyNameInput.trim(), userNameInput.trim()) }
+                onClick = {
+                    if (!acceptedLegal) {
+                        attemptedGoogleSubmit = true
+                        Toast.makeText(context, "Acepta los Términos y la Política de Privacidad para continuar", Toast.LENGTH_SHORT).show()
+                    } else {
+                        onContinueWithGoogle(familyNameInput.trim(), userNameInput.trim())
+                    }
+                }
             )
 
             Row(
@@ -1453,7 +1557,15 @@ private fun CreateFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LegalConsentRow(
+                accepted = acceptedLegal,
+                showError = legalError,
+                onToggle = { acceptedLegal = it }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             Button(
                 onClick = submitCreate,
@@ -1512,19 +1624,24 @@ private fun JoinFamilyContent(
     var pin by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var showPin by remember { mutableStateOf(false) }
+    var acceptedLegal by rememberSaveable { mutableStateOf(true) }
     var attemptedSubmit by remember { mutableStateOf(false) }
+    var attemptedGoogleSubmit by remember { mutableStateOf(false) }
 
     val codeError = attemptedSubmit && code.length < 4
     val nameError = attemptedSubmit && !viewModel.isValidAlias(name)
     val emailError = attemptedSubmit && !viewModel.isValidEmailFormat(email)
     val passError = attemptedSubmit && password.length < 6
     val pinError = (attemptedSubmit && !viewModel.isValidPin(pin)) || (pin.length == 5 && pin == "00000")
+    val legalError = (attemptedSubmit || attemptedGoogleSubmit) && !acceptedLegal
 
     val submitJoin: () -> Unit = {
         attemptedSubmit = true
         val normalizedCode = viewModel.normalizeFamilyCode(code)
         val cleanName = name.trim()
-        if (normalizedCode.length < 4) {
+        if (!acceptedLegal) {
+            Toast.makeText(context, "Acepta los Términos y la Política de Privacidad para continuar", Toast.LENGTH_SHORT).show()
+        } else if (normalizedCode.length < 4) {
             Toast.makeText(context, "Ingresa el código familiar (mínimo 4 caracteres)", Toast.LENGTH_SHORT).show()
         } else if (!viewModel.isValidAlias(cleanName)) {
             Toast.makeText(context, "Escribe tu nombre o alias (sin correo electrónico)", Toast.LENGTH_SHORT).show()
@@ -1598,7 +1715,10 @@ private fun JoinFamilyContent(
                 enabled = !isLoading,
                 onClick = {
                     val normalizedCode = viewModel.normalizeFamilyCode(code)
-                    if (normalizedCode.length < 4) {
+                    if (!acceptedLegal) {
+                        attemptedGoogleSubmit = true
+                        Toast.makeText(context, "Acepta los Términos y la Política de Privacidad para continuar", Toast.LENGTH_SHORT).show()
+                    } else if (normalizedCode.length < 4) {
                         attemptedSubmit = true
                         Toast.makeText(context, "Primero ingresa el código familiar arriba", Toast.LENGTH_SHORT).show()
                     } else {
@@ -1721,7 +1841,15 @@ private fun JoinFamilyContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LegalConsentRow(
+                accepted = acceptedLegal,
+                showError = legalError,
+                onToggle = { acceptedLegal = it }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             Button(
                 onClick = submitJoin,

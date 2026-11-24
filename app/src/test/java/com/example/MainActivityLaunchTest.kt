@@ -98,6 +98,33 @@ class MainActivityLaunchTest {
     }
 
     @Test
+    fun warmGraphiteDarkTheme_composesAuthScreenWithHighContrastTokens() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val vm = com.example.viewmodel.FamilyViewModelFactory(context)
+            .create(com.example.viewmodel.FamilyViewModel::class.java)
+
+        composeTestRule.setContent {
+            MyApplicationTheme(darkTheme = true) {
+                AuthScreen(viewModel = vm)
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().assertExists()
+
+        // Verify Warm Graphite Paper dark surfaces are neutral-warm charcoal (not saturated electric blue)
+        val sheet = com.example.ui.theme.DarkPaperSheet
+        val ink = com.example.ui.theme.DarkInk
+        org.junit.Assert.assertTrue(
+            "DarkPaperSheet should be neutral graphite, not saturated blue",
+            (sheet.blue - sheet.red) < 0.05f
+        )
+        org.junit.Assert.assertTrue(
+            "DarkInk should be high-luminance warm ivory",
+            ink.red > 0.9f && ink.green > 0.9f
+        )
+    }
+
+    @Test
     fun widgetQuickActivity_launchesWithoutCrashing() {
         val controller = Robolectric.buildActivity(com.example.widget.WidgetQuickActivity::class.java).setup()
         try {

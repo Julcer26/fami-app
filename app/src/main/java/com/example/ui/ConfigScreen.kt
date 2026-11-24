@@ -1,11 +1,17 @@
 package com.example.ui
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,9 +20,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.core.content.ContextCompat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -141,6 +150,40 @@ fun HorizontalCategoryTabs(
     }
 }
 
+private fun shareFamilyInvitation(context: Context, familyCode: String, familyName: String) {
+    if (familyCode.isBlank()) return
+    val homeLabel = familyName.trim().ifBlank { "nuestro hogar Fami" }
+    val text = "🏡 ¡Te invito a unirte a $homeLabel en Fami!\n\n" +
+        "1. Descarga Fami: https://somosfami.app\n" +
+        "2. Toca «Unirme con Código» e ingresa este código:\n" +
+        "🔑 $familyCode"
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Invitación a $homeLabel en Fami")
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    try {
+        context.startActivity(Intent.createChooser(sendIntent, "Compartir invitación familiar"))
+    } catch (_: Exception) {
+        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboardManager.setPrimaryClip(ClipData.newPlainText("Invitación Fami", text))
+        Toast.makeText(context, "Invitación copiada al portapapeles", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun openAppSystemSettings(context: Context) {
+    try {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", context.packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        Toast.makeText(context, "Abre Ajustes > Aplicaciones > Fami en tu teléfono", Toast.LENGTH_SHORT).show()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConfigMainContent(
     selectedCategory: Int,
@@ -169,6 +212,13 @@ fun ConfigMainContent(
     var newPinInput by remember { mutableStateOf("") }
     var showEditAliasDialog by remember { mutableStateOf(false) }
     var aliasInput by remember { mutableStateOf("") }
+    var familyNameEditInput by remember { mutableStateOf("") }
+    var roleEditInput by remember { mutableStateOf("") }
+    var avatarFilter by remember { mutableStateOf("Todos") }
+    var showSwitchFamilyDialog by remember { mutableStateOf(false) }
+    var switchFamilyCodeInput by remember { mutableStateOf("") }
+    var switchFamilyError by remember { mutableStateOf<String?>(null) }
+    var isSwitchingFamily by remember { mutableStateOf(false) }
     var profileToDelete by remember { mutableStateOf<UserProfile?>(null) }
     var legalDialogTab by remember { mutableStateOf<String?>(null) }
     var isCheckingOta by remember { mutableStateOf(false) }
@@ -179,12 +229,53 @@ fun ConfigMainContent(
     val currentAvatarId by viewModel.userAvatarId.collectAsStateWithLifecycle()
     val unlockMethod by viewModel.unlockMethod.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val currentFamilyRole by viewModel.familyRole.collectAsStateWithLifecycle()
+    val familyIdState by viewModel.familyId.collectAsStateWithLifecycle()
     val isAdminRole by viewModel.isAdminRole.collectAsStateWithLifecycle()
     val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
     val displayAlias = currentUser.takeIf { it.isNotBlank() && !it.contains("@") } ?: "Usuario Fami"
+    val currentFamilyName = remember(settings) {
+        settings.find { it.key == "family_name" }?.value.orEmpty()
+    }
     val configContext = LocalContext.current
     val biometricSupported = remember(configContext) {
         com.example.canAuthenticateBiometric(configContext)
+    }
+
+    var cameraGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(configContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var notifGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(configContext, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
+    var otaInstallGranted by remember {
+        mutableStateOf(OtaUpdateManager.canInstallPackages(configContext))
+    }
+
+    val cameraPermLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        cameraGranted = granted
+        if (!granted) {
+            Toast.makeText(configContext, "Activa Cámara desde Ajustes de la app para escanear recibos", Toast.LENGTH_SHORT).show()
+            openAppSystemSettings(configContext)
+        }
+    }
+    val notifPermLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notifGranted = granted
+        if (granted) {
+            viewModel.syncFcmTokenAndWorker()
+        } else {
+            openAppSystemSettings(configContext)
+        }
     }
 
     LazyColumn(
@@ -237,8 +328,26 @@ fun ConfigMainContent(
                                         color = paper.ink
                                     )
                                     Text(
+                                        text = buildString {
+                                            if (currentFamilyName.isNotBlank()) {
+                                                append(currentFamilyName)
+                                                append(" • ")
+                                            }
+                                            if (managementMode == "individual") {
+                                                append("Titular Individual")
+                                            } else {
+                                                append(currentFamilyRole.ifBlank { "Miembro" })
+                                            }
+                                        },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (paper.isDark) FamiCoralLight else FamiCoralDeep,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
                                         text = s.settingsAliasSubtitle,
-                                        fontSize = 10.5.sp,
+                                        fontSize = 10.sp,
                                         color = paper.inkMuted
                                     )
                                 }
@@ -246,6 +355,8 @@ fun ConfigMainContent(
                             Tactile3DButton(
                                 onClick = {
                                     aliasInput = if (currentUser.contains("@")) "" else currentUser
+                                    familyNameEditInput = currentFamilyName
+                                    roleEditInput = currentFamilyRole.ifBlank { "Administrador" }
                                     showEditAliasDialog = true
                                 },
                                 faceColor = paper.stickyYellow,
@@ -269,7 +380,44 @@ fun ConfigMainContent(
                             fontWeight = FontWeight.Black,
                             color = paper.ink
                         )
-                        AvatarCatalog.ALL.chunked(4).forEach { rowAvatars ->
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf("Todos", "Adultos", "Menores", "F", "M").forEach { filter ->
+                                val active = avatarFilter == filter
+                                val label = when (filter) {
+                                    "F" -> "Femenino"
+                                    "M" -> "Masculino"
+                                    else -> filter
+                                }
+                                Surface(
+                                    onClick = { avatarFilter = filter },
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = if (active) FamiCoral else paper.sheetCream,
+                                    border = BorderStroke(1.dp, if (active) FamiCoral else paper.border.copy(alpha = 0.4f))
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = if (active) Color.White else paper.ink,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                        val filteredAvatars = remember(avatarFilter) {
+                            when (avatarFilter) {
+                                "Adultos" -> AvatarCatalog.ALL.filter { it.ageGroup == "Adulto" }
+                                "Menores" -> AvatarCatalog.ALL.filter { it.ageGroup == "Menor" }
+                                "F" -> AvatarCatalog.ALL.filter { it.gender == "F" }
+                                "M" -> AvatarCatalog.ALL.filter { it.gender == "M" }
+                                else -> AvatarCatalog.ALL
+                            }
+                        }
+                        filteredAvatars.chunked(4).forEach { rowAvatars ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -300,6 +448,9 @@ fun ConfigMainContent(
                                             contentScale = ContentScale.Crop
                                         )
                                     }
+                                }
+                                repeat(4 - rowAvatars.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }
@@ -689,6 +840,82 @@ fun ConfigMainContent(
                 }
             }
 
+            // --- CENTRO DE PERMISOS DEL DISPOSITIVO ---
+            item {
+                NotebookPaperSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    sheetColor = paper.sheet,
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = FamiCoral)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Permisos del Dispositivo",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink
+                                )
+                                Text(
+                                    text = "Controla los permisos opcionales que usa Fami (solo cuando tú los pides)",
+                                    fontSize = 11.sp,
+                                    color = paper.inkMuted
+                                )
+                            }
+                        }
+
+                        PermissionStatusRow(
+                            title = "📷 Cámara (Escáner IA)",
+                            subtitle = "Solo al fotografiar facturas o recibos",
+                            granted = cameraGranted,
+                            onAction = {
+                                if (cameraGranted) openAppSystemSettings(configContext)
+                                else cameraPermLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        )
+                        PermissionStatusRow(
+                            title = "🔔 Notificaciones Push",
+                            subtitle = "Avisos de tareas asignadas y alertas",
+                            granted = notifGranted,
+                            onAction = {
+                                if (!notifGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    openAppSystemSettings(configContext)
+                                }
+                            }
+                        )
+                        PermissionStatusRow(
+                            title = "👆 Biometría / Huella",
+                            subtitle = if (biometricSupported) "Sensor disponible en el dispositivo" else "Sin biometría configurada en Android",
+                            granted = biometricSupported,
+                            actionLabel = if (biometricSupported) "Activo" else "Ajustes",
+                            onAction = { if (!biometricSupported) openAppSystemSettings(configContext) }
+                        )
+                        PermissionStatusRow(
+                            title = "📦 Instalación OTA directa",
+                            subtitle = "Permite instalar APKs firmados verificados por SHA-256",
+                            granted = otaInstallGranted,
+                            actionLabel = if (otaInstallGranted) "Activo" else "Activar",
+                            onAction = {
+                                otaInstallGranted = OtaUpdateManager.canInstallPackages(configContext)
+                                if (!otaInstallGranted) {
+                                    OtaUpdateManager.openInstallPermissionSettings(configContext)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
             // --- VERSIÓN Y ACTUALIZACIÓN OTA ---
             item {
                 val installedVerName = remember(configContext) { OtaUpdateManager.getInstalledVersionName(configContext) }
@@ -827,23 +1054,40 @@ fun ConfigMainContent(
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
                                 }
-                                Tactile3DButton(
-                                    onClick = {
-                                        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText(s.settingsFamilyCodeTitle, familyId ?: "")
-                                        clipboardManager.setPrimaryClip(clip)
-                                        Toast.makeText(context, s.settingsCopiedToast, Toast.LENGTH_SHORT).show()
-                                    },
-                                    faceColor = FamiCoral,
-                                    lipColor = Lip3DCoral,
-                                    borderColor = paper.border,
-                                    cornerRadius = 10.dp,
-                                    lipHeight = 3.dp,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = s.settingsCopyBtn, tint = Color.White, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(s.settingsCopyBtn, fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Tactile3DButton(
+                                        onClick = {
+                                            val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clip = ClipData.newPlainText(s.settingsFamilyCodeTitle, familyId ?: "")
+                                            clipboardManager.setPrimaryClip(clip)
+                                            Toast.makeText(context, s.settingsCopiedToast, Toast.LENGTH_SHORT).show()
+                                        },
+                                        faceColor = paper.stickyMint,
+                                        lipColor = Lip3DMint,
+                                        borderColor = paper.border,
+                                        cornerRadius = 10.dp,
+                                        lipHeight = 3.dp,
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = s.settingsCopyBtn, tint = paper.ink, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(s.settingsCopyBtn, fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                                    }
+                                    Tactile3DButton(
+                                        onClick = {
+                                            shareFamilyInvitation(context, familyId.orEmpty(), currentFamilyName)
+                                        },
+                                        faceColor = FamiCoral,
+                                        lipColor = Lip3DCoral,
+                                        borderColor = paper.border,
+                                        cornerRadius = 10.dp,
+                                        lipHeight = 3.dp,
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Share, contentDescription = "Invitar", tint = Color.White, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Invitar", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -917,7 +1161,86 @@ fun ConfigMainContent(
                 }
             }
         } else if (selectedCategory == 1) {
-            // --- MIEMBROS DEL HOGAR (Con control RBAC y Avatares) ---
+            // --- INVITACIÓN RÁPIDA Y AFILIACIÓN FAMILIAR ---
+            item {
+                NotebookPaperSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    sheetColor = paper.sheet,
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🔗 Invitar a mi Familia",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                        Text(
+                            text = "Comparte este código para que tu pareja o familiares se afilien a ${currentFamilyName.ifBlank { "este hogar" }} en tiempo real:",
+                            fontSize = 11.sp,
+                            color = paper.inkMuted
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                color = paper.stickyYellow,
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.4.dp, paper.border)
+                            ) {
+                                Text(
+                                    text = familyIdState ?: "...",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = paper.ink,
+                                    letterSpacing = 2.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Tactile3DButton(
+                                    onClick = {
+                                        val clipboardManager = configContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboardManager.setPrimaryClip(ClipData.newPlainText(s.settingsFamilyCodeTitle, familyIdState ?: ""))
+                                        Toast.makeText(configContext, s.settingsCopiedToast, Toast.LENGTH_SHORT).show()
+                                    },
+                                    faceColor = paper.stickyMint,
+                                    lipColor = Lip3DMint,
+                                    borderColor = paper.border,
+                                    cornerRadius = 10.dp,
+                                    lipHeight = 3.dp,
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = s.settingsCopyBtn, tint = paper.ink, modifier = Modifier.size(14.dp))
+                                }
+                                Tactile3DButton(
+                                    onClick = { shareFamilyInvitation(configContext, familyIdState.orEmpty(), currentFamilyName) },
+                                    faceColor = FamiCoral,
+                                    lipColor = Lip3DCoral,
+                                    borderColor = paper.border,
+                                    cornerRadius = 10.dp,
+                                    lipHeight = 3.dp,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = "Invitar", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text("Invitar", fontSize = 11.5.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- MIEMBROS DEL HOGAR (Con control RBAC, Roles y Avatares) ---
             item {
                 NotebookPaperSheet(
                     modifier = Modifier.fillMaxWidth(),
@@ -934,7 +1257,7 @@ fun ConfigMainContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                s.settingsMembersTitle,
+                                "${s.settingsMembersTitle} (${profiles.size})",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = paper.ink
@@ -971,13 +1294,18 @@ fun ConfigMainContent(
                             Text("No hay perfiles configurados.", fontSize = 11.sp, color = paper.inkMuted)
                         } else {
                             profiles.forEach { p ->
+                                val isSelf = p.name.equals(currentUser, ignoreCase = true)
+                                val isMemberAdmin = viewModel.isPrivilegedRole(p.role)
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    color = paper.sheetCream,
-                                    border = BorderStroke(1.2.dp, paper.border.copy(alpha = 0.55f))
+                                    color = if (isSelf) paper.stickyYellow.copy(alpha = if (paper.isDark) 0.72f else 0.55f) else paper.sheetCream,
+                                    border = BorderStroke(
+                                        if (isSelf) 1.6.dp else 1.2.dp,
+                                        if (isSelf) FamiCoral else paper.border.copy(alpha = 0.55f)
+                                    )
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -996,39 +1324,70 @@ fun ConfigMainContent(
                                                 currentUser = currentUser,
                                                 currentUserAvatarId = currentAvatarId,
                                                 explicitAvatarId = p.avatarId,
-                                                size = 36.dp,
-                                                showAliasBelow = true,
-                                                aliasText = p.name,
-                                                aliasFontSize = 9.sp,
-                                                aliasMaxWidth = 64.dp
+                                                size = 38.dp,
+                                                showAliasBelow = false
                                             )
                                             Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(p.name, fontSize = 13.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
-                                                if (p.role.isNotBlank()) {
-                                                    Text(p.role, fontSize = 10.sp, color = paper.inkMuted)
+                                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Text(p.name, fontSize = 13.5.sp, fontWeight = FontWeight.Black, color = paper.ink)
+                                                    if (isSelf) {
+                                                        Surface(
+                                                            color = FamiCoral,
+                                                            shape = RoundedCornerShape(6.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "TÚ",
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.Black,
+                                                                color = Color.White,
+                                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                                ) {
+                                                    Surface(
+                                                        color = if (isMemberAdmin) paper.stickyMint else paper.sheet,
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        border = BorderStroke(0.8.dp, paper.border.copy(alpha = 0.4f))
+                                                    ) {
+                                                        Text(
+                                                            text = if (isMemberAdmin) "👑 ${p.role.ifBlank { "Admin" }}" else "👤 ${p.role.ifBlank { "Miembro" }}",
+                                                            fontSize = 9.5.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = paper.ink,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
 
-                                        if (isAdminRole) {
+                                        if (isAdminRole || isSelf) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 IconButton(
                                                     onClick = { onEditProfileClick(p) },
-                                                    modifier = Modifier.size(28.dp)
+                                                    modifier = Modifier.size(30.dp)
                                                 ) {
                                                     Icon(
                                                         Icons.Default.Edit,
                                                         contentDescription = "Edit profile",
-                                                        tint = FamiCoral,
+                                                        tint = if (paper.isDark) FamiCoralLight else FamiCoral,
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                 }
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                if (!p.name.equals(currentUser, ignoreCase = true) && profiles.size > 1) {
+                                                if (isAdminRole && !isSelf && profiles.size > 1) {
+                                                    Spacer(modifier = Modifier.width(4.dp))
                                                     IconButton(
                                                         onClick = { profileToDelete = p },
-                                                        modifier = Modifier.size(28.dp)
+                                                        modifier = Modifier.size(30.dp)
                                                     ) {
                                                         Icon(
                                                             Icons.Default.Delete,
@@ -1043,6 +1402,54 @@ fun ConfigMainContent(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // --- UNIRME A OTRO HOGAR EXISTENTE POR CÓDIGO ---
+            item {
+                NotebookPaperSheet(
+                    modifier = Modifier.fillMaxWidth(),
+                    sheetColor = paper.sheet,
+                    borderColor = paper.border,
+                    shadowColor = paper.shadow3D,
+                    showRuledLines = false,
+                    showMarginLine = false
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🔑 Cambiar / Unirme a otro Hogar",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                        Text(
+                            text = "¿Te invitaron a otro hogar Fami? Ingresa su Código Familiar para afiliarte sin perder tu cuenta.",
+                            fontSize = 11.sp,
+                            color = paper.inkMuted
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                switchFamilyCodeInput = ""
+                                switchFamilyError = null
+                                showSwitchFamilyDialog = true
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.2.dp, FamiCoral),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.GroupAdd, contentDescription = null, tint = if (paper.isDark) FamiCoralLight else FamiCoral, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Ingresar Código Familiar",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (paper.isDark) FamiCoralLight else FamiCoral
+                            )
                         }
                     }
                 }
@@ -1138,11 +1545,14 @@ fun ConfigMainContent(
         AlertDialog(
             onDismissRequest = { showEditAliasDialog = false },
             containerColor = paper.sheet,
-            title = { Text("✏️ Cambiar mi Alias", fontWeight = FontWeight.Black, color = paper.ink) },
+            title = { Text("✏️ Editar Mi Perfil", fontWeight = FontWeight.Black, color = paper.ink) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
-                        "Este alias es el nombre que verán todos en tareas, compras, metas y gastos:",
+                        "Personaliza cómo te verán en tareas, compras, metas y gastos:",
                         fontSize = 12.sp,
                         color = paper.inkMuted
                     )
@@ -1155,22 +1565,135 @@ fun ConfigMainContent(
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    OutlinedTextField(
+                        value = familyNameEditInput,
+                        onValueChange = { familyNameEditInput = it },
+                        label = { Text(if (managementMode == "individual") "Nombre de tu Espacio" else "Nombre del Hogar / Familia") },
+                        placeholder = { Text(if (managementMode == "individual") "Ej: Mis Finanzas" else "Ej: Familia Pérez") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (managementMode != "individual") {
+                        Text(
+                            text = "Tu Rol en el Hogar:",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = paper.ink
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            com.example.currency.CountryCurrencyConfig.FAMILY_ROLES.forEach { roleOpt ->
+                                val isSel = roleEditInput.equals(roleOpt.labelEs, ignoreCase = true)
+                                Surface(
+                                    onClick = { roleEditInput = roleOpt.labelEs },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSel) FamiCoral else paper.sheetCream,
+                                    border = BorderStroke(1.dp, if (isSel) FamiCoral else paper.border.copy(alpha = 0.4f))
+                                ) {
+                                    Text(
+                                        text = "${roleOpt.emoji} ${roleOpt.labelEs}",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSel) Color.White else paper.ink,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
-                    enabled = aliasInput.trim().isNotBlank() && !aliasInput.contains("@"),
+                    enabled = aliasInput.trim().length >= 2 && !aliasInput.contains("@"),
                     onClick = {
-                        viewModel.updateUserAlias(aliasInput)
+                        if (!aliasInput.trim().equals(currentUser.trim(), ignoreCase = true)) {
+                            viewModel.updateUserAlias(aliasInput)
+                        }
+                        if (familyNameEditInput.trim().isNotBlank() && familyNameEditInput.trim() != currentFamilyName) {
+                            viewModel.updateFamilyName(familyNameEditInput)
+                        }
+                        if (managementMode != "individual" && roleEditInput.isNotBlank() && !roleEditInput.equals(currentFamilyRole, ignoreCase = true)) {
+                            viewModel.updateMyRole(roleEditInput)
+                        }
                         showEditAliasDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
                 ) {
-                    Text("Guardar Alias", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Guardar Cambios", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEditAliasDialog = false }) {
+                    Text("Cancelar", color = paper.inkMuted)
+                }
+            }
+        )
+    }
+
+    if (showSwitchFamilyDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isSwitchingFamily) showSwitchFamilyDialog = false },
+            containerColor = paper.sheet,
+            title = { Text("🔑 Unirme a otro Hogar", fontWeight = FontWeight.Black, color = paper.ink) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Ingresa el Código Familiar que te compartió el administrador. Cambiarás tu espacio activo a ese hogar compartido:",
+                        fontSize = 12.sp,
+                        color = paper.inkMuted
+                    )
+                    OutlinedTextField(
+                        value = switchFamilyCodeInput,
+                        onValueChange = { switchFamilyCodeInput = viewModel.normalizeFamilyCode(it).take(16) },
+                        label = { Text("Código Familiar (Ej: A1B2C3D4)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    switchFamilyError?.let { err ->
+                        Text(
+                            text = err,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (paper.isDark) FamiCoralLight else AlertRed
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !isSwitchingFamily && switchFamilyCodeInput.length >= 4,
+                    onClick = {
+                        isSwitchingFamily = true
+                        switchFamilyError = null
+                        viewModel.switchToExistingFamilyByCode(switchFamilyCodeInput) { ok, msg ->
+                            isSwitchingFamily = false
+                            if (ok) {
+                                showSwitchFamilyDialog = false
+                            } else {
+                                switchFamilyError = msg
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FamiCoral)
+                ) {
+                    if (isSwitchingFamily) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text("Unirme al Hogar", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isSwitchingFamily,
+                    onClick = { showSwitchFamilyDialog = false }
+                ) {
                     Text("Cancelar", color = paper.inkMuted)
                 }
             }
@@ -1533,6 +2056,61 @@ fun ConfigMainContent(
 }
 
 @Composable
+private fun PermissionStatusRow(
+    title: String,
+    subtitle: String,
+    granted: Boolean,
+    actionLabel: String = if (granted) "Activo" else "Activar",
+    onAction: () -> Unit
+) {
+    val paper = FamiTheme.paper
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = paper.sheetCream,
+        border = BorderStroke(1.dp, paper.border.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    color = paper.ink
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 10.sp,
+                    color = paper.inkMuted
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                onClick = onAction,
+                shape = RoundedCornerShape(9.dp),
+                color = if (granted) paper.stickyMint else paper.stickyPeach,
+                border = BorderStroke(1.dp, if (granted) FamiEmerald else FamiCoral)
+            ) {
+                Text(
+                    text = if (granted) "✓ $actionLabel" else actionLabel,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (granted) (if (paper.isDark) FamiEmerald else Lip3DMint) else (if (paper.isDark) FamiCoralLight else FamiCoralDeep),
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
     val paper = FamiTheme.paper
     val s = LocalFamiStrings.current
@@ -1546,6 +2124,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
     var profileNameInput by remember { mutableStateOf("") }
     var profileColorHexSelected by remember { mutableStateOf("#D0BCFF") }
     var profileAvatarIdSelected by remember { mutableStateOf("woman_1") }
+    var profileRoleSelected by remember { mutableStateOf("Miembro familiar") }
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val managementMode by viewModel.managementMode.collectAsStateWithLifecycle()
@@ -1598,6 +2177,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                             isEditingProfile = false
                             editingProfile = null
                             profileNameInput = ""
+                            profileRoleSelected = "Miembro familiar"
                             profileAvatarIdSelected = AvatarCatalog.ALL.first().id
                             showProfileCreatorDialog = true
                         },
@@ -1606,6 +2186,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                             editingProfile = p
                             profileNameInput = p.name
                             profileColorHexSelected = p.colorHex
+                            profileRoleSelected = p.role.ifBlank { "Miembro familiar" }
                             profileAvatarIdSelected = p.avatarId.ifBlank { "woman_1" }
                             showProfileCreatorDialog = true
                         },
@@ -1655,6 +2236,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                             isEditingProfile = false
                             editingProfile = null
                             profileNameInput = ""
+                            profileRoleSelected = "Miembro familiar"
                             profileAvatarIdSelected = AvatarCatalog.ALL.first().id
                             showProfileCreatorDialog = true
                         },
@@ -1663,6 +2245,7 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                             editingProfile = p
                             profileNameInput = p.name
                             profileColorHexSelected = p.colorHex
+                            profileRoleSelected = p.role.ifBlank { "Miembro familiar" }
                             profileAvatarIdSelected = p.avatarId.ifBlank { "woman_1" }
                             showProfileCreatorDialog = true
                         },
@@ -1694,7 +2277,10 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     OutlinedTextField(
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         value = profileNameInput,
@@ -1704,6 +2290,34 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
+                    Text(
+                        "Rol y permisos en el hogar:",
+                        fontSize = 12.sp,
+                        color = paper.ink,
+                        fontWeight = FontWeight.Bold
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        com.example.currency.CountryCurrencyConfig.FAMILY_ROLES.forEach { roleOpt ->
+                            val isSel = profileRoleSelected.equals(roleOpt.labelEs, ignoreCase = true)
+                            Surface(
+                                onClick = { profileRoleSelected = roleOpt.labelEs },
+                                shape = RoundedCornerShape(9.dp),
+                                color = if (isSel) FamiCoral else paper.sheetCream,
+                                border = BorderStroke(1.dp, if (isSel) FamiCoral else paper.border.copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = "${roleOpt.emoji} ${roleOpt.labelEs}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSel) Color.White else paper.ink,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
                     Text(
                         "Elige su avatar:",
                         fontSize = 12.sp,
@@ -1778,9 +2392,9 @@ fun ConfigTab(viewModel: FamilyViewModel, onOpenGuide: () -> Unit = {}) {
                     onClick = {
                         if (profileNameInput.isNotBlank() && !profileNameInput.contains("@")) {
                             if (isEditingProfile && editingProfile != null) {
-                                viewModel.editProfile(editingProfile!!, profileNameInput, profileColorHexSelected, profileAvatarIdSelected)
+                                viewModel.editProfile(editingProfile!!, profileNameInput, profileColorHexSelected, profileAvatarIdSelected, profileRoleSelected)
                             } else {
-                                viewModel.createProfile(profileNameInput, profileColorHexSelected, profileAvatarIdSelected)
+                                viewModel.createProfile(profileNameInput, profileColorHexSelected, profileAvatarIdSelected, profileRoleSelected)
                             }
                             profileNameInput = ""
                             showProfileCreatorDialog = false

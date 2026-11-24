@@ -30,22 +30,23 @@ Fami combina la calidez táctil de un cuaderno físico familiar/personal y notit
 - `--fami-emerald`: `#00A87E` en app / `#007A58` en texto web sobre claro (Éxito / Ingresos / Tasas)
 - `--fami-gold`: `#FFB800` (Acento / Destacado)
 
-### Modo Nocturno ("Midnight Ink" — `DarkPaperColors`)
-- `--bg-desk` / `desk`: `#0B0E24` (Mesa nocturna azul medianoche)
-- `--surface-sheet` / `sheet`: `#131B3E` (Hoja nocturna)
-- `--surface-cream` / `sheetCream`: `#1A2452` (Superficie secundaria nocturna)
-- `--sticky-yellow` / `stickyYellow`: `#242B4D` (Notita nocturna cálida)
-- `--sticky-mint` / `stickyMint`: `#133638` (Notita menta nocturna)
-- `--sticky-peach` / `stickyPeach`: `#33202A` (Notita durazno nocturna)
-- `--sticky-sky` / `stickySky`: `#162B4D` (Notita cielo nocturna)
-- `--ink-primary` / `ink`: `#F6F7FF` (Tinta blanca cálida — contraste AAA)
-- `--ink-muted` / `inkMuted`: `#B8C3E6` (Tinta secundaria nocturna — contraste > 7:1)
-- `--border-ink` / `border`: `#4E63B8` (Borde entintado nocturno)
-- `--shadow-3d` / `shadow3D`: `#050713` (Sombra 3D profunda)
-- `--lip-paper` / `lipPaper`: `#080B1C` (Labio 3D nocturno)
-- `--ruled-line` / `ruledLine`: `rgba(116, 146, 224, 0.16)`
-- `--margin-line` / `marginLine`: `rgba(245, 118, 86, 0.30)`
-- **Regla de contraste en Modo Nocturno**: Nunca usar `FamiCoralDeep` (`#B53018`) sobre `sheet`, `stickyPeach` o `stickyYellow` oscuros; usar siempre `FamiCoralLight` (`#FF8C6B`) o `paper.ink` (`#F6F7FF`).
+### Modo Nocturno ("Papel Grafito Cálido / Warm Graphite Sketchbook" — `DarkPaperColors`)
+- `--bg-desk` / `desk`: `#111113` (Mesa / pasta grafito carbón profundo)
+- `--surface-sheet` / `sheet`: `#1C1C20` (Hoja principal de papel grafito mate)
+- `--surface-cream` / `sheetCream`: `#25252B` (Superficie secundaria grafito elevada)
+- `--sticky-yellow` / `stickyYellow`: `#2F2B20` (Notita ámbar arena grafito)
+- `--sticky-mint` / `stickyMint`: `#1B2E29` (Notita salvia/menta grafito)
+- `--sticky-peach` / `stickyPeach`: `#332321` (Notita terracota suave grafito)
+- `--sticky-sky` / `stickySky`: `#1E2833` (Notita pizarra cielo grafito)
+- `--sticky-lavender` / `stickyLavender`: `#292333` (Notita lavanda humo grafito)
+- `--ink-primary` / `ink`: `#F3F0E8` (Tinta marfil/tiza cálida — contraste AAA > 13.5:1)
+- `--ink-muted` / `inkMuted`: `#A9A59D` (Tinta arena grafito — contraste > 6.5:1)
+- `--border-ink` / `border`: `#42424C` (Borde entintado grafito refinado, sin saturación neón)
+- `--shadow-3d` / `shadow3D`: `#08080A` (Sombra 3D profunda grafito)
+- `--lip-paper` / `lipPaper`: `#0D0D10` (Labio 3D grafito)
+- `--ruled-line` / `ruledLine`: `#32323A` al 56%–68% (Renglón sutil de libreta)
+- `--margin-line` / `marginLine`: `#F57656` al 50% (Margen vertical coral suave)
+- **Regla de contraste en Modo Nocturno**: Nunca usar `FamiCoralDeep` (`#DD5E35`) sobre `sheet`, `stickyPeach` o `stickyYellow` oscuros; usar siempre `FamiCoralLight` (`#F57656`) o `paper.ink` (`#F3F0E8`).
 
 ---
 

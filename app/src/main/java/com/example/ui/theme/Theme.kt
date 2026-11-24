@@ -61,9 +61,9 @@ private val DarkPaperPalette = FamiPaperPalette(
     ink = DarkInk,
     inkMuted = DarkInkMuted,
     border = DarkPaperBorder,
-    shadow3D = Color(0xFF02040D),
+    shadow3D = Color(0xFF08080A),
     ruleLine = DarkPaperRuler,
-    marginLine = FamiCoralLight.copy(alpha = 0.78f),
+    marginLine = FamiCoralLight.copy(alpha = 0.50f),
     stickyYellow = DarkStickyYellow,
     stickyPeach = DarkStickyPeach,
     stickyMint = DarkStickyMint,
@@ -71,7 +71,7 @@ private val DarkPaperPalette = FamiPaperPalette(
     stickyLavender = DarkStickyLavender,
     alertBg = DarkAlertRedBg,
     lipPaper = Lip3DPaperDark,
-    lipNavy = Color(0xFF080D24)
+    lipNavy = Color(0xFF141418)
 )
 
 val LocalFamiPaperPalette = staticCompositionLocalOf { LightPaperPalette }

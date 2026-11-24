@@ -330,7 +330,7 @@ fun InAppGuideOverlay(
                 .fillMaxSize()
                 .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         ) {
-            drawRect(color = Color(0xFF060A18).copy(alpha = 0.78f))
+            drawRect(color = Color(0xFF09090B).copy(alpha = 0.78f))
 
             val spotSize = Size(
                 (spotlightRect.width).coerceAtLeast(16f),
